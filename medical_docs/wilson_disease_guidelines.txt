@@ -1,0 +1,62 @@
+================================================================================
+WILSON'S DISEASE CLINICAL PRACTICE GUIDELINES & MEDICAL REFERENCE MANUAL
+================================================================================
+
+1. OVERVIEW & PATHOPHYSIOLOGY
+Wilson's disease (hepatolenticular degeneration) is an autosomal recessive disorder of copper metabolism caused by mutations in the ATP7B gene located on chromosome 13q14. 
+The ATP7B protein is a P-type copper-transporting ATPase expressed predominantly in hepatocytes. Mutations impair biliary copper excretion and incorporation of copper into ceruloplasmin. 
+As a result, copper accumulates in the liver, brain, cornea, kidneys, and erythrocytes, leading to progressive copper toxicity.
+
+2. CLINICAL PRESENTATION
+- Hepatic Presentation: Asymptomatic elevated liver enzymes (ALT, AST), chronic hepatitis, cirrhosis, acute liver failure (often accompanied by Coombs-negative hemolytic anemia).
+- Neurological Presentation: Tremor, dysarthria, dystonia, Parkinsonism, ataxia, gait disturbances, and handwriting deterioration.
+- Psychiatric Presentation: Personality changes, depression, emotional lability, psychosis, and cognitive impairment.
+- Ocular Presentation: Kayser-Fleischer (KF) rings (copper deposition in Descemet's membrane of the cornea), visible via slit-lamp examination. Sunflower cataracts.
+
+3. DIAGNOSTIC CRITERIA & LEIPZIG SCORE
+- Serum Ceruloplasmin: Normal level is 20-40 mg/dL. Levels < 10 mg/dL strongly suggest Wilson's disease.
+- 24-Hour Urinary Copper Excretion: Normal is < 40 µg/24h (0.6 µmol/24h). Values > 100 µg/24h in adults (or > 40 µg/24h in children) support diagnosis.
+- Free (Non-Ceruloplasmin-Bound) Serum Copper: Calculated as: Total Serum Copper (µg/dL) - [3 x Ceruloplasmin (mg/dL)]. Elevated above 15-25 µg/dL.
+- Kayser-Fleischer Rings: Present in > 90% of neurological cases and ~50% of hepatic cases.
+- Hepatic Copper Content: Liver biopsy showing > 250 µg/g dry weight of copper (gold standard).
+- Genetic Testing: Identification of homozygous or compound heterozygous mutations in ATP7B gene.
+
+4. TREATMENT & PHARMACOTHERAPY
+The primary goal of medical therapy is to remove accumulated toxic copper (chelation) and block intestinal copper absorption.
+
+A. Initial De-coppering / Chelation Therapy (Symptomatic / High Copper Burden):
+- D-Penicillamine:
+  * Mechanism: Potent chelating agent promoting urinary excretion of copper.
+  * Adult Dosage: 750 mg - 1500 mg daily in 2-4 divided doses (taken 1 hour before or 2 hours after meals).
+  * Mandatory Co-prescription: Pyridoxine (Vitamin B6) 25-50 mg daily to prevent deficiency.
+  * Side Effects: Initial neurological worsening (in ~20% of patients), hypersensitivity, proteinuria, lupus-like syndrome, nephrotic syndrome, bone marrow suppression.
+- Trientine Dihydrochloride (Trientine):
+  * Mechanism: Alternative copper chelator, preferred in patients intolerant to D-Penicillamine or with neurological symptoms.
+  * Adult Dosage: 900 mg - 1500 mg daily in 2-3 divided doses on an empty stomach.
+  * Side Effects: Iron deficiency anemia, gastric irritation, dyssialia.
+
+B. Maintenance Therapy & Presymptomatic Patients:
+- Zinc Salts (Zinc Acetate / Zinc Gluconate):
+  * Mechanism: Induces intestinal metallothionein synthesis, which binds dietary copper in enterocytes and prevents intestinal absorption.
+  * Adult Dosage: 50 mg elemental zinc 3 times daily (150 mg/day total), taken at least 30 minutes before meals.
+  * Side Effects: Gastric discomfort, nausea.
+
+5. DIETARY MANAGEMENT & COPPER RESTRICTION
+Patients with Wilson's disease must strictly avoid foods high in copper, especially during the initial 1-2 years of de-coppering therapy:
+- Foods to Strict Avoid:
+  * Organ meats (liver, kidneys, heart)
+  * Shellfish (oysters, crab, lobster, clams)
+  * Nuts (cashews, almonds, walnuts, hazelnuts)
+  * Seeds (sunflower, sesame)
+  * Chocolate and cocoa products
+  * Mushrooms
+  * Dried fruits, raisins, and prunes
+- Water Supply Caution: Test well water or domestic plumbing for copper content. Avoid using copper cookware or unlined copper vessels.
+
+6. MONITORING & COMPLIANCE
+- Monitoring Parameters: 24-hour urinary copper, serum free copper, complete blood count (CBC), urinalysis, liver function tests (LFTs - ALT, AST, Bilirubin, Albumin, INR).
+- Target 24h Urine Copper:
+  * On Penicillamine/Trientine maintenance: 200 - 500 µg/day.
+  * On Zinc maintenance: 75 - 150 µg/day.
+- Target Free Serum Copper: Keep between 5 - 15 µg/dL.
+- Life-long Compliance: Medical therapy for Wilson's disease must NEVER be abruptly discontinued, as treatment cessation can precipitate fatal acute fulminant liver failure within months.

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroMed AI — Clinical Test Form</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  
+  <!-- PWA Progressive Web App Meta -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1e1b4b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Wilson AI" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+  <script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI <span class="brand-badge">RAG 2.0</span>
+      </a>
+
+      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+        ☰
+      </button>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper">
+
+    <!-- PAGE HEADER -->
+    <div class="card-glass">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h1 style="font-size: 28px; font-weight: 800; color: var(--dark); margin-bottom: 6px;">
+            🧪 Wilson's Disease Clinical Diagnostic Form
+          </h1>
+          <p style="font-size: 15px; color: var(--text-muted);">
+            Enter the patient's biochemical indicators to perform AI multi-model risk assessment, SHAP feature attribution, and RAG protocol lookup.
+          </p>
+        </div>
+
+        <!-- QUICK PRESET BUTTONS -->
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn-secondary btn-preset-healthy" onclick="fillHealthySample()">
+            🟢 Quick Fill: Healthy Sample
+          </button>
+          <button type="button" class="btn-secondary btn-preset-wilson" onclick="fillWilsonSample()">
+            🔴 Quick Fill: High-Risk Wilson
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INPUT FORM -->
+    <div class="card-glass">
+      <form action="/submit" method="post">
+        
+        <div class="form-grid">
+
+          <!-- SECTION 1: DEMOGRAPHICS -->
+          <div class="form-section-header">
+            👤 1. Patient Demographics & Background
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputAge">Age (Years)</label>
+            <input type="number" class="form-control-custom" id="inputAge" name="inputAge" placeholder="e.g. 24" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputGender">Sex</label>
+            <select class="form-control-custom" id="inputGender" name="inputGender" required>
+              <option value="">-- Select Sex --</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputRegion">Region</label>
+            <select class="form-control-custom" id="inputRegion" name="inputRegion" required>
+              <option value="Urban">Urban</option>
+              <option value="Rural">Rural</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputSocioeconomicStatus">Socioeconomic Status</label>
+            <select class="form-control-custom" id="inputSocioeconomicStatus" name="inputSocioeconomicStatus" required>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputBMI">BMI (kg/m²)</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputBMI" name="inputBMI" placeholder="e.g. 22.5" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputAlcoholUse">Alcohol Use</label>
+            <select class="form-control-custom" id="inputAlcoholUse" name="inputAlcoholUse" required>
+              <option value="False">No</option>
+              <option value="True">Yes</option>
+            </select>
+          </div>
+
+          <!-- SECTION 2: COPPER BIOCHEMISTRY -->
+          <div class="form-section-header">
+            🧪 2. Copper Metabolism & Serum Biochemistry
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputCeruloplasmin">Ceruloplasmin Level (mg/dL)</label>
+            <input type="number" step="0.01" class="form-control-custom" id="inputCeruloplasmin" name="inputCeruloplasmin" placeholder="Normal: 20-40" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputCopperBlood">Copper in Blood Serum (µg/dL)</label>
+            <input type="number" step="0.01" class="form-control-custom" id="inputCopperBlood" name="inputCopperBlood" placeholder="e.g. 110" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputFreeCopperBlood">Free Serum Copper (µg/dL)</label>
+            <input type="number" step="0.01" class="form-control-custom" id="inputFreeCopperBlood" name="inputFreeCopperBlood" placeholder="Normal: <15" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputCopperUrine">24-Hour Urinary Copper (µg/24h)</label>
+            <input type="number" step="0.01" class="form-control-custom" id="inputCopperUrine" name="inputCopperUrine" placeholder="Normal: <40" required>
+          </div>
+
+          <!-- SECTION 3: LIVER FUNCTION TESTS -->
+          <div class="form-section-header">
+            🩺 3. Liver Function Tests (LFTs)
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputALT">ALT (U/L)</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputALT" name="inputALT" placeholder="e.g. 35" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputAST">AST (U/L)</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputAST" name="inputAST" placeholder="e.g. 40" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputTotalBilirubin">Total Bilirubin (mg/dL)</label>
+            <input type="number" step="0.01" class="form-control-custom" id="inputTotalBilirubin" name="inputTotalBilirubin" placeholder="e.g. 1.1" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputAlbumin">Albumin (g/dL)</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputAlbumin" name="inputAlbumin" placeholder="e.g. 4.2" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputALP">Alkaline Phosphatase ALP (U/L)</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputALP" name="inputALP" placeholder="e.g. 95" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputProthrombin">Prothrombin Time / INR</label>
+            <input type="number" step="0.01" class="form-control-custom" id="inputProthrombin" name="inputProthrombin" placeholder="e.g. 1.1" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputGGT">GGT (U/L)</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputGGT" name="inputGGT" placeholder="e.g. 45" required>
+          </div>
+
+          <!-- SECTION 4: NEURO & GENETICS -->
+          <div class="form-section-header">
+            👁️ 4. Neurological, Ophthalmic & Genetic Indicators
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputKFR">Kayser-Fleischer (KF) Rings</label>
+            <select class="form-control-custom" id="inputKFR" name="inputKFR" required>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputNeurological">Neurological Symptoms Score</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputNeurological" name="inputNeurological" placeholder="0 - 10" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputPsychiatric">Psychiatric Symptoms</label>
+            <select class="form-control-custom" id="inputPsychiatric" name="inputPsychiatric" required>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputCognitive">Cognitive Function Score</label>
+            <input type="number" step="0.1" class="form-control-custom" id="inputCognitive" name="inputCognitive" placeholder="0 - 100" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputFamilyHistory">Family History</label>
+            <select class="form-control-custom" id="inputFamilyHistory" name="inputFamilyHistory" required>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputGeneMutation">ATP7B Gene Mutation</label>
+            <select class="form-control-custom" id="inputGeneMutation" name="inputGeneMutation" required>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div style="text-align: center; margin-top: 36px;">
+          <button type="submit" class="btn-prime" style="font-size: 17px; padding: 14px 40px;">
+            ⚡ RUN CLINICAL DIAGNOSTIC ASSESSMENT
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
+  </footer>
+
+  <!-- SCRIPT FOR PRESET QUICK FILLS -->
+  <script>
+    function fillHealthySample() {
+      document.getElementById('inputAge').value = 28;
+      document.getElementById('inputGender').value = 'Female';
+      document.getElementById('inputRegion').value = 'Urban';
+      document.getElementById('inputSocioeconomicStatus').value = 'High';
+      document.getElementById('inputBMI').value = 22.4;
+      document.getElementById('inputAlcoholUse').value = 'False';
+      
+      document.getElementById('inputCeruloplasmin').value = 28.5; // Normal
+      document.getElementById('inputCopperBlood').value = 115.0;  // Normal
+      document.getElementById('inputFreeCopperBlood').value = 8.2;   // Normal (<15)
+      document.getElementById('inputCopperUrine').value = 24.5;      // Normal (<40)
+      
+      document.getElementById('inputALT').value = 22.0;
+      document.getElementById('inputAST').value = 25.0;
+      document.getElementById('inputTotalBilirubin').value = 0.8;
+      document.getElementById('inputAlbumin').value = 4.4;
+      document.getElementById('inputALP').value = 85.0;
+      document.getElementById('inputProthrombin').value = 1.05;
+      document.getElementById('inputGGT').value = 28.0;
+      
+      document.getElementById('inputKFR').value = 'No';
+      document.getElementById('inputNeurological').value = 0.2;
+      document.getElementById('inputPsychiatric').value = 'No';
+      document.getElementById('inputCognitive').value = 95.0;
+      document.getElementById('inputFamilyHistory').value = 'No';
+      document.getElementById('inputGeneMutation').value = 'No';
+    }
+
+    function fillWilsonSample() {
+      document.getElementById('inputAge').value = 19;
+      document.getElementById('inputGender').value = 'Male';
+      document.getElementById('inputRegion').value = 'Rural';
+      document.getElementById('inputSocioeconomicStatus').value = 'Low';
+      document.getElementById('inputBMI').value = 25.2;
+      document.getElementById('inputAlcoholUse').value = 'False';
+      
+      document.getElementById('inputCeruloplasmin').value = 8.4;    // Abnormally Low (<10)
+      document.getElementById('inputCopperBlood').value = 235.0;   // Abnormally High
+      document.getElementById('inputFreeCopperBlood').value = 48.5;  // Abnormally High (>25)
+      document.getElementById('inputCopperUrine').value = 145.0;    // Abnormally High (>100)
+      
+      document.getElementById('inputALT').value = 88.0;             // Elevated LFT
+      document.getElementById('inputAST').value = 95.0;             // Elevated LFT
+      document.getElementById('inputTotalBilirubin').value = 2.4;  // Elevated
+      document.getElementById('inputAlbumin').value = 3.1;
+      document.getElementById('inputALP').value = 135.0;
+      document.getElementById('inputProthrombin').value = 1.35;
+      document.getElementById('inputGGT').value = 110.0;
+      
+      document.getElementById('inputKFR').value = 'Yes';            // Positive KF Rings
+      document.getElementById('inputNeurological').value = 6.8;     // High Neuro score
+      document.getElementById('inputPsychiatric').value = 'Yes';
+      document.getElementById('inputCognitive').value = 65.0;
+      document.getElementById('inputFamilyHistory').value = 'Yes';
+      document.getElementById('inputGeneMutation').value = 'Yes';   // ATP7B positive
+    }
+    function toggleNavMenu() {
+      const links = document.getElementById('main-nav-links');
+      if (links) links.classList.toggle('nav-open');
+    }
+  </script>
+
+
+</body>
+</html>

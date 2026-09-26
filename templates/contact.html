@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroMed AI — Clinical Support & Contact</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  
+  <!-- PWA Progressive Web App Meta -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1e1b4b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Wilson AI" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+  <script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI <span class="brand-badge">RAG 2.0</span>
+      </a>
+
+      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+        ☰
+      </button>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('contact') }}">Support</a></li>
+        <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper">
+
+    <div class="card-glass">
+      <h1 style="font-size: 28px; font-weight: 800; color: var(--dark); margin-bottom: 8px;">
+        📬 Clinical Support & Consultation Center
+      </h1>
+      <p style="font-size: 15px; color: var(--text-muted); margin-bottom: 24px;">
+        For technical assistance, RAG knowledge base updates, or clinical AI integration queries, reach out to our medical intelligence engineering team.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+        
+        <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <h3 style="font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+            🏥 Hepatology & Genetics Consultation
+          </h3>
+          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">
+            Email: <strong>support@neuromed.ai</strong>
+          </p>
+          <p style="font-size: 14px; color: var(--text-muted);">
+            Emergency Helpline: <strong>+1 (800) 555-NEURO</strong>
+          </p>
+        </div>
+
+        <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <h3 style="font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+            🤖 AI RAG Vectorstore Management
+          </h3>
+          <p style="font-size: 14px; color: var(--text-muted);">
+            To upload custom medical guideline PDFs or update local ChromaDB embeddings, place documents inside the <code>medical_docs/</code> folder and execute <code>python build_vectorstore.py</code>.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
+  </footer>
+
+  <script>
+    function toggleNavMenu() {
+      const links = document.getElementById('main-nav-links');
+      if (links) links.classList.toggle('nav-open');
+    }
+  </script>
+</body>
+</html>

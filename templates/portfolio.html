@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroMed AI — Ophthalmic Scan & Kayser-Fleischer Ring Assessment</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  
+  <!-- PWA Progressive Web App Meta -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1e1b4b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Wilson AI" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+  <script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI <span class="brand-badge">RAG 2.0</span>
+      </a>
+
+      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+        ☰
+      </button>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper">
+
+    <div class="card-glass">
+      <h1 style="font-size: 28px; font-weight: 800; color: var(--dark); margin-bottom: 8px;">
+        👁️ Kayser-Fleischer (KF) Ring Clinical Assessment Guide
+      </h1>
+      <p style="font-size: 15px; color: var(--text-muted); margin-bottom: 24px;">
+        Kayser-Fleischer rings represent golden-brown copper deposition in Descemet's membrane of the cornea and are present in >90% of Wilson's Disease patients with neurological involvement.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+        
+        <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <h3 style="font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+            🔍 Slit-Lamp Examination Criteria
+          </h3>
+          <ul style="padding-left: 20px; font-size: 14px; color: var(--text-main); line-height: 1.8;">
+            <li><strong>Location:</strong> Peripheral limbus of the cornea in Descemet's membrane.</li>
+            <li><strong>Color:</strong> Golden-brown, greenish, or brownish copper ring.</li>
+            <li><strong>Reversibility:</strong> KF rings fade and completely disappear during successful chelation therapy (Penicillamine/Trientine).</li>
+          </ul>
+        </div>
+
+        <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <h3 style="font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+            🧪 Diagnostic Correlation
+          </h3>
+          <ul style="padding-left: 20px; font-size: 14px; color: var(--text-main); line-height: 1.8;">
+            <li><strong>Neurological Cases:</strong> KF rings are present in ~95% of patients presenting with tremor or dysarthria.</li>
+            <li><strong>Hepatic Cases:</strong> KF rings are present in ~50% of hepatic presentations.</li>
+            <li><strong>Leipzig Score Point:</strong> Presence of KF rings adds +2 points to the Leipzig Diagnostic Score.</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div style="text-align: center; margin-top: 32px;">
+        <a href="{{ url_for('about') }}" class="btn-prime">
+          🧪 Proceed to Complete Diagnostic Test Form
+        </a>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
+  </footer>
+
+  <script>
+    function toggleNavMenu() {
+      const links = document.getElementById('main-nav-links');
+      if (links) links.classList.toggle('nav-open');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wilson Disease Diagnostic Report — NeuroMed AI</title>
+
+  <!-- Modern Theme CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+
+  <!-- PWA Progressive Web App Meta -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1e1b4b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Wilson AI" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+  <script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
+
+  <style>
+    /* Table & Card Customizations */
+    .report-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: white;
+      padding: 32px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 28px;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-weight: 800;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-positive {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .status-negative {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+    .data-table-container {
+      background: white;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-top: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .data-table th {
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 14px 18px;
+      font-weight: 700;
+      text-align: left;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .data-table td {
+      padding: 12px 18px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+    }
+    .data-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .data-table tr:hover {
+      background: #f1f5f9;
+    }
+    .eval-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .eval-normal { background: #d1fae5; color: #065f46; }
+    .eval-abnormal-high { background: #fee2e2; color: #991b1b; }
+    .eval-abnormal-low { background: #fef3c7; color: #92400e; }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI <span class="brand-badge">RAG 2.0</span>
+      </a>
+
+      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+        ☰
+      </button>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper">
+
+    <!-- ACTION CONTROLS -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+      <a href="{{ url_for('about') }}" class="btn-secondary">
+        ⬅ Back to Input Form
+      </a>
+      
+      <button onclick="window.print()" class="btn-prime">
+        🖨️ Download / Print Diagnostic PDF Report
+      </button>
+    </div>
+
+    <!-- REPORT HEADER BLOCK -->
+    <div class="report-header">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+        <div>
+          <span style="color: #a5b4fc; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">
+            CLINICAL DIAGNOSTIC EVALUATION REPORT
+          </span>
+          <h1 style="font-size: 32px; font-weight: 800; margin-top: 4px; margin-bottom: 8px; letter-spacing: -0.5px;">
+            Wilson's Disease AI Assessment
+          </h1>
+          <p style="color: #cbd5e1; font-size: 14px;">
+            Synthesized via Multi-Model ML Stacking Ensemble (SVM + LogReg + Bi-LSTM) & SHAP Explainable AI.
+          </p>
+        </div>
+
+        <div>
+          {% if "Positive" in prediction_text %}
+          <div class="status-pill status-positive">
+            🚨 {{ prediction_text }}
+          </div>
+          {% else %}
+          <div class="status-pill status-negative">
+            💚 {{ prediction_text }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- COLLAPSIBLE CONTROLS TOOLBAR -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+      <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">
+        📑 Interactive Diagnostic Sections:
+      </span>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" onclick="expandAllCards()" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+          📂 Expand All
+        </button>
+        <button type="button" onclick="collapseAllCards()" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+          📁 Collapse All
+        </button>
+      </div>
+    </div>
+
+    <!-- RISK GAUGE & METRIC DIAL -->
+    <div class="card-glass collapsible-card" id="card-gauge">
+      <div class="collapsible-trigger" onclick="toggleCard('card-gauge')">
+        <h2 class="section-title" style="margin-bottom: 0;">⚡ Diagnostic Risk Score & Model Confidence</h2>
+        <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
+      </div>
+
+      <div class="collapsible-content">
+        <div class="risk-gauge-container" style="margin-top: 16px;">
+          
+          <!-- SVG Gauge Circle -->
+          <div style="position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+            <svg width="160" height="160" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="10" />
+              <circle cx="60" cy="60" r="50" fill="none" 
+                      stroke="{% if probability > 0.5 %}#ef4444{% else %}#10b981{% endif %}" 
+                      stroke-width="10" 
+                      stroke-dasharray="314" 
+                      stroke-dashoffset="{{ 314 - (314 * probability) }}" 
+                      stroke-linecap="round" 
+                      transform="rotate(-90 60 60)" 
+                      style="transition: stroke-dashoffset 1s ease-in-out;" />
+            </svg>
+            <div style="position: absolute; text-align: center;">
+              <span style="font-size: 28px; font-weight: 800; color: var(--dark);">{{ (probability * 100) | round(1) }}%</span>
+              <span style="display: block; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">DIAGNOSTIC RISK</span>
+            </div>
+          </div>
+
+          <!-- Metric Details -->
+          <div style="max-width: 550px;">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--dark); margin-bottom: 8px;">
+              AI Stacking Ensemble Analysis
+            </h3>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6;">
+              The model probability score represents the meta-classifier's ensemble assessment. A score above 50% indicates elevated biochemical and clinical markers associated with Wilson's disease.
+            </p>
+
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+              <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
+                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">CLASSIFICATION PROBABILITY</span>
+                <strong style="font-size: 18px; color: var(--dark);">{{ probability }}</strong>
+              </div>
+
+              <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
+                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">DECISION CONFIDENCE</span>
+                <strong style="font-size: 18px; color: {% if probability > 0.8 or probability < 0.2 %}var(--success){% else %}var(--warning){% endif %};">
+                  {% if probability > 0.8 or probability < 0.2 %}High Confidence{% else %}Moderate Confidence{% endif %}
+                </strong>
+              </div>
+            </div>
+
+            {% if model_breakdown %}
+            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
+                🧬 Constituent Model Voting Consensus:
+              </span>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+                <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL A — SVM</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ model_breakdown.svm }}%</div>
+                  <div style="font-size: 10px; color: #64748b;">RBF Kernel Non-Linear</div>
+                </div>
+                <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — LOGREG</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ model_breakdown.logreg }}%</div>
+                  <div style="font-size: 10px; color: #64748b;">Linear Statistical Odds</div>
+                </div>
+                {% if model_breakdown.bilstm is not none %}
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
+                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL C — BI-LSTM</div>
+                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ model_breakdown.bilstm }}%</div>
+                  <div style="font-size: 10px; color: #16a34a;">Deep Recurrent Net</div>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RAG CLINICAL DECISION SUPPORT -->
+    {% if clinical_advice %}
+    <div class="card-glass collapsible-card" id="card-rag" style="border-left: 6px solid var(--primary); background: linear-gradient(135deg, #ffffff, #f0f4ff);">
+      <div class="collapsible-trigger" onclick="toggleCard('card-rag')">
+        <h2 class="section-title" style="margin-bottom: 0;">
+          🩺 Clinical Recommendations (RAG Support)
+        </h2>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
+            💬 Chat
+          </button>
+          <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
+        </div>
+      </div>
+
+      <div class="collapsible-content">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          Evidence-based recommendations retrieved from Wilson's Disease Clinical Guidelines (AASLD/EASL) via LangChain + ChromaDB vector retrieval.
+        </p>
+
+        <div style="background: #ffffff; padding: 20px; border-radius: var(--radius-md); border: 1px solid #c7d2fe; font-size: 14px; line-height: 1.7; color: var(--dark); overflow-x: auto;">
+          <div style="white-space: pre-wrap;">{{ clinical_advice | safe }}</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- CLINICAL PARAMETERS TABLE FORMAT -->
+    <div class="card-glass collapsible-card" id="card-table">
+      <div class="collapsible-trigger" onclick="toggleCard('card-table')">
+        <h2 class="section-title" style="margin-bottom: 0;">📌 Patient Biochemical Data & Clinical Evaluation</h2>
+        <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
+      </div>
+
+      <div class="collapsible-content">
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+          Structured table displaying patient clinical measurements alongside standard medical reference ranges.
+        </p>
+
+        <div class="data-table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Clinical Indicator / Parameter</th>
+                <th>Measured Value</th>
+                <th>Reference Boundary</th>
+                <th>Clinical Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for key, value in data.items() %}
+              <tr>
+                <td><strong style="color: var(--dark);">{{ key.replace("_", " ").title() }}</strong></td>
+                <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ value }}</code></td>
+                
+                <!-- REFERENCE RANGES -->
+                <td style="color: var(--text-muted); font-size: 13px;">
+                  {% if "Ceruloplasmin" in key %} 20.0 – 40.0 mg/dL
+                  {% elif "Free Copper" in key %} < 15.0 µg/dL
+                  {% elif "Urine" in key %} < 40.0 µg/24h
+                  {% elif "Alt" in key or "Ast" in key %} < 40.0 U/L
+                  {% elif "Bilirubin" in key %} 0.2 – 1.2 mg/dL
+                  {% elif "Albumin" in key %} 3.5 – 5.0 g/dL
+                  {% elif "Kayser" in key %} Negative ("No")
+                  {% else %} Standard Clinical Metric
+                  {% endif %}
+                </td>
+
+                <!-- STATUS BADGES -->
+                <td>
+                  {% if "Ceruloplasmin" in key and (value|float) < 20.0 %}
+                    <span class="eval-badge eval-abnormal-low">⚠️ Abnormally Low (<20)</span>
+                  {% elif "Free Copper" in key and (value|float) > 15.0 %}
+                    <span class="eval-badge eval-abnormal-high">🚨 Elevated Free Copper (>15)</span>
+                  {% elif "Urine" in key and (value|float) > 40.0 %}
+                    <span class="eval-badge eval-abnormal-high">🚨 Elevated Urine Copper (>40)</span>
+                  {% elif "Kayser" in key and value == "Yes" %}
+                    <span class="eval-badge eval-abnormal-high">🚨 KF Rings Present</span>
+                  {% else %}
+                    <span class="eval-badge eval-normal">✅ Normal / Within Range</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEIPZIG SCORE BREAKDOWN & CLINICAL ACTION CHECKLIST -->
+    <div class="card-glass collapsible-card" id="card-checklist">
+      <div class="collapsible-trigger" onclick="toggleCard('card-checklist')">
+        <h2 class="section-title" style="margin-bottom: 0;">📋 Leipzig Criteria & Diagnostic Checklist</h2>
+        <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
+      </div>
+
+      <div class="collapsible-content">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+              🔍 Leipzig Criteria Contribution
+            </h4>
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8;">
+              <li>Ceruloplasmin < 10 mg/dL: <strong>+2 points</strong></li>
+              <li>24h Urine Copper > 100 µg/24h: <strong>+2 points</strong></li>
+              <li>Kayser-Fleischer Rings Present: <strong>+2 points</strong></li>
+              <li>ATP7B Mutation Present: <strong>+2 points</strong></li>
+            </ul>
+          </div>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+              📑 Physician Next Steps
+            </h4>
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8;">
+              <li>Confirm diagnosis via 24-hour urinary copper re-test.</li>
+              <li>Perform ophthalmic slit-lamp exam for KF rings.</li>
+              <li>Initiate initial chelation therapy if confirmed.</li>
+              <li>Screen first-degree family members (siblings/children).</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPLAINABLE AI (SHAP PLOTS) SECTION -->
+    <div class="card-glass collapsible-card" id="card-shap">
+      <div class="collapsible-trigger" onclick="toggleCard('card-shap')">
+        <h2 class="section-title" style="margin-bottom: 0;">📊 Explainable AI (SHAP Feature Attribution)</h2>
+        <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
+      </div>
+
+      <div class="collapsible-content">
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">
+          SHAP (SHapley Additive exPlanations) visualizes how each biochemical feature pushed the diagnosis towards Positive (red) or Negative (blue).
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+
+          {% if shap_force %}
+          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
+              🔍 Force Plot (Patient Local Risk Attribution)
+            </h3>
+            <img src="{{ url_for('static', filename=shap_force) }}" alt="SHAP Force Plot" style="width: 100%; border-radius: 8px;">
+          </div>
+          {% endif %}
+
+          {% if shap_beeswarm %}
+          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
+              🌡️ Beeswarm Plot (Global Feature Distribution & Impact)
+            </h3>
+            <img src="{{ url_for('static', filename=shap_beeswarm) }}" alt="SHAP Beeswarm Plot" style="width: 100%; border-radius: 8px;">
+          </div>
+          {% endif %}
+
+          {% if shap_bar %}
+          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
+              📌 Feature Importance Ranking (Bar Plot)
+            </h3>
+            <img src="{{ url_for('static', filename=shap_bar) }}" alt="SHAP Bar Plot" style="width: 100%; border-radius: 8px;">
+          </div>
+          {% endif %}
+
+          {% if not shap_force and not shap_beeswarm and not shap_bar %}
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; color: var(--text-muted);">
+            SHAP feature attribution plots are generated dynamically during assessment.
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
+  </footer>
+
+  <!-- PROMINENT FLOATING RAG CHATBOT WIDGET -->
+  <div id="chat-toggle" onclick="toggleChat()" style="position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #4f46e5, #0ea5e9); color: white; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 28px rgba(79, 70, 229, 0.5); font-size: 34px; z-index: 10000; border: 3px solid #ffffff; transition: transform 0.2s ease;">
+    💬
+  </div>
+
+  <style>
+    @keyframes popupSlideIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+
+  <div id="chat-widget" style="display: flex; position: fixed; bottom: 110px; right: 30px; width: 420px; height: 550px; background: white; border-radius: 20px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25); border: 1px solid var(--border); flex-direction: column; overflow: hidden; z-index: 10000; font-family: inherit; animation: popupSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
+    
+    <!-- CHAT HEADER -->
+    <div style="background: linear-gradient(135deg, #0f172a, #1e1b4b); color: white; padding: 14px 18px; font-weight: 800; font-size: 15px; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 18px;">🤖</span>
+        <span>Wilson Medical RAG Assistant</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button id="tts-toggle-btn" type="button" onclick="toggleAutoTTS()" title="Auto Voice Output (Read aloud answers)" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 700; transition: all 0.2s ease;">
+          <span id="tts-icon">🔊</span> <span id="tts-label">Voice: ON</span>
+        </button>
+        <span onclick="toggleChat(false)" style="cursor: pointer; font-size: 18px; opacity: 0.8; padding: 2px 6px;" title="Minimize Chat">✖</span>
+      </div>
+    </div>
+
+    <!-- QUICK QUESTION SUGGESTION CHIPS -->
+    <div style="background: #f8fafc; padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; overflow-x: auto; white-space: nowrap;">
+      <span onclick="sendQuickChip('How are you?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">👋 How are you?</span>
+      <span onclick="sendQuickChip('What does my {{ (probability * 100)|round(1) }}% risk score mean?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🩺 Explain my {{ (probability * 100)|round(1) }}% risk</span>
+      <span onclick="sendQuickChip('What foods should I avoid for this report?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🥑 Foods to avoid?</span>
+      <span onclick="sendQuickChip('What precautions and treatment plan should I follow?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🛡️ Precautions & Plan</span>
+      <span onclick="sendQuickChip('What is Ceruloplasmin?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🔬 What is Ceruloplasmin?</span>
+      <span onclick="sendQuickChip('What is RAG in NeuroMed AI?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🤖 What is RAG?</span>
+    </div>
+
+    <!-- CHAT MESSAGES CONTAINER -->
+    <div id="chat-messages" style="flex: 1; padding: 18px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+      <div style="background: #e0e7ff; padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: #3730a3; line-height: 1.5; font-weight: 500;">
+        Hello! I am your RAG Clinical Assistant with Voice Support 🎙️. Ask me anything about Wilson's Disease diagnosis, chelation therapy, or dietary guidelines!
+      </div>
+    </div>
+
+    <!-- MIC LISTENING STATUS BAR -->
+    <div id="mic-status-bar" style="display: none; background: #fee2e2; color: #991b1b; padding: 6px 14px; font-size: 11px; font-weight: 700; text-align: center; border-top: 1px solid #fca5a5;">
+      🔴 Listening to medical query... Speak now! Tap 🎙️ to stop.
+    </div>
+
+    <!-- CHAT INPUT -->
+    <div style="padding: 10px 12px; background: white; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center;">
+      <button id="mic-btn" type="button" onclick="toggleVoiceInput()" title="Speak your query (Voice Input)" style="background: #f1f5f9; color: var(--primary); border: 1px solid var(--border); width: 42px; height: 42px; border-radius: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+        <span id="mic-icon">🎙️</span>
+      </button>
+      <input type="text" id="chat-input" placeholder="Type or speak a clinical query..." onkeypress="handleKeyPress(event)" style="flex: 1; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; font-size: 13px;">
+      <button id="send-btn" onclick="sendChatMessage()" style="background: var(--primary); color: white; border: none; padding: 11px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; flex-shrink: 0;">Send</button>
+    </div>
+  </div>
+
+  <script>
+    function toggleNavMenu() {
+      const links = document.getElementById('main-nav-links');
+      if (links) links.classList.toggle('nav-open');
+    }
+
+    function toggleCard(cardId) {
+      const card = document.getElementById(cardId);
+      if (card) {
+        card.classList.toggle('collapsed');
+        const txt = card.querySelector('.badge-txt');
+        if (txt) {
+          txt.textContent = card.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+        }
+      }
+    }
+
+    function expandAllCards() {
+      document.querySelectorAll('.collapsible-card').forEach(c => {
+        c.classList.remove('collapsed');
+        const txt = c.querySelector('.badge-txt');
+        if (txt) txt.textContent = 'Collapse';
+      });
+    }
+
+    function collapseAllCards() {
+      document.querySelectorAll('.collapsible-card').forEach(c => {
+        c.classList.add('collapsed');
+        const txt = c.querySelector('.badge-txt');
+        if (txt) txt.textContent = 'Expand';
+      });
+    }
+
+    // Contextual Patient Report Data for RAG Chatbot
+    window.CURRENT_PATIENT_REPORT = {
+      prediction: "{{ prediction_text }}",
+      probability: {{ (probability * 100)|round(1) }},
+      data: {{ data|tojson }}
+    };
+
+    let chatOpen = true;
+    let autoTTS = true;
+    let recognition = null;
+    let isListening = false;
+
+    function toggleAutoTTS() {
+      autoTTS = !autoTTS;
+      const icon = document.getElementById('tts-icon');
+      const label = document.getElementById('tts-label');
+      const btn = document.getElementById('tts-toggle-btn');
+      if (autoTTS) {
+        if (icon) icon.textContent = '🔊';
+        if (label) label.textContent = 'Voice: ON';
+        if (btn) btn.style.background = 'rgba(255,255,255,0.22)';
+      } else {
+        if (icon) icon.textContent = '🔇';
+        if (label) label.textContent = 'Voice: OFF';
+        if (btn) btn.style.background = 'rgba(255,255,255,0.1)';
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      }
+    }
+
+    function formatBotResponse(text) {
+      if (!text) return "";
+      // Strip any asterisks (* or **) and backticks completely
+      let clean = text.replace(/[*`#]/g, '');
+      // Convert any bullet hyphens at line start to clean bullet symbol (• )
+      clean = clean.replace(/^[ \t]*-[ \t]+/gm, '• ');
+      return clean.trim();
+    }
+
+    function cleanTextForSpeech(text) {
+      if (!text) return "";
+      let cleaned = text.replace(/[*#_~`]/g, '');
+      cleaned = cleaned.replace(/https?:\/\/\S+/g, '');
+      cleaned = cleaned.replace(/^[-•]\s*/gm, '');
+      return cleaned.trim();
+    }
+
+    function speakBotText(rawText) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const cleaned = cleanTextForSpeech(rawText);
+      if (!cleaned) return;
+
+      const utterance = new SpeechSynthesisUtterance(cleaned);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.lang = 'en-US';
+
+      const voices = window.speechSynthesis.getVoices();
+      if (voices && voices.length > 0) {
+        const engVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha')));
+        if (engVoice) utterance.voice = engVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        return null;
+      }
+      const rec = new SpeechRecognition();
+      rec.lang = 'en-US';
+      rec.interimResults = false;
+      rec.continuous = false;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = function() {
+        isListening = true;
+        const micBtn = document.getElementById('mic-btn');
+        const micStatus = document.getElementById('mic-status-bar');
+        if (micBtn) {
+          micBtn.style.background = '#ef4444';
+          micBtn.style.color = '#ffffff';
+          micBtn.classList.add('mic-pulsing');
+        }
+        if (micStatus) micStatus.style.display = 'block';
+      };
+
+      rec.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        const input = document.getElementById('chat-input');
+        if (input) {
+          input.value = transcript;
+          sendChatMessage();
+        }
+      };
+
+      rec.onerror = function(event) {
+        console.warn("Speech recognition error:", event.error);
+        stopVoiceInput();
+        if (event.error === 'not-allowed') {
+          const micStatus = document.getElementById('mic-status-bar');
+          if (micStatus) {
+            micStatus.style.display = 'block';
+            micStatus.style.background = '#fef3c7';
+            micStatus.style.color = '#92400e';
+            micStatus.style.borderColor = '#fde68a';
+            micStatus.innerHTML = '⚠️ Mic blocked on HTTP IP. Use <b>http://localhost:5000</b> or allow mic in browser permissions.';
+            setTimeout(() => { micStatus.style.display = 'none'; }, 6000);
+          }
+        }
+      };
+
+      rec.onend = function() {
+        stopVoiceInput();
+      };
+
+      return rec;
+    }
+
+    function toggleVoiceInput() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert("Speech recognition is not supported in this browser. Please test using Google Chrome or Microsoft Edge.");
+        return;
+      }
+
+      if (isListening) {
+        if (recognition) recognition.stop();
+        stopVoiceInput();
+      } else {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        if (!recognition) recognition = initSpeechRecognition();
+        try {
+          recognition.start();
+        } catch (err) {
+          console.warn("Error starting speech recognition:", err);
+        }
+      }
+    }
+
+    function stopVoiceInput() {
+      isListening = false;
+      const micBtn = document.getElementById('mic-btn');
+      const micStatus = document.getElementById('mic-status-bar');
+      if (micBtn) {
+        micBtn.style.background = '#f1f5f9';
+        micBtn.style.color = 'var(--primary)';
+        micBtn.classList.remove('mic-pulsing');
+      }
+      if (micStatus) micStatus.style.display = 'none';
+    }
+
+    function toggleChat(forceState) {
+      if (typeof forceState === 'boolean') {
+        chatOpen = forceState;
+      } else {
+        chatOpen = !chatOpen;
+      }
+      const widget = document.getElementById('chat-widget');
+      widget.style.display = chatOpen ? 'flex' : 'none';
+      if (chatOpen) {
+        document.getElementById('chat-input').focus();
+      } else {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        stopVoiceInput();
+      }
+    }
+
+    function handleKeyPress(e) {
+      if (e.key === 'Enter') sendChatMessage();
+    }
+
+    function sendQuickChip(text) {
+      document.getElementById('chat-input').value = text;
+      sendChatMessage();
+    }
+
+    async function sendChatMessage() {
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+      const messagesContainer = document.getElementById('chat-messages');
+      
+      // User Message
+      const userDiv = document.createElement('div');
+      userDiv.style.cssText = 'background: var(--primary); color: white; padding: 10px 14px; border-radius: 12px; max-width: 85%; align-self: flex-end; font-weight: 500;';
+      userDiv.innerText = message;
+      messagesContainer.appendChild(userDiv);
+
+      input.value = '';
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      // Loading Indicator
+      const loadingDiv = document.createElement('div');
+      loadingDiv.style.cssText = 'background: #e2e8f0; color: #475569; padding: 10px 14px; border-radius: 12px; max-width: 85%; align-self: flex-start; font-style: italic;';
+      loadingDiv.innerText = 'Searching medical vectorstore...';
+      messagesContainer.appendChild(loadingDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      try {
+        const payload = {
+          message: message,
+          patient_context: window.CURRENT_PATIENT_REPORT || null
+        };
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        messagesContainer.removeChild(loadingDiv);
+
+        const botDiv = document.createElement('div');
+        botDiv.style.cssText = 'background: #e0e7ff; color: #1e1b4b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px;';
+        
+        const textNode = document.createElement('div');
+        textNode.style.cssText = 'white-space: pre-wrap;';
+        const cleanResponse = formatBotResponse(data.response || "No response received.");
+        textNode.innerText = cleanResponse;
+        botDiv.appendChild(textNode);
+
+        // Read aloud action bar
+        const actionRow = document.createElement('div');
+        actionRow.style.cssText = 'display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px solid rgba(99,102,241,0.18); padding-top: 5px;';
+        
+        const speakBtn = document.createElement('button');
+        speakBtn.type = 'button';
+        speakBtn.style.cssText = 'background: white; border: 1px solid rgba(99,102,241,0.3); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;';
+        speakBtn.innerHTML = '🔊 Read Aloud';
+        speakBtn.onclick = () => speakBotText(cleanResponse);
+        actionRow.appendChild(speakBtn);
+
+        botDiv.appendChild(actionRow);
+        messagesContainer.appendChild(botDiv);
+
+        // Auto Voice Output if enabled
+        if (autoTTS && cleanResponse) {
+          speakBotText(cleanResponse);
+        }
+
+      } catch (err) {
+        messagesContainer.removeChild(loadingDiv);
+        const errDiv = document.createElement('div');
+        errDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 14px; max-width: 85%; align-self: flex-start;';
+        errDiv.innerText = 'Error connecting to RAG assistant.';
+        messagesContainer.appendChild(errDiv);
+      }
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  </script>
+
+</body>
+</html>

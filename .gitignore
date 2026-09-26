@@ -1,0 +1,36 @@
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Environment variables & secrets
+.env
+*.env
+.env.*
+
+# IDEs & Editor configurations
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Vector database local cache
+chroma_db/
+
+# Logs & temp files
+*.log
+scratch/
+*.tmp
+*.swp
+.DS_Store
+
+# Generated runtime user diagnostic plots
+static/uploads/*
+!static/uploads/.gitkeep

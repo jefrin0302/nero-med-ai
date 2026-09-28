@@ -37,6 +37,8 @@ svm = None
 logreg = None
 meta = None
 bilstm = None
+shap_background = None
+ensemble_explainer = None
 
 def safe_load_artifact(path):
     if not os.path.exists(path):
@@ -55,6 +57,7 @@ try:
     svm = safe_load_artifact(os.path.join(ARTIFACT_DIR, "svm.joblib"))
     logreg = safe_load_artifact(os.path.join(ARTIFACT_DIR, "logreg_base.joblib"))
     meta = safe_load_artifact(os.path.join(ARTIFACT_DIR, "meta_model.joblib"))
+    shap_background = safe_load_artifact(os.path.join(ARTIFACT_DIR, "shap_background.joblib"))
 
     # Load Bi-LSTM
     keras_path = os.path.join(ARTIFACT_DIR, "bilstm_model.keras")
@@ -68,13 +71,37 @@ try:
         except Exception as e:
             logger.warning("Bi-LSTM loading failed: %s", e)
 
-    logger.info("Artifacts loaded: preproc=%s svm=%s logreg=%s meta=%s bilstm=%s",
-                preprocessor is not None, svm is not None, logreg is not None, meta is not None, bilstm is not None)
+    logger.info("Artifacts loaded: preproc=%s svm=%s logreg=%s meta=%s bilstm=%s shap_bg=%s",
+                preprocessor is not None, svm is not None, logreg is not None, meta is not None, bilstm is not None, shap_background is not None)
 except Exception as e:
     logger.exception("Artifact loading failed: %s", e)
 
 def models_ready():
     return preprocessor is not None and svm is not None and logreg is not None and meta is not None
+
+def full_ensemble_predict_proba(X_matrix):
+    """
+    Evaluates the complete multi-model ensemble pipeline:
+    Bi-LSTM + SVM + Logistic Regression -> Stacking Meta-Classifier.
+    Returns (N,) array of consensus Wilson Disease probabilities for input rows.
+    """
+    svm_p = svm.predict_proba(X_matrix)[:, 1]
+    log_p = logreg.predict_proba(X_matrix)[:, 1]
+    if bilstm is not None and getattr(meta, "n_features_in_", 2) == 3:
+        X_lstm = X_matrix.reshape((X_matrix.shape[0], X_matrix.shape[1], 1))
+        bilstm_p = bilstm.predict(X_lstm, verbose=0).ravel()
+        stacked = np.column_stack([bilstm_p, svm_p, log_p])
+    else:
+        stacked = np.column_stack([svm_p, log_p])
+    return meta.predict_proba(stacked)[:, 1]
+
+# Initialize Ensemble KernelExplainer at application startup
+if shap_background is not None and models_ready():
+    try:
+        ensemble_explainer = shap.KernelExplainer(full_ensemble_predict_proba, shap_background)
+        logger.info("Ensemble KernelExplainer initialized successfully.")
+    except Exception as e:
+        logger.warning("Failed to initialize Ensemble KernelExplainer: %s", e)
 
 
 # ============================
@@ -219,34 +246,33 @@ def create_shap_plots(explainer, shap_values, X, feature_names):
 
 
 # ============================
-# Safe SHAP + Prediction (Option B activated + Bi-LSTM)
+# Safe SHAP + Prediction (Approach B: Full Ensemble KernelExplainer + Pure Patient Data)
 # ============================
 def safe_shap_and_predict(df_raw):
     bilstm_prob = None
     svm_prob = None
     log_prob = None
-    final_prob_orig = None
+    final_prob = None
 
-    # Try normal prediction first
-    try:
-        X = preprocessor.transform(df_raw)
-        svm_p = float(svm.predict_proba(X)[:, 1][0])
-        log_p = float(logreg.predict_proba(X)[:, 1][0])
-        svm_prob = svm_p
-        log_prob = log_p
+    # 1. Transform raw patient data (pure patient values)
+    X = preprocessor.transform(df_raw)
 
-        if bilstm is not None and getattr(meta, "n_features_in_", 2) == 3:
-            X_lstm = X.reshape((X.shape[0], X.shape[1], 1))
-            bilstm_p = float(bilstm.predict(X_lstm, verbose=0).ravel()[0])
-            bilstm_prob = bilstm_p
-            stacked = np.column_stack([[bilstm_p], [svm_p], [log_p]])
-        else:
-            stacked = np.column_stack([[svm_p], [log_p]])
+    # 2. Existing multi-model ensemble prediction pipeline
+    svm_p = float(svm.predict_proba(X)[:, 1][0])
+    log_p = float(logreg.predict_proba(X)[:, 1][0])
+    svm_prob = svm_p
+    log_prob = log_p
 
-        final_prob_orig = float(meta.predict_proba(stacked)[0][1])
-    except Exception as e:
-        logger.warning("Normal prediction failed: %s", e)
-        final_prob_orig = None
+    if bilstm is not None and getattr(meta, "n_features_in_", 2) == 3:
+        X_lstm = X.reshape((X.shape[0], X.shape[1], 1))
+        bilstm_p = float(bilstm.predict(X_lstm, verbose=0).ravel()[0])
+        bilstm_prob = bilstm_p
+        stacked = np.column_stack([[bilstm_p], [svm_p], [log_p]])
+    else:
+        stacked = np.column_stack([[svm_p], [log_p]])
+
+    final_prob = float(meta.predict_proba(stacked)[0][1])
+    final_pred = int(final_prob >= 0.5)
 
     model_breakdown = {
         "bilstm": round(bilstm_prob * 100, 1) if bilstm_prob is not None else None,
@@ -254,62 +280,28 @@ def safe_shap_and_predict(df_raw):
         "logreg": round(log_prob * 100, 1) if log_prob is not None else None
     }
 
-    # Try SHAP normal
-    try:
-        if final_prob_orig is not None:
-            X = preprocessor.transform(df_raw)
-            explainer = shap.LinearExplainer(logreg, X)
-            sv = explainer.shap_values(X)
+    # 3. Deterministic Full-Ensemble SHAP Explanation (Authentic patient data, zero noise)
+    shap_results = {"force": None, "beeswarm": None, "bar": None}
+    if ensemble_explainer is not None:
+        try:
+            import time
+            t_start = time.time()
+            np.random.seed(42)
+            sv = ensemble_explainer.shap_values(X, nsamples=60, l1_reg=False, silent=True)
+            t_elapsed = time.time() - t_start
+            logger.info("Ensemble KernelExplainer generated SHAP values in %.2f seconds.", t_elapsed)
+
+            # Validate array shape and features for SHAP 0.49.1 compatibility
             arr = _shap_values_to_array(sv)
-
-            if arr is not None and not np.allclose(arr, 0):
-                feature_names = get_processed_feature_names(preprocessor)
-                shap_results = create_shap_plots(explainer, sv, X, feature_names)
-                final_pred = int(final_prob_orig >= 0.5)
-                return final_prob_orig, final_pred, shap_results, False, df_raw, model_breakdown
-    except Exception as e:
-        logger.warning("SHAP normal failed: %s", e)
-
-    # Fallback: randomized inputs
-    logger.info("Generating randomized synthetic inputs...")
-
-    synth_df = generate_randomized_df(df_raw, 20)
-    Xs = preprocessor.transform(synth_df)
-
-    svm_prob_s = svm.predict_proba(Xs)[:, 1]
-    log_prob_s = logreg.predict_proba(Xs)[:, 1]
-
-    if bilstm is not None and getattr(meta, "n_features_in_", 2) == 3:
-        Xs_lstm = Xs.reshape((Xs.shape[0], Xs.shape[1], 1))
-        bilstm_prob_s = bilstm.predict(Xs_lstm, verbose=0).ravel()
-        stacked_s = np.column_stack([bilstm_prob_s, svm_prob_s, log_prob_s])
-        bilstm_prob_val = float(np.mean(bilstm_prob_s))
+            feature_names = get_processed_feature_names(preprocessor)
+            shap_results = create_shap_plots(ensemble_explainer, arr, X, feature_names)
+        except Exception as e:
+            logger.warning("Ensemble SHAP explanation failed: %s", e)
     else:
-        stacked_s = np.column_stack([svm_prob_s, log_prob_s])
-        bilstm_prob_val = None
+        logger.warning("Ensemble KernelExplainer is not initialized; skipping SHAP plots.")
 
-    svm_prob_val = float(np.mean(svm_prob_s))
-    log_prob_val = float(np.mean(log_prob_s))
-    final_prob = float(np.mean(meta.predict_proba(stacked_s)[:, 1]))
-    final_pred = int(final_prob >= 0.5)
-
-    model_breakdown = {
-        "bilstm": round(bilstm_prob_val * 100, 1) if bilstm_prob_val is not None else None,
-        "svm": round(svm_prob_val * 100, 1),
-        "logreg": round(log_prob_val * 100, 1)
-    }
-
-    # SHAP on synthetic
-    try:
-        explainer = shap.LinearExplainer(logreg, Xs)
-        sv = explainer.shap_values(Xs)
-        feature_names = get_processed_feature_names(preprocessor)
-        shap_results = create_shap_plots(explainer, sv, Xs, feature_names)
-    except Exception as e:
-        logger.warning("SHAP on synthetic failed: %s", e)
-        shap_results = {"force": None, "beeswarm": None, "bar": None}
-
-    return final_prob, final_pred, shap_results, True, synth_df, model_breakdown
+    # Return pure patient results: used_synthetic is False, df_raw is 100% authentic
+    return final_prob, final_pred, shap_results, False, df_raw, model_breakdown
 
 
 # ============================
@@ -416,9 +408,8 @@ def submit():
         prob, pred, shap_res, used_syn, used_df, model_breakdown = safe_shap_and_predict(df)
 
         txt = "Positive – Wilson Disease Detected" if pred == 1 else "Negative – No Wilson Disease"
-        if used_syn: txt += " (Randomized Input Projection)"
 
-        # Generate RAG clinical recommendations
+        # Generate RAG clinical recommendations with 100% authentic patient data
         patient_dict = used_df.iloc[0].to_dict()
         rag_advice = rag_assistant.get_clinical_recommendations(patient_dict, txt)
 

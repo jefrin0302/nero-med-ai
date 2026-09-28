@@ -194,7 +194,7 @@ def _shap_values_to_array(sv):
 
 
 def create_shap_plots(explainer, shap_values, X, feature_names):
-    out = {"force": None, "beeswarm": None, "bar": None}
+    out = {"waterfall": None, "beeswarm": None, "bar": None}
 
     arr = _shap_values_to_array(shap_values)
     if arr is None: return out
@@ -205,18 +205,24 @@ def create_shap_plots(explainer, shap_values, X, feature_names):
 
     timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
 
-    # Force plot
+    # Waterfall plot (Patient Local Risk Attribution)
     try:
         plt.close('all')
-        plt.figure(figsize=(14, 3))
+        plt.figure(figsize=(10, 13))
         ev = float(np.array(explainer.expected_value).ravel()[0])
         first_row = arr[0] if arr.ndim > 1 else arr
         first_x = np.round(X[0], 2) if hasattr(X, '__getitem__') else None
-        shap.force_plot(ev, first_row, features=first_x, feature_names=feature_names, matplotlib=True, show=False)
+        exp = shap.Explanation(
+            values=first_row,
+            base_values=ev,
+            data=first_x,
+            feature_names=feature_names
+        )
+        shap.plots.waterfall(exp, max_display=len(feature_names) + 1, show=False)
         fig = plt.gcf()
-        out["force"] = save_plot(fig, f"shap_force_{timestamp}.png")
+        out["waterfall"] = save_plot(fig, f"shap_waterfall_{timestamp}.png")
     except Exception as e:
-        logger.warning("Force plot failed: %s", e)
+        logger.warning("Waterfall plot failed: %s", e)
 
     # Beeswarm
     try:
@@ -281,7 +287,7 @@ def safe_shap_and_predict(df_raw):
     }
 
     # 3. Deterministic Full-Ensemble SHAP Explanation (Authentic patient data, zero noise)
-    shap_results = {"force": None, "beeswarm": None, "bar": None}
+    shap_results = {"waterfall": None, "beeswarm": None, "bar": None}
     if ensemble_explainer is not None:
         try:
             import time
@@ -460,7 +466,7 @@ def submit():
             "result.html",
             prediction_text=txt,
             probability=round(prob, 4),
-            shap_force=shap_res.get("force"),
+            shap_waterfall=shap_res.get("waterfall"),
             shap_beeswarm=shap_res.get("beeswarm"),
             shap_bar=shap_res.get("bar"),
             data=patient_dict,

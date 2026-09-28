@@ -400,12 +400,12 @@
 
         <div style="display: flex; flex-direction: column; gap: 24px;">
 
-          {% if shap_force %}
+          {% if shap_waterfall %}
           <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              🔍 Force Plot (Patient Local Risk Attribution)
+              🔍 Waterfall Plot (Patient Local Risk Attribution)
             </h3>
-            <img src="{{ url_for('static', filename=shap_force) }}" alt="SHAP Force Plot" style="width: 100%; border-radius: 8px;">
+            <img src="{{ url_for('static', filename=shap_waterfall) }}" alt="SHAP Waterfall Plot" style="width: 100%; border-radius: 8px;">
           </div>
           {% endif %}
 
@@ -427,7 +427,7 @@
           </div>
           {% endif %}
 
-          {% if not shap_force and not shap_beeswarm and not shap_bar %}
+          {% if not shap_waterfall and not shap_beeswarm and not shap_bar %}
           <div style="background: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; color: var(--text-muted);">
             SHAP feature attribution plots are generated dynamically during assessment.
           </div>

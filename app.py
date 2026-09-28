@@ -357,6 +357,42 @@ def offline():
     return render_template("offline.html")
 
 
+VALID_REGIONS = {"East", "North", "South", "West"}
+
+
+def parse_binary(val, field_name):
+    if val is None or str(val).strip() == "":
+        raise ValueError(f"Missing required field: {field_name}")
+    s = str(val).strip()
+    if s in ("1", "Yes", "yes", "True", "true"):
+        return 1
+    elif s in ("0", "No", "no", "False", "false"):
+        return 0
+    raise ValueError(f"Invalid value for {field_name}: '{val}'. Must be Yes/1 or No/0.")
+
+
+def parse_region(val):
+    if val is None or str(val).strip() == "":
+        raise ValueError("Missing required field: Region")
+    s = str(val).strip()
+    match = {r.lower(): r for r in VALID_REGIONS}.get(s.lower())
+    if match is None:
+        raise ValueError(f"Invalid Region: '{val}'. Must be one of: East, North, South, West.")
+    return match
+
+
+def parse_cognitive(val):
+    if val is None or str(val).strip() == "":
+        raise ValueError("Missing required field: Cognitive Function Score")
+    try:
+        score = float(val)
+    except (ValueError, TypeError):
+        raise ValueError(f"Non-numeric Cognitive Function Score: '{val}'. Must be a number between 30.0 and 100.0.")
+    if np.isnan(score) or score < 30.0 or score > 100.0:
+        raise ValueError(f"Invalid Cognitive Function Score: {score}. Must be between 30.0 and 100.0.")
+    return score
+
+
 # ============================
 # PREDICT ROUTE
 # ============================
@@ -366,6 +402,13 @@ def submit():
         return "Models not loaded", 500
 
     try:
+        kfr = parse_binary(request.form.get("inputKFR"), "Kayser-Fleischer Rings")
+        psychiatric = parse_binary(request.form.get("inputPsychiatric"), "Psychiatric Symptoms")
+        family_history = parse_binary(request.form.get("inputFamilyHistory"), "Family History")
+        gene_mutation = parse_binary(request.form.get("inputGeneMutation"), "ATB7B Gene Mutation")
+        region = parse_region(request.form.get("inputRegion"))
+        cognitive_score = parse_cognitive(request.form.get("inputCognitive"))
+
         cols = [
             "Age","Sex","Ceruloplasmin Level","Copper in Blood Serum",
             "Free Copper in Blood Serum","Copper in Urine","ALT","AST",
@@ -391,13 +434,13 @@ def submit():
             float(request.form.get("inputALP")),
             float(request.form.get("inputProthrombin")),
             float(request.form.get("inputGGT")),
-            request.form.get("inputKFR"),
+            kfr,
             float(request.form.get("inputNeurological")),
-            request.form.get("inputPsychiatric"),
-            float(request.form.get("inputCognitive")),
-            request.form.get("inputFamilyHistory"),
-            request.form.get("inputGeneMutation"),
-            request.form.get("inputRegion"),
+            psychiatric,
+            cognitive_score,
+            family_history,
+            gene_mutation,
+            region,
             request.form.get("inputSocioeconomicStatus"),
             request.form.get("inputAlcoholUse"),
             float(request.form.get("inputBMI"))
@@ -425,6 +468,9 @@ def submit():
             clinical_advice=rag_advice,
             model_breakdown=model_breakdown
         )
+    except (ValueError, TypeError) as ve:
+        logger.warning("Validation error in /submit: %s", ve)
+        return str(ve), 400
     except Exception as e:
         logger.exception("Prediction failed: %s", e)
         return str(e), 500

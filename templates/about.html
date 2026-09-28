@@ -94,8 +94,10 @@
           <div class="form-group">
             <label class="form-label" for="inputRegion">Region</label>
             <select class="form-control-custom" id="inputRegion" name="inputRegion" required>
-              <option value="Urban">Urban</option>
-              <option value="Rural">Rural</option>
+              <option value="East">East</option>
+              <option value="North">North</option>
+              <option value="South">South</option>
+              <option value="West">West</option>
             </select>
           </div>
 
@@ -214,7 +216,8 @@
 
           <div class="form-group">
             <label class="form-label" for="inputCognitive">Cognitive Function Score</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputCognitive" name="inputCognitive" placeholder="0 - 100" required>
+            <input type="number" step="0.1" min="30" max="100" class="form-control-custom" id="inputCognitive" name="inputCognitive" placeholder="30 - 100" required>
+            <small class="form-text" style="color: var(--text-muted); font-size: 12px; margin-top: 4px; display: block;">The model uses a cognitive function scale of 30–100.</small>
           </div>
 
           <div class="form-group">
@@ -256,7 +259,7 @@
     function fillHealthySample() {
       document.getElementById('inputAge').value = 28;
       document.getElementById('inputGender').value = 'Female';
-      document.getElementById('inputRegion').value = 'Urban';
+      document.getElementById('inputRegion').value = 'North';
       document.getElementById('inputSocioeconomicStatus').value = 'High';
       document.getElementById('inputBMI').value = 22.4;
       document.getElementById('inputAlcoholUse').value = 'False';
@@ -285,7 +288,7 @@
     function fillWilsonSample() {
       document.getElementById('inputAge').value = 19;
       document.getElementById('inputGender').value = 'Male';
-      document.getElementById('inputRegion').value = 'Rural';
+      document.getElementById('inputRegion').value = 'South';
       document.getElementById('inputSocioeconomicStatus').value = 'Low';
       document.getElementById('inputBMI').value = 25.2;
       document.getElementById('inputAlcoholUse').value = 'False';

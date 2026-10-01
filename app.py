@@ -1,6 +1,15 @@
 # app.py — Advanced SHAP UI dashboard + prediction endpoints (FINAL FIXED VERSION)
 from flask import Flask, render_template, request, jsonify, send_from_directory, url_for
 import os
+import sys
+
+# Prevent broken PyTorch DLL on Windows from crashing optional SHAP maskers
+if 'torch' not in sys.modules:
+    try:
+        import torch
+    except (OSError, ImportError):
+        sys.modules['torch'] = None
+
 import joblib
 import numpy as np
 import pandas as pd

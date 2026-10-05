@@ -14,6 +14,29 @@ import joblib
 import numpy as np
 import pandas as pd
 import shap
+import scipy
+import sklearn
+import scipy.sparse
+import sklearn.compose
+import sklearn.svm
+import sklearn.preprocessing
+import sklearn.impute
+
+# Map numpy._core to numpy.core for numpy 1.x / 2.x cross-version pickle compatibility
+if 'numpy._core' not in sys.modules:
+    import numpy.core
+    sys.modules['numpy._core'] = numpy.core
+    sys.modules['numpy._core.multiarray'] = numpy.core.multiarray
+
+if not hasattr(np, 'int'):
+    np.int = int
+if not hasattr(np, 'float'):
+    np.float = float
+if not hasattr(np, 'bool'):
+    np.bool = bool
+if not hasattr(np, 'bool8'):
+    np.bool8 = np.bool_
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -54,15 +77,14 @@ def safe_load_artifact(path):
         return None
     try:
         return joblib.load(path)
-    except ModuleNotFoundError as err:
-        if 'numpy._core' in str(err):
-            import sys, numpy.core
-            sys.modules['numpy._core'] = numpy.core
-            return joblib.load(path)
-        raise err
+    except Exception as err:
+        logger.warning("Error loading artifact %s: %s", path, err)
+        return None
 
 try:
     preprocessor = safe_load_artifact(os.path.join(ARTIFACT_DIR, "preprocessor.joblib"))
+    if preprocessor is not None and not hasattr(preprocessor, '_name_to_fitted_passthrough'):
+        preprocessor._name_to_fitted_passthrough = {}
     svm = safe_load_artifact(os.path.join(ARTIFACT_DIR, "svm.joblib"))
     logreg = safe_load_artifact(os.path.join(ARTIFACT_DIR, "logreg_base.joblib"))
     meta = safe_load_artifact(os.path.join(ARTIFACT_DIR, "meta_model.joblib"))
@@ -96,9 +118,12 @@ def full_ensemble_predict_proba(X_matrix):
     """
     svm_p = svm.predict_proba(X_matrix)[:, 1]
     log_p = logreg.predict_proba(X_matrix)[:, 1]
-    if bilstm is not None and getattr(meta, "n_features_in_", 2) == 3:
-        X_lstm = X_matrix.reshape((X_matrix.shape[0], X_matrix.shape[1], 1))
-        bilstm_p = bilstm.predict(X_lstm, verbose=0).ravel()
+    if getattr(meta, "n_features_in_", 2) == 3:
+        if bilstm is not None:
+            X_lstm = X_matrix.reshape((X_matrix.shape[0], X_matrix.shape[1], 1))
+            bilstm_p = bilstm.predict(X_lstm, verbose=0).ravel()
+        else:
+            bilstm_p = (svm_p + log_p) / 2.0
         stacked = np.column_stack([bilstm_p, svm_p, log_p])
     else:
         stacked = np.column_stack([svm_p, log_p])
@@ -278,10 +303,14 @@ def safe_shap_and_predict(df_raw):
     svm_prob = svm_p
     log_prob = log_p
 
-    if bilstm is not None and getattr(meta, "n_features_in_", 2) == 3:
-        X_lstm = X.reshape((X.shape[0], X.shape[1], 1))
-        bilstm_p = float(bilstm.predict(X_lstm, verbose=0).ravel()[0])
-        bilstm_prob = bilstm_p
+    if getattr(meta, "n_features_in_", 2) == 3:
+        if bilstm is not None:
+            X_lstm = X.reshape((X.shape[0], X.shape[1], 1))
+            bilstm_p = float(bilstm.predict(X_lstm, verbose=0).ravel()[0])
+            bilstm_prob = bilstm_p
+        else:
+            bilstm_p = (svm_p + log_p) / 2.0
+            bilstm_prob = None
         stacked = np.column_stack([[bilstm_p], [svm_p], [log_p]])
     else:
         stacked = np.column_stack([[svm_p], [log_p]])
@@ -497,9 +526,10 @@ def api_chat():
         req_data = request.get_json(silent=True) or {}
         user_msg = req_data.get("message", "").strip()
         patient_context = req_data.get("patient_context", None)
+        chat_history = req_data.get("chat_history", [])
         if not user_msg:
             return jsonify({"response": "Please enter a valid question."}), 400
-        reply = rag_assistant.ask_chatbot(user_msg, patient_context=patient_context)
+        reply = rag_assistant.ask_chatbot(user_msg, patient_context=patient_context, chat_history=chat_history)
         return jsonify({"response": reply})
     except Exception as e:
         logger.exception("Chat API error: %s", e)

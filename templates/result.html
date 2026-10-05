@@ -548,6 +548,7 @@
     let autoTTS = true;
     let recognition = null;
     let isListening = false;
+    let chatHistory = [];
 
     function toggleAutoTTS() {
       autoTTS = !autoTTS;
@@ -568,8 +569,12 @@
 
     function formatBotResponse(text) {
       if (!text) return "";
+      // Strip escaped or unescaped divider artifacts: \==\, \---\, ===, ---, ==, etc.
+      let clean = text.replace(/\\*={2,}\\*/g, '');
+      clean = clean.replace(/\\*-{3,}\\*/g, '');
+      clean = clean.replace(/^[ \t]*[=\-_~\\]+[ \t]*$/gm, '');
       // Strip any asterisks (* or **) and backticks completely
-      let clean = text.replace(/[*`#]/g, '');
+      clean = clean.replace(/[*`#]/g, '');
       // Convert any bullet hyphens at line start to clean bullet symbol (• )
       clean = clean.replace(/^[ \t]*-[ \t]+/gm, '• ');
       return clean.trim();
@@ -743,8 +748,12 @@
       try {
         const payload = {
           message: message,
-          patient_context: window.CURRENT_PATIENT_REPORT || null
+          patient_context: window.CURRENT_PATIENT_REPORT || null,
+          chat_history: chatHistory.slice(-6)
         };
+        // Record user turn in local history
+        chatHistory.push({ role: 'user', content: message });
+
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -761,6 +770,9 @@
         const cleanResponse = formatBotResponse(data.response || "No response received.");
         textNode.innerText = cleanResponse;
         botDiv.appendChild(textNode);
+
+        // Record assistant turn in local history
+        chatHistory.push({ role: 'assistant', content: cleanResponse });
 
         // Read aloud action bar
         const actionRow = document.createElement('div');
@@ -782,6 +794,9 @@
         }
 
       } catch (err) {
+        if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
+          chatHistory.pop();
+        }
         messagesContainer.removeChild(loadingDiv);
         const errDiv = document.createElement('div');
         errDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 14px; max-width: 85%; align-self: flex-start;';

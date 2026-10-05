@@ -19,23 +19,226 @@ logging.basicConfig(level=logging.INFO)
 PERSIST_DIR = "chroma_db"
 DOCS_DIR = "medical_docs"
 
+CLARIFICATION_MSG = (
+    "I'm not sure what you mean. Please ask a question related to Wilson disease, "
+    "diagnosis, treatment, laboratory tests, diet, or your patient report."
+)
+
+def _canonical_token(w: str) -> str:
+    """Normalize common clinical plurals, inflections, and medical synonyms."""
+    w = w.lower()
+    synonyms = {
+        "urinary": "urine",
+        "tests": "test",
+        "testing": "test",
+        "tested": "test",
+        "foods": "food",
+        "diets": "diet",
+        "dietary": "diet",
+        "eating": "eat",
+        "treatments": "treatment",
+        "treating": "treatment",
+        "treated": "treatment",
+        "treat": "treatment",
+        "therapies": "treatment",
+        "therapy": "treatment",
+        "drugs": "medication",
+        "drug": "medication",
+        "medicines": "medication",
+        "medicine": "medication",
+        "medications": "medication",
+        "mutations": "mutation",
+        "genes": "gene",
+        "genetic": "gene",
+        "genetics": "gene",
+        "symptoms": "symptom",
+        "parameters": "parameter",
+        "causes": "cause",
+        "caused": "cause",
+        "causing": "cause",
+        "measures": "measure",
+        "measured": "measure",
+        "measurement": "measure",
+        "measuring": "measure",
+        "evaluating": "evaluate",
+        "evaluation": "evaluate",
+        "evaluated": "evaluate",
+        "rings": "ring",
+        "signs": "sign",
+        "biopsies": "biopsy",
+        "organs": "organ",
+        "children": "child",
+        "pediatric": "child",
+        "siblings": "sibling",
+        "relatives": "relative",
+    }
+    if w in synonyms:
+        return synonyms[w]
+    if len(w) > 4 and w.endswith("ies"):
+        return w[:-3] + "y"
+    if len(w) > 4 and w.endswith("es"):
+        return w[:-2]
+    if len(w) > 3 and w.endswith("s") and not w.endswith("ss"):
+        return w[:-1]
+    if len(w) > 5 and w.endswith("ing"):
+        return w[:-3]
+    if len(w) > 4 and w.endswith("ed"):
+        return w[:-2]
+    return w
+
+def is_meaningless_query(user_question: str) -> bool:
+    """
+    Detects clearly meaningless, extremely low-information, or random gibberish input.
+    Returns True if the input has no identifiable medical, greeting, or conversational content.
+    Legitimate short queries (e.g. 'copper', 'ATP7B', 'KF ring', 'diet', 'treatment', 'Trientine')
+    and greetings are safely preserved.
+    """
+    if not user_question:
+        return True
+
+    text = user_question.strip().lower()
+    clean_text = re.sub(r'[^\w\s]', ' ', text)
+    tokens = [w for w in clean_text.split() if w]
+
+    if not tokens:
+        return True
+
+    # 1. Greetings and conversational phrases
+    greeting_terms = {
+        "hi", "hello", "hey", "greetings", "good", "morning", "afternoon", "evening",
+        "how", "are", "you", "doing", "fine", "great", "ok", "okay", "well", "thanks",
+        "thank", "bye", "goodbye", "help", "who", "what", "name"
+    }
+    if any(w in greeting_terms for w in tokens) and len(tokens) <= 5:
+        if any(g in text for g in ["hi", "hello", "hey", "how are you", "how r u", "fine", "good morning", "good evening", "good afternoon", "who are you", "what are you", "greetings", "thank"]):
+            return False
+
+    # 2. Comprehensive medical, genetic, lab, diet, and clinical domain terms
+    domain_terms = {
+        # Core disease & genetics
+        "wilson", "wilsons", "disease", "disorder", "atp7b", "atp7", "gene", "genes", "genetic",
+        "genetics", "mutation", "mutations", "autosomal", "recessive", "chromosome", "carrier", "carriers",
+        # Copper & biochemistry
+        "copper", "cu", "ceruloplasmin", "apoceruloplasmin", "protein", "glycoprotein", "free", "bound",
+        "serum", "urinary", "urine", "hepatic", "liver", "brain", "basal", "ganglia",
+        # Diagnostic markers, lab tests & scores
+        "kf", "kayser", "fleischer", "ring", "rings", "cornea", "corneal", "eye", "eyes", "slit", "lamp",
+        "leipzig", "score", "scores", "criteria", "points", "ferenci",
+        "alt", "ast", "alp", "ggt", "bilirubin", "albumin", "platelet", "platelets", "inr", "pt",
+        "cbc", "creatinine", "hemolysis", "coombs", "anemia", "biopsy", "ultrasound", "mri",
+        "test", "tests", "testing", "tested", "lab", "labs", "panel", "screening", "screen",
+        "diagnosis", "diagnose", "diagnostic", "marker", "markers", "biomarker", "biomarkers",
+        "value", "values", "level", "levels", "parameter", "parameters", "24h", "24hr", "24",
+        # Treatments, drugs & interventions
+        "treatment", "treatments", "treat", "treating", "treated", "therapy", "therapies",
+        "chelation", "chelator", "chelators", "penicillamine", "trientine", "cuprimine", "syprine",
+        "zinc", "galzin", "acetate", "gluconate", "pyridoxine", "b6", "transplant", "transplantation",
+        "drug", "drugs", "medicine", "medicines", "medication", "medications", "dose", "dosage",
+        "side", "effect", "effects", "adverse", "alternative", "alternatives",
+        # Diet, food & nutrition
+        "diet", "diets", "dietary", "food", "foods", "eat", "eating", "nutrition", "water",
+        "organ", "meat", "meats", "shellfish", "oyster", "oysters", "nut", "nuts", "seed", "seeds",
+        "chocolate", "cocoa", "mushroom", "mushrooms", "soy", "soybean", "soybeans", "tofu",
+        # Symptoms & clinical features
+        "symptom", "symptoms", "sign", "signs", "jaundice", "ascites", "cirrhosis", "hepatitis",
+        "tremor", "tremors", "dystonia", "dysarthria", "speech", "swallow", "swallowing", "ataxia",
+        "chorea", "parkinson", "rigidity", "psychiatric", "depression", "anxiety", "fatigue",
+        # AI model, risk, report & explainability
+        "shap", "svm", "bilstm", "lstm", "model", "prediction", "probability", "score",
+        "risk", "percent", "percentage", "ensemble", "explain", "ai", "neuromed", "report", "result"
+    }
+
+    # If any token or clean_text contains any domain term, it is valid
+    for token in tokens:
+        if token in domain_terms:
+            return False
+    for dt in domain_terms:
+        if len(dt) > 2 and dt in clean_text:
+            return False
+
+    # 3. Conversational follow-ups (e.g. "what are its side effects", "why is it important")
+    conversational_pronouns = {"it", "its", "they", "them", "this", "that"}
+    if any(w in conversational_pronouns for w in tokens) and len(tokens) >= 2:
+        return False
+
+    # 4. Check for question structure with body or health keywords
+    question_words = {"what", "why", "how", "when", "where", "which", "who", "can", "could", "is", "are", "does", "do", "explain", "tell", "describe", "show"}
+    body_or_clinical_words = {
+        "body", "blood", "cell", "cells", "organ", "damage", "cause", "causes", "safe", "prevent",
+        "prevention", "precaution", "precautions", "sick", "ill", "illness", "health", "healthy",
+        "doctor", "hospital", "patient", "take", "taking", "avoid", "risk", "condition", "norm"
+    }
+    if any(w in question_words for w in tokens) and (any(w in body_or_clinical_words for w in tokens) or len(tokens) >= 4):
+        return False
+
+    # 5. Gibberish / low-information heuristics:
+    # a) If clean string without spaces is <= 3 characters and not a recognized domain term
+    if len(clean_text.replace(" ", "")) <= 3:
+        return True
+
+    # b) Check for lack of vowels (e.g. fnjvds, dssf)
+    vowels = set("aeiouy")
+    for t in tokens:
+        if len(t) >= 4 and not any(ch in vowels for ch in t):
+            return True
+
+    # c) Extremely high consonant-to-vowel ratio
+    for t in tokens:
+        if len(t) >= 5:
+            v_count = sum(1 for ch in t if ch in vowels)
+            if v_count == 0 or (len(t) >= 6 and v_count <= 1):
+                return True
+
+    # d) Repeated single characters (e.g. 'aaaa', 'zzzz')
+    if len(tokens) == 1 and len(set(tokens[0])) <= 2:
+        return True
+
+    return True
+
 def sanitize_bot_answer(text: str) -> str:
     """
-    Cleans all raw markdown symbols from chatbot responses:
-    - Removes double asterisks (**) completely
-    - Removes single asterisks (*)
+    Cleans formatting artifacts, internal headers, and raw markdown symbols:
+    - Removes separator artifacts: \==\, \---\, ===, ---, ==
+    - Strips internal question-bank title headers and metadata
+    - Removes double asterisks (**) and single asterisks (*)
     - Removes backticks (`)
     - Converts bullet hyphens (- item) to clean bullets (• item)
     - Strips markdown heading hashes (###)
+    - Normalizes excessive blank lines
     """
     if not text:
         return ""
-    # Remove markdown bold/italics asterisks and code backticks
-    cleaned = text.replace("**", "").replace("*", "").replace("`", "")
-    # Convert leading bullet hyphens to bullet points (• )
+    # 1. Remove escaped or unescaped separator artifacts: \==\, \---\, ===, ---, ==, etc.
+    cleaned = re.sub(r'\\+={1,}\\+?', '', text)
+    cleaned = re.sub(r'\\+-{2,}\\+?', '', cleaned)
+    cleaned = re.sub(r'={2,}', '', cleaned)
+    cleaned = re.sub(r'-{3,}', '', cleaned)
+    cleaned = re.sub(r'^[ \t]*[=\-_~\\]+[ \t]*$', '', cleaned, flags=re.MULTILINE)
+
+    # 2. Strip internal question-bank title / header dumps
+    header_patterns = [
+        r'WILSON DISEASE\s*[-—–]\s*QUESTION BANK WITH ANSWERS[^\n]*',
+        r'Evidence-Grounded Reference for RAG Chatbot Development[^\n]*',
+        r'Source question bank:[^\n]*',
+        r'Guideline basis:[^\n]*',
+        r'Purpose:\s*Educational,\s*evidence-grounded reference answers[^\n]*',
+        r'^[0-9]+\.\s+[A-Z\s&]+\s*$'
+    ]
+    for hp in header_patterns:
+        cleaned = re.sub(hp, '', cleaned, flags=re.MULTILINE | re.IGNORECASE)
+
+    # 3. Remove raw markdown symbols (asterisks, backticks)
+    cleaned = cleaned.replace("**", "").replace("*", "").replace("`", "")
+
+    # 4. Convert leading bullet hyphens to bullet points (• )
     cleaned = re.sub(r'^[ \t]*-[ \t]+', '• ', cleaned, flags=re.MULTILINE)
-    # Strip markdown heading hashes (### )
+
+    # 5. Strip markdown heading hashes (### )
     cleaned = re.sub(r'^#{1,6}\s*', '', cleaned, flags=re.MULTILINE)
+
+    # 6. Normalize excessive blank lines
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+
     return cleaned.strip()
 
 class MedicalRAGSystem:
@@ -89,7 +292,16 @@ class MedicalRAGSystem:
                 with open(qb_path, "r", encoding="utf-8") as f:
                     text = f.read()
                 sections = re.split(r'\n(?=[0-9]+\.\s+)', text)
-                self.passages.extend([s.strip() for s in sections if len(s.strip()) > 30])
+                clean_sections = []
+                for s in sections:
+                    s_str = s.strip()
+                    if len(s_str) < 30:
+                        continue
+                    # Skip document title/header sections
+                    if any(h in s_str for h in ["QUESTION BANK WITH ANSWERS", "Evidence-Grounded Reference", "Guideline basis:"]):
+                        continue
+                    clean_sections.append(s_str)
+                self.passages.extend(clean_sections)
             except Exception as e:
                 logger.warning(f"Error loading question bank text: {e}")
 
@@ -100,7 +312,15 @@ class MedicalRAGSystem:
                 with open(guidelines_path, "r", encoding="utf-8") as f:
                     text = f.read()
                 sections = re.split(r'\n(?=[0-9]+\.\s+[A-Z\s&]+)', text)
-                self.passages.extend([s.strip() for s in sections if len(s.strip()) > 40])
+                clean_gl = []
+                for s in sections:
+                    s_str = s.strip()
+                    if len(s_str) < 40:
+                        continue
+                    if any(h in s_str for h in ["QUESTION BANK WITH ANSWERS", "Evidence-Grounded Reference", "Guideline basis:"]):
+                        continue
+                    clean_gl.append(s_str)
+                self.passages.extend(clean_gl)
             except Exception as e:
                 logger.warning(f"Error loading guidelines text: {e}")
 
@@ -152,19 +372,27 @@ class MedicalRAGSystem:
         """
         Finds the best matching clinical answer in the question bank.
         Returns ONLY the authoritative answer(s), never echoing the question.
+        Enforces confidence thresholds and intent checks to prevent poor or spurious matches.
         """
         if not getattr(self, "qa_bank", None):
             return None
 
         clean_user_q = re.sub(r'^\d+[\.\)]?\s*', '', user_question).strip()
         norm_user = " ".join(re.sub(r'[^\w\s]', ' ', clean_user_q.lower()).split())
-        if not norm_user:
+        if not norm_user or len(norm_user) < 3:
             return None
 
-        user_words = set(norm_user.split()) - {"what", "is", "are", "the", "a", "an", "in", "of", "for", "to", "can", "how", "does", "do", "it"}
+        stop_words = {
+            "what", "is", "are", "the", "a", "an", "in", "of", "for", "to", "can",
+            "how", "does", "do", "it", "based", "taken", "take", "done", "used",
+            "many", "much", "which", "get", "tell", "me", "about"
+        }
+        user_words = set(norm_user.split()) - stop_words
+        if not user_words:
+            return None
 
         # Special handler for "what is wilson disease" / "explain wilson disease":
-        # Returns the 2-line definition, plus cause, plus treatment outlook (as requested by user!)
+        # Returns the 2-line definition, plus cause, plus treatment outlook
         is_what_is_wd = (
             norm_user in ["what is wilson disease", "what is wilsons disease", "explain wilson disease", "what is wilson s disease", "tell me about wilson disease", "wilson disease", "wilsons disease"]
             or (user_words == {"wilson", "disease"})
@@ -185,34 +413,56 @@ class MedicalRAGSystem:
                 parts.append(ans_treat)
             return "\n\n".join(parts)
 
+        # Canonicalize user stems
+        user_stems = {_canonical_token(w) for w in user_words}
+        is_user_test = any(w in user_stems for w in ["test", "lab", "measure", "biopsy", "screen", "diagnosis"])
+        is_user_diet = any(w in user_stems for w in ["food", "eat", "diet", "nutrition", "soy", "wheat", "meat", "shellfish", "nut", "chocolate", "mushroom"])
+
         best_item = None
         best_score = 0.0
 
         for item in self.qa_bank:
+            item_q = item["q_norm"]
             # 1. Exact normalized match
-            if norm_user == item["q_norm"]:
+            if norm_user == item_q:
                 best_item = item
                 best_score = 100.0
                 break
 
-            # 2. Substring match
-            if norm_user in item["q_norm"] or item["q_norm"] in norm_user:
-                score = 50.0 + len(user_words & item["words"])
+            # 2. Whole-word substring match (require min 6 chars to avoid short noise)
+            if len(norm_user) >= 6 and (f" {norm_user} " in f" {item_q} " or f" {item_q} " in f" {norm_user} "):
+                score = 60.0 + len(user_words & item["words"]) * 5.0
                 if score > best_score:
                     best_score = score
                     best_item = item
 
-            # 3. High word overlap
-            if user_words:
-                overlap = len(user_words & item["words"])
-                overlap_ratio = overlap / len(user_words)
-                if overlap_ratio >= 0.6:
-                    score = 20.0 * overlap_ratio + overlap
-                    if score > best_score:
-                        best_score = score
-                        best_item = item
+            # 3. Canonical stem overlap
+            item_stems = {_canonical_token(w) for w in item["words"]}
+            overlap = len(user_stems & item_stems)
+            if overlap > 0:
+                # Intent compatibility check: avoid returning diet info for testing queries and vice versa
+                is_item_diet = any(w in item_stems for w in ["food", "eat", "diet", "nutrition", "soy", "wheat", "meat", "shellfish", "nut", "chocolate", "mushroom"])
+                is_item_test = any(w in item_stems for w in ["test", "lab", "measure", "biopsy", "screen", "diagnosis"])
 
-        if best_item and best_score >= 21.0:
+                if is_user_test and not is_user_diet and is_item_diet:
+                    continue
+                if is_user_diet and not is_user_test and is_item_test:
+                    continue
+
+                user_cov = overlap / len(user_stems)
+                item_cov = overlap / len(item_stems)
+                f1 = 2 * (user_cov * item_cov) / (user_cov + item_cov + 1e-6)
+
+                # Confidence scoring formula
+                score = (50.0 * f1) + (30.0 * user_cov) + (overlap * 4.0)
+
+                # Require high coverage or multiple matching key terms
+                if (user_cov >= 0.6 or overlap >= 2) and score > best_score:
+                    best_score = score
+                    best_item = item
+
+        # Acceptance threshold: match must have high confidence (>= 35.0)
+        if best_item and best_score >= 35.0:
             primary_ans = best_item["answer"]
             if "cause" in norm_user or "causes" in norm_user:
                 extra_accum = ""
@@ -255,15 +505,31 @@ class MedicalRAGSystem:
         if self.use_langchain and self.retriever:
             try:
                 docs = self.retriever.invoke(query)
-                return "\n\n---\n\n".join([doc.page_content for doc in docs])
+                return "\n\n".join([doc.page_content for doc in docs])
             except Exception as e:
                 logger.warning(f"LangChain retriever error: {e}")
 
         # Keyword and semantic scoring over clean guideline sections
         query_lower = query.lower()
         words = set(re.findall(r'\w+', query_lower))
-        stop_words = {"the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what", "how", "tell", "me", "about"}
+        stop_words = {
+            "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
+            "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
+            "many", "much", "can", "does", "do", "it", "for", "of", "with"
+        }
         meaningful_words = words - stop_words
+        if not meaningful_words:
+            return ""
+
+        # Check intent to avoid cross-domain false matches (e.g. food passages for testing queries)
+        is_test_query = any(w in meaningful_words for w in [
+            "test", "tests", "testing", "tested", "lab", "labs", "biopsy", "measure",
+            "measures", "measured", "screen", "screening", "diagnosis", "diagnostic"
+        ])
+        is_diet_query = any(w in meaningful_words for w in [
+            "food", "foods", "eat", "eating", "diet", "diets", "dietary", "nutrition",
+            "meat", "shellfish", "nut", "nuts", "chocolate", "mushroom", "mushrooms", "soy"
+        ])
 
         scored = []
         for p in self.passages:
@@ -273,14 +539,22 @@ class MedicalRAGSystem:
             score = len(meaningful_words.intersection(p_words)) * 2
             if any(term in p_lower for term in meaningful_words if len(term) > 3):
                 score += 3
-            scored.append((score, p))
+
+            # Intent penalty: do not return food/diet info for a testing/diagnostic query
+            if is_test_query and not is_diet_query:
+                if any(w in p_lower for w in ["soy", "soybean", "tofu", "wheat", "shellfish", "oyster", "recipes", "dietary copper restriction"]):
+                    score -= 15
+            elif is_diet_query and not is_test_query:
+                if any(w in p_lower for w in ["biopsy", "leipzig score", "slit-lamp", "penicillamine challenge"]):
+                    score -= 10
+
+            if score > 0:
+                scored.append((score, p))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        top_passages = [p for s, p in scored[:2] if s > 0]
-        if not top_passages and self.passages:
-            top_passages = self.passages[:2]
+        top_passages = [p for s, p in scored[:2] if s >= 4]
 
-        return "\n\n---\n\n".join(top_passages)
+        return "\n\n".join(top_passages)
 
     def get_clinical_recommendations(self, patient_data, prediction_text):
         is_positive = "Positive" in prediction_text
@@ -340,12 +614,50 @@ Provide clear headings for:
 """
         return sanitize_bot_answer(advice)
 
-    def ask_chatbot(self, user_question, patient_context=None):
+    def _extract_recent_topic(self, chat_history):
+        """
+        Scans recent chat history (from newest to oldest) to identify the clinical subject
+        or entity being discussed, enabling pronoun and follow-up reference resolution.
+        """
+        if not chat_history:
+            return None
+
+        # Inspect up to 4 recent messages in reverse order
+        for turn in reversed(chat_history[-4:]):
+            text = (turn.get("content") or "").lower()
+            if "trientine" in text:
+                return "trientine"
+            if "penicillamine" in text:
+                return "d-penicillamine"
+            if "zinc" in text:
+                return "zinc"
+            if "ceruloplasmin" in text:
+                return "ceruloplasmin"
+            if any(term in text for term in ["kayser", "kf ring", "kf rings"]):
+                return "kayser-fleischer rings"
+            if "leipzig" in text:
+                return "leipzig score"
+            if "atp7b" in text:
+                return "atp7b gene"
+            if "urinary copper" in text or "urine copper" in text:
+                return "urinary copper"
+            if "free copper" in text:
+                return "free copper"
+            if "liver transplant" in text or "transplantation" in text:
+                return "liver transplantation"
+            if "chelation" in text:
+                return "chelation therapy"
+        return None
+
+    def ask_chatbot(self, user_question, patient_context=None, chat_history=None):
         """
         Conversational Clinical RAG assistant grounded in the AASLD/EASL/INASL Question Bank
         and aware of the active Patient Dashboard / Prediction Report.
         All responses are cleanly sanitized to remove raw asterisks (**) and bullet hyphens (-).
         """
+        if chat_history is None:
+            chat_history = []
+
         raw_msg = user_question.strip()
         q = raw_msg.lower().strip()
         clean_q = re.sub(r'[^\w\s]', '', q).strip()
@@ -389,6 +701,12 @@ Provide clear headings for:
 
         if any(phrase in clean_q for phrase in ["who are you", "what is your name", "who r u", "what are you"]):
             return sanitize_bot_answer("I am NeuroMed AI, your clinical AI assistant for Wilson's Disease early diagnosis and treatment recommendations. How may I help you?")
+
+        # =============================================================
+        # 1.5 GUARD: HANDLE RANDOM / MEANINGLESS INPUT SAFELY
+        # =============================================================
+        if is_meaningless_query(user_question):
+            return sanitize_bot_answer(CLARIFICATION_MSG)
 
         # =============================================================
         # 2. PATIENT-REPORT-AWARE HANDLERS (AASLD / EASL Question Bank Grounded)
@@ -568,6 +886,162 @@ Provide clear headings for:
                 "• SHAP (SHapley Additive exPlanations): Explains the prediction by measuring exactly which patient lab markers pushed the risk score higher or lower from baseline, visualizing individual Feature Attribution via interactive Force and Beeswarm plots."
             )
 
+        # --- WHAT ARE THE COPPER BASED TESTS / TESTS FOR COPPER ---
+        is_copper_test_query = (
+            any(phrase in clean_q for phrase in [
+                "copper based test", "copper based tests", "tests for copper", "test for copper",
+                "tests measure copper", "test measures copper", "copper blood test", "copper test",
+                "copper tests", "copper laboratory test", "copper lab test", "copper biomarkers"
+            ])
+            or (("copper" in words or "cu" in words) and any(w in words for w in ["test", "tests", "testing", "taken", "measure", "measures", "measured"]) and not any(w in words for w in ["urine", "urinary", "diet", "food", "eat"]))
+        )
+        if is_copper_test_query:
+            return sanitize_bot_answer(
+                "🧪 Copper-Based Diagnostic Tests for Wilson's Disease (AASLD / EASL Guidelines)\n\n"
+                "Comprehensive evaluation of copper metabolism is essential for confirming Wilson's disease. Key copper-related tests include:\n\n"
+                "1. Serum Ceruloplasmin Test:\n"
+                "• Measures the primary copper-binding glycoprotein in blood. Levels < 10 mg/dL strongly support Wilson disease (+2 Leipzig points; normal range: 20–40 mg/dL).\n\n"
+                "2. 24-Hour Urinary Copper Excretion Test:\n"
+                "• Measures total copper eliminated in urine over 24 hours. A diagnostic value > 100 µg/24h (>1.6 µmol/d) confirms pathological copper overload (+2 Leipzig points; normal: < 40 µg/24h).\n\n"
+                "3. Free (Non-Ceruloplasmin-Bound) Serum Copper:\n"
+                "• Calculated as Total Serum Copper (µg/dL) - [3.15 × Ceruloplasmin (mg/dL)]. Levels > 15–25 µg/dL indicate elevated toxic copper circulating to vital organs.\n\n"
+                "4. Total Serum Copper Test:\n"
+                "• Measures total circulating copper (bound and unbound). Often reduced due to low ceruloplasmin, but rises acutely in fulminant hepatic necrosis.\n\n"
+                "5. Hepatic Copper Quantification (Liver Biopsy):\n"
+                "• Gold-standard tissue measurement. Parenchymal copper concentration > 250 µg/g dry weight establishes definitive tissue accumulation (+2 Leipzig points).\n\n"
+                "6. Slit-Lamp Ophthalmic Examination for Kayser-Fleischer (KF) Rings:\n"
+                "• Identifies golden-brown copper deposits in Descemet's membrane of the peripheral cornea (+2 Leipzig points)."
+            )
+
+        # --- 24-HOUR URINARY COPPER / URINE COPPER TEST ---
+        if any(phrase in clean_q for phrase in ["24 hour urine copper", "24 hour urinary copper", "24hr urine copper", "24 h urine copper", "urine copper test", "urinary copper test", "urine copper", "urinary copper"]):
+            return sanitize_bot_answer(
+                "🧪 24-Hour Urinary Copper Test (Question Bank Sec. 4.10–4.11 & AASLD Guidelines)\n\n"
+                "• Clinical Definition: Measures the total amount of copper excreted in urine over a full 24-hour collection period. It is one of the most reliable initial screening, diagnostic, and therapy-monitoring tests in Wilson disease.\n\n"
+                "• Diagnostic Reference Ranges:\n"
+                "  • Normal Baseline: < 40 µg/24 hours (< 0.6 µmol/day)\n"
+                "  • Symptomatic Wilson Disease: > 100 µg/24 hours (> 1.6 µmol/day) — provides +2 points on the Leipzig diagnostic scale\n"
+                "  • Intermediate / Asymptomatic: 40–100 µg/24 hours (warrants further clinical evaluation or penicillamine challenge test)\n\n"
+                "• Treatment Monitoring Targets:\n"
+                "  • Chelation Therapy (D-Penicillamine / Trientine): Target excretion is 200–500 µg/24h during stable maintenance therapy.\n"
+                "  • Zinc Maintenance Therapy: Target excretion decreases to < 75 µg/24h, confirming effective blockade of intestinal copper absorption."
+            )
+
+        # --- STANDALONE COPPER TERM ---
+        if clean_q == "copper" or clean_q in ["what is copper", "explain copper", "about copper", "copper role"]:
+            return sanitize_bot_answer(
+                "🧪 Copper Metabolism & Pathology in Wilson's Disease (Question Bank Sec. 2.1–2.8)\n\n"
+                "• Normal Physiological Role: Copper is an essential trace element required as an enzymatic cofactor for mitochondrial energy production (cytochrome c oxidase), iron metabolism (ceruloplasmin), and neurotransmitter synthesis.\n\n"
+                "• Pathophysiology in Wilson's Disease:\n"
+                "  • In healthy individuals, the ATP7B transporter in the liver pumps surplus copper into bile for excretion in stool.\n"
+                "  • In Wilson disease, mutations in ATP7B impair biliary copper excretion and ceruloplasmin incorporation. Excess copper progressively accumulates in hepatocytes, spills into the circulation as toxic free copper, and deposits in the brain, corneas, and kidneys.\n\n"
+                "• Clinical Diagnostic Markers: Low serum ceruloplasmin (<10 mg/dL), elevated 24-hour urine copper (>100 µg/day), elevated non-ceruloplasmin-bound copper (>15 µg/dL), and Kayser-Fleischer rings."
+            )
+
+        # =============================================================
+        # 3.5 CONVERSATIONAL FOLLOW-UP & PRONOUN RESOLUTION
+        # =============================================================
+        has_pronoun = bool(re.search(r'\b(it|its|this|that|they|them|the drug|the medication|the test|the treatment)\b', q))
+        is_followup_phrase = any(term in clean_q for term in [
+            "side effect", "side effects", "adverse effect", "adverse effects", "risks", "reactions",
+            "alternative", "alternatives", "substitute", "other option", "other drug",
+            "dosage", "dose", "how much", "how to take",
+            "why is it important", "why important", "importance", "significance",
+            "how does it work", "how it works", "mechanism", "mode of action"
+        ])
+        has_explicit_entity = any(ent in clean_q for ent in [
+            "trientine", "penicillamine", "zinc", "ceruloplasmin", "kayser", "kf ring", "kf rings",
+            "leipzig", "atp7b", "urinary", "urine", "free copper", "transplant"
+        ])
+
+        if (has_pronoun or is_followup_phrase) and not has_explicit_entity and chat_history:
+            recent_topic = self._extract_recent_topic(chat_history)
+            if recent_topic:
+                # 1. Follow-up: Side effects & adverse events
+                if any(term in clean_q for term in ["side effect", "side effects", "adverse", "risk", "risks", "reaction", "reactions"]):
+                    if recent_topic == "trientine":
+                        return sanitize_bot_answer(
+                            "💊 Trientine Adverse Effects & Safety Profile (AASLD / EASL Guidelines)\n\n"
+                            "• General Tolerability: Trientine has a significantly milder side-effect profile than D-penicillamine and is better tolerated by most patients.\n\n"
+                            "• Documented Side Effects (Question Bank Sec. 11.9 / AASLD 2023):\n"
+                            "  • Dysgeusia (loss or disturbance of taste sensation)\n"
+                            "  • Mild proteinuria or renal changes\n"
+                            "  • Early neurological worsening: Paradoxical neurological decline upon starting therapy (less frequent than with D-penicillamine)\n"
+                            "  • Sideroblastic anemia or bone marrow changes (rare, secondary to induced copper deficiency)\n"
+                            "  • Gastrointestinal upset or nausea\n\n"
+                            "• Clinical Monitoring: Routine CBC, urinalysis, 24-hour urinary copper, and neurological exams should be monitored regularly during therapy."
+                        )
+                    elif recent_topic == "d-penicillamine":
+                        return sanitize_bot_answer(
+                            "💊 D-Penicillamine Adverse Effects & Safety Profile (AASLD / EASL Guidelines)\n\n"
+                            "• Documented Adverse Effects (Question Bank Sec. 11.9 / AASLD 2023):\n"
+                            "  • Hypersensitivity: Early skin rash, fever, lymphadenopathy\n"
+                            "  • Renal Toxicity: Proteinuria, membranous nephropathy, nephrotic syndrome\n"
+                            "  • Hematologic Toxicity: Bone marrow suppression (leukopenia, thrombocytopenia, rare aplastic anemia)\n"
+                            "  • Autoimmune Syndromes: Drug-induced lupus, myasthenia gravis, Goodpasture syndrome\n"
+                            "  • Neurological Worsening: Paradoxical worsening of tremors/dysarthria in 10–20% of patients upon initiating therapy\n\n"
+                            "• Essential Co-Medication: Pyridoxine (Vitamin B6, 25–50 mg/day) must always be co-prescribed to prevent drug-induced deficiency."
+                        )
+                    elif recent_topic == "zinc":
+                        return sanitize_bot_answer(
+                            "💊 Zinc Therapy Adverse Effects (AASLD / EASL Guidelines)\n\n"
+                            "• Primary Side Effect: Gastrointestinal irritation (dyspepsia, gastric pain, nausea) in up to 10–20% of patients.\n"
+                            "• Other Considerations: Headaches or microcytic anemia if copper levels drop excessively.\n"
+                            "• Administration Tip: Zinc must be taken separately from food and chelators (at least 1 hour before or 2 hours after meals) for optimal absorption."
+                        )
+
+                # 2. Follow-up: Alternatives & substitutions
+                if any(term in clean_q for term in ["alternative", "alternatives", "substitute", "other option", "other drug"]):
+                    if recent_topic in ["d-penicillamine", "trientine"]:
+                        return sanitize_bot_answer(
+                            "💊 Treatment Alternatives for Wilson's Disease (AASLD / EASL / WHO Guidelines)\n\n"
+                            "• 1. Trientine Dihydrochloride (Primary First-Line Chelator Alternative):\n"
+                            "  If D-penicillamine is contraindicated or causes intolerance (severe rash, nephrotoxicity, cytopenias), Trientine is the recommended first-line alternative with fewer immunological side effects.\n\n"
+                            "• 2. Zinc Salts (Maintenance or Presymptomatic Alternative):\n"
+                            "  Zinc acetate or gluconate blocks intestinal copper absorption by inducing intestinal metallothionein. Used for maintenance after de-coppering or first-line in presymptomatic/neurological patients.\n\n"
+                            "• 3. Liver Transplantation:\n"
+                            "  Reserved for acute fulminant liver failure or decompensated cirrhosis unresponsive to chelation (corrects metabolic defect)."
+                        )
+                    elif recent_topic == "zinc":
+                        return sanitize_bot_answer(
+                            "💊 Alternatives to Zinc Therapy in Wilson's Disease\n\n"
+                            "• Active Chelating Agents: D-Penicillamine or Trientine Dihydrochloride are the primary systemic chelators when active de-coppering (rather than intestinal absorption blockade) is required."
+                        )
+
+                # 3. Follow-up: Clinical Importance / Why is it important
+                if any(w in clean_q for w in ["why", "importance", "important", "role", "significance"]):
+                    if recent_topic == "ceruloplasmin":
+                        return sanitize_bot_answer(
+                            "🧪 Why Ceruloplasmin is Important in Wilson's Disease (Question Bank Sec. 4.3–4.6)\n\n"
+                            "• 1. Primary Copper Carrier in Blood:\n"
+                            "  Ceruloplasmin binds over 90% of circulating copper under normal physiology.\n\n"
+                            "• 2. Cardinal Diagnostic Biomarker:\n"
+                            "  ATP7B gene mutations prevent copper incorporation into apoceruloplasmin, causing rapid degradation. Consequently, serum ceruloplasmin is typically < 10 mg/dL in Wilson disease.\n\n"
+                            "• 3. Leipzig Score Pillar:\n"
+                            "  A level < 10 mg/dL awards +2 points toward the Leipzig diagnostic consensus score, making it a critical screening and diagnostic pillar.\n\n"
+                            "• 4. Guiding Free Copper Calculation:\n"
+                            "  Serum ceruloplasmin is used to calculate non-ceruloplasmin-bound (free) copper, which correlates with tissue toxicity."
+                        )
+                    elif recent_topic == "kayser-fleischer rings":
+                        return sanitize_bot_answer(
+                            "👁️ Clinical Importance of Kayser-Fleischer (KF) Rings\n\n"
+                            "• Direct Ophthalmic Sign: Formed by copper deposition in Descemet's membrane of the cornea.\n"
+                            "• High Diagnostic Value: Confirmed presence awards +2 Leipzig points. Present in >90% of neurological Wilson disease cases.\n"
+                            "• Monitoring Response: Rings gradually fade and disappear with successful long-term de-coppering therapy."
+                        )
+                    elif recent_topic == "atp7b gene":
+                        return sanitize_bot_answer(
+                            "🧬 Clinical Importance of the ATP7B Gene\n\n"
+                            "• Definitive Genetic Etiology: Pathogenic mutations on both chromosome 13 alleles confirm Wilson's disease (+4 Leipzig points).\n"
+                            "• Family Screening: Identifies asymptomatic siblings early, enabling preventative therapy before irreversible organ damage occurs."
+                        )
+
+                # General follow-up lookup against Question Bank with enriched subject
+                enriched_msg = f"{raw_msg} {recent_topic}"
+                enriched_ans = self.search_qa_bank(enriched_msg)
+                if enriched_ans:
+                    return sanitize_bot_answer(enriched_ans)
+
         # =============================================================
         # 4. CUSTOM USER-DEFINED Q&A LIST
         # =============================================================
@@ -590,12 +1064,29 @@ Provide clear headings for:
         # =============================================================
         # 5. GENERAL RETRIEVAL-AUGMENTED ANSWER (VECTORSTORE FALLBACK)
         # =============================================================
-        context = self.retrieve_relevant_context(user_question)
+        retrieval_query = user_question
+        if (has_pronoun or is_followup_phrase) and not has_explicit_entity and chat_history:
+            recent_topic = self._extract_recent_topic(chat_history)
+            if recent_topic:
+                retrieval_query = f"{user_question} ({recent_topic})"
+
+        context = self.retrieve_relevant_context(retrieval_query)
 
         if self.llm:
             try:
+                history_str = ""
+                if chat_history:
+                    h_lines = []
+                    for h in chat_history[-6:]:
+                        r = "User" if h.get("role") == "user" else "Assistant"
+                        c = (h.get("content") or "").replace("\n", " ").strip()
+                        if c:
+                            h_lines.append(f"{r}: {c}")
+                    if h_lines:
+                        history_str = "RECENT CONVERSATION HISTORY:\n" + "\n".join(h_lines) + "\n\n"
+
                 prompt = f"""You are a helpful Medical Assistant specializing in Wilson's Disease.
-Use the retrieved clinical guidelines to answer the user question clearly, politely, and accurately without using markdown asterisks (**) or bullet hyphens (-).
+{history_str}Use the retrieved clinical guidelines to answer the user question clearly, politely, and accurately without using markdown asterisks (**) or bullet hyphens (-).
 Do NOT mention or repeat the question in your output. Provide only the clinical answer.
 
 CONTEXT:
@@ -613,6 +1104,9 @@ CLINICAL ANSWER:"""
 
         # Grounded structured clinical summary from retrieved guidelines
         # Strip any questions or headers so only pure answers are returned
+        if not context or not context.strip():
+            return sanitize_bot_answer(CLARIFICATION_MSG)
+
         lines = context.replace("===", "").strip().splitlines()
         content_lines = []
         for l in lines:
@@ -621,7 +1115,7 @@ CLINICAL ANSWER:"""
             content_lines.append(l)
         clean_body = "\n".join(content_lines).strip()
         if not clean_body:
-            clean_body = context.replace("===", "").strip()
+            return sanitize_bot_answer(CLARIFICATION_MSG)
 
         return sanitize_bot_answer(clean_body)
 

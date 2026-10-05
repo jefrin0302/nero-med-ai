@@ -90,6 +90,8 @@
     .eval-normal { background: #d1fae5; color: #065f46; }
     .eval-abnormal-high { background: #fee2e2; color: #991b1b; }
     .eval-abnormal-low { background: #fef3c7; color: #92400e; }
+    .eval-neutral { background: #f1f5f9; color: #475569; }
+    .eval-warning { background: #fef3c7; color: #92400e; }
   </style>
 </head>
 <body>
@@ -135,10 +137,10 @@
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
         <div>
           <span style="color: #a5b4fc; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">
-            CLINICAL DIAGNOSTIC EVALUATION REPORT
+            CLINICAL RISK EVALUATION & DECISION SUPPORT REPORT
           </span>
           <h1 style="font-size: 32px; font-weight: 800; margin-top: 4px; margin-bottom: 8px; letter-spacing: -0.5px;">
-            Wilson's Disease AI Assessment
+            Wilson's Disease Clinical AI Assessment
           </h1>
           <p style="color: #cbd5e1; font-size: 14px;">
             Synthesized via Multi-Model ML Stacking Ensemble (SVM + LogReg + Bi-LSTM) & SHAP Explainable AI.
@@ -146,9 +148,9 @@
         </div>
 
         <div>
-          {% if "Positive" in prediction_text %}
+          {% if "High" in prediction_text or "Positive" in prediction_text %}
           <div class="status-pill status-positive">
-            🚨 {{ prediction_text }}
+            ⚠️ {{ prediction_text }}
           </div>
           {% else %}
           <div class="status-pill status-negative">
@@ -177,7 +179,7 @@
     <!-- RISK GAUGE & METRIC DIAL -->
     <div class="card-glass collapsible-card" id="card-gauge">
       <div class="collapsible-trigger" onclick="toggleCard('card-gauge')">
-        <h2 class="section-title" style="margin-bottom: 0;">⚡ Diagnostic Risk Score & Model Confidence</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">⚡ Predicted Risk Score & Model Confidence</h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
@@ -199,7 +201,7 @@
             </svg>
             <div style="position: absolute; text-align: center;">
               <span style="font-size: 28px; font-weight: 800; color: var(--dark);">{{ (probability * 100) | round(1) }}%</span>
-              <span style="display: block; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">DIAGNOSTIC RISK</span>
+              <span style="display: block; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">PREDICTED RISK</span>
             </div>
           </div>
 
@@ -209,7 +211,7 @@
               AI Stacking Ensemble Analysis
             </h3>
             <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6;">
-              The model probability score represents the meta-classifier's ensemble assessment. A score above 50% indicates elevated biochemical and clinical markers associated with Wilson's disease.
+              The model probability score represents the meta-classifier's predicted probability for Wilson Disease based on learned multi-marker patterns. A probability above 50% reflects elevated statistical alignment with documented disease profiles in training data, but does not constitute a medically validated diagnostic threshold.
             </p>
 
             <div style="display: flex; gap: 16px; flex-wrap: wrap;">
@@ -221,7 +223,7 @@
               <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
                 <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">DECISION CONFIDENCE</span>
                 <strong style="font-size: 18px; color: {% if probability > 0.8 or probability < 0.2 %}var(--success){% else %}var(--warning){% endif %};">
-                  {% if probability > 0.8 or probability < 0.2 %}High Confidence{% else %}Moderate Confidence{% endif %}
+                  {% if probability > 0.8 or probability < 0.2 %}High Model Confidence{% else %}Moderate Model Confidence{% endif %}
                 </strong>
               </div>
             </div>
@@ -308,40 +310,27 @@
               </tr>
             </thead>
             <tbody>
-              {% for key, value in data.items() %}
-              <tr>
-                <td><strong style="color: var(--dark);">{{ key.replace("_", " ").title() }}</strong></td>
-                <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ value }}</code></td>
-                
-                <!-- REFERENCE RANGES -->
-                <td style="color: var(--text-muted); font-size: 13px;">
-                  {% if "Ceruloplasmin" in key %} 20.0 – 40.0 mg/dL
-                  {% elif "Free Copper" in key %} < 15.0 µg/dL
-                  {% elif "Urine" in key %} < 40.0 µg/24h
-                  {% elif "Alt" in key or "Ast" in key %} < 40.0 U/L
-                  {% elif "Bilirubin" in key %} 0.2 – 1.2 mg/dL
-                  {% elif "Albumin" in key %} 3.5 – 5.0 g/dL
-                  {% elif "Kayser" in key %} Negative ("No")
-                  {% else %} Standard Clinical Metric
-                  {% endif %}
-                </td>
-
-                <!-- STATUS BADGES -->
-                <td>
-                  {% if "Ceruloplasmin" in key and (value|float) < 20.0 %}
-                    <span class="eval-badge eval-abnormal-low">⚠️ Abnormally Low (<20)</span>
-                  {% elif "Free Copper" in key and (value|float) > 15.0 %}
-                    <span class="eval-badge eval-abnormal-high">🚨 Elevated Free Copper (>15)</span>
-                  {% elif "Urine" in key and (value|float) > 40.0 %}
-                    <span class="eval-badge eval-abnormal-high">🚨 Elevated Urine Copper (>40)</span>
-                  {% elif "Kayser" in key and value == "Yes" %}
-                    <span class="eval-badge eval-abnormal-high">🚨 KF Rings Present</span>
-                  {% else %}
-                    <span class="eval-badge eval-normal">✅ Normal / Within Range</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
+              {% if clinical_table %}
+                {% for item in clinical_table %}
+                <tr>
+                  <td><strong style="color: var(--dark);">{{ item.label }}</strong></td>
+                  <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ item.formatted_value }}</code></td>
+                  <td style="color: var(--text-muted); font-size: 13px;">{{ item.reference_boundary }}</td>
+                  <td>
+                    <span class="eval-badge {{ item.badge_class }}">{{ item.badge_text }}</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                {% for key, value in data.items() %}
+                <tr>
+                  <td><strong style="color: var(--dark);">{{ key.replace("_", " ").title() }}</strong></td>
+                  <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ value }}</code></td>
+                  <td style="color: var(--text-muted); font-size: 13px;">Standard Clinical Metric</td>
+                  <td><span class="eval-badge eval-neutral">Recorded</span></td>
+                </tr>
+                {% endfor %}
+              {% endif %}
             </tbody>
           </table>
         </div>
@@ -359,27 +348,62 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
           
           <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
-              🔍 Leipzig Criteria Contribution
-            </h4>
-            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8;">
-              <li>Ceruloplasmin < 10 mg/dL: <strong>+2 points</strong></li>
-              <li>24h Urine Copper > 100 µg/24h: <strong>+2 points</strong></li>
-              <li>Kayser-Fleischer Rings Present: <strong>+2 points</strong></li>
-              <li>ATP7B Mutation Present: <strong>+2 points</strong></li>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin: 0;">
+                🔍 Leipzig Criteria Contribution
+              </h4>
+              <span style="font-size: 13px; font-weight: 800; background: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 12px;">
+                Score: {{ leipzig_breakdown.total_score if leipzig_breakdown else 0 }} pts
+              </span>
+            </div>
+            
+            {% if leipzig_breakdown %}
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8; margin-bottom: 12px;">
+              {% for crit in leipzig_breakdown.criteria_list %}
+              <li>
+                {{ crit.name }}: 
+                <strong style="color: {% if crit.points > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+                  {% if crit.points > 0 %}+{{ crit.points }} points{% else %}0 points{% endif %}
+                </strong>
+                <span style="color: var(--text-muted); font-size: 12px;">({{ crit.note }})</span>
+              </li>
+              {% endfor %}
             </ul>
+
+            <div style="border-top: 1px dashed var(--border); padding-top: 10px; margin-top: 10px;">
+              <p style="font-size: 12px; color: var(--text-main); line-height: 1.5; margin-bottom: 8px;">
+                <strong>Clinical Interpretation:</strong> {{ leipzig_breakdown.interpretation }}
+              </p>
+              <div style="font-size: 11px; color: #64748b; line-height: 1.4;">
+                <em>Unassessed Criteria (0 pts assigned in panel):</em>
+                <ul style="padding-left: 16px; margin-top: 4px;">
+                  {% for unassessed in leipzig_breakdown.unassessed_list %}
+                  <li>{{ unassessed }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+            {% endif %}
           </div>
 
           <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
               📑 Physician Next Steps
             </h4>
             <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8;">
-              <li>Confirm diagnosis via 24-hour urinary copper re-test.</li>
-              <li>Perform ophthalmic slit-lamp exam for KF rings.</li>
-              <li>Initiate initial chelation therapy if confirmed.</li>
-              <li>Screen first-degree family members (siblings/children).</li>
+              {% if physician_steps %}
+                {% for step in physician_steps %}
+                <li>{{ step }}</li>
+                {% endfor %}
+              {% else %}
+                <li>Comprehensive specialist hepatology/neurology evaluation.</li>
+                <li>Ophthalmic slit-lamp examination for KF rings.</li>
+                <li>24-hour urinary copper and hepatic laboratory re-testing.</li>
+              {% endif %}
             </ul>
+            <div style="margin-top: 14px; background: #fff; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; color: #64748b; line-height: 1.5;">
+              ⚠️ <strong>Clinical Decision Support Note:</strong> All findings and score calculations represent assistive decision support and do not constitute a definitive medical diagnosis or prescription. Final diagnosis and pharmacological therapy must be determined by a licensed physician.
+            </div>
           </div>
 
         </div>

@@ -1127,9 +1127,9 @@ class MedicalRAGSystem:
         return "\n\n".join(top_passages)
 
     def get_clinical_recommendations(self, patient_data, prediction_text):
-        is_positive = "Positive" in prediction_text
+        is_positive = ("High" in prediction_text or "Positive" in prediction_text)
 
-        query = f"Wilson Disease Diagnosis: {prediction_text}. Patient indicators: Ceruloplasmin: {patient_data.get('Ceruloplasmin Level')}, Free Copper: {patient_data.get('Free Copper in Blood Serum')}, Urinary Copper: {patient_data.get('Copper in Urine')}, ALT: {patient_data.get('ALT')}, AST: {patient_data.get('AST')}, Kayser Fleischer Rings: {patient_data.get('Kayser-Fleischer Rings')}."
+        query = f"Wilson Disease Evaluation: {prediction_text}. Patient indicators: Ceruloplasmin: {patient_data.get('Ceruloplasmin Level')}, Free Copper: {patient_data.get('Free Copper in Blood Serum')}, Urinary Copper: {patient_data.get('Copper in Urine')}, ALT: {patient_data.get('ALT')}, AST: {patient_data.get('AST')}, Kayser Fleischer Rings: {patient_data.get('Kayser-Fleischer Rings')}."
         context = self.retrieve_relevant_context(query)
 
         if self.llm:
@@ -1141,12 +1141,12 @@ RETRIEVED MEDICAL GUIDELINES:
 {context}
 
 PATIENT CASE:
-Diagnosis: {prediction_text}
+Predicted Risk Category: {prediction_text}
 Lab Parameters: {patient_data}
 
 Provide clear headings for:
 1. Diagnostic Findings & Interpretation
-2. Pharmacotherapy & Chelation Recommendations (if Positive)
+2. Pharmacotherapy & Chelation Recommendations (if High Risk)
 3. Dietary Copper Restrictions
 4. Monitoring Schedule
 """
@@ -1157,31 +1157,32 @@ Provide clear headings for:
 
         # Grounded clinical response generator based on retrieved medical guidelines
         if is_positive:
-            advice = f"""Clinical Management Guidelines for Positive Diagnosis
+            advice = f"""Clinical Management Guidelines for High Predicted Risk (Decision Support)
 
-1. Pharmacotherapy & De-coppering Options:
+1. Pharmacotherapy & De-coppering Options (Subject to Physician Confirmation):
 • First-line Chelation Therapy: D-Penicillamine (750 mg – 1500 mg/day in divided doses, taken on an empty stomach). Co-administer Pyridoxine (Vitamin B6, 25–50 mg/day) to prevent deficiency.
 • Alternative Chelator: Trientine Dihydrochloride (900 mg – 1500 mg/day) if D-Penicillamine is not tolerated or in patients with neurological involvement.
 • Maintenance / Zinc Therapy: Zinc Acetate (50 mg elemental zinc 3 times daily) to block intestinal copper absorption once copper levels normalize.
 
-2. Strictly Avoid High-Copper Foods:
-• Organ meats (liver, kidney), shellfish (oysters, crab), nuts (cashews, almonds), seeds, chocolate/cocoa, and mushrooms.
+2. Dietary Copper Restrictions (Supportive):
+• Organ meats (liver, kidney), shellfish (oysters, crab), nuts (cashews, almonds), seeds, chocolate/cocoa, and mushrooms should be restricted.
 • Test drinking water for elevated copper levels and avoid unlined copper cookware.
 
 3. Required Diagnostic Monitoring:
 • Monitor 24-hour urinary copper (target: 200–500 µg/day on chelation), free serum copper (target: 5–15 µg/dL), CBC, LFTs, and renal function.
-• Life-long medication adherence is essential to prevent acute fulminant hepatic failure.
-"""
+• Life-long medication adherence under specialist supervision is essential to prevent acute fulminant hepatic failure.
+""" + CLINICAL_CDS_NOTE
         else:
-            advice = f"""Clinical Summary for Negative Diagnosis
+            advice = f"""Clinical Summary for Low Predicted Risk
 
 1. Diagnostic Interpretation:
-• The machine learning model indicates a low probability of Wilson's disease based on current biochemical markers (Ceruloplasmin: {patient_data.get('Ceruloplasmin Level', 'N/A')}, Free Copper: {patient_data.get('Free Copper in Blood Serum', 'N/A')}).
+• The machine learning model indicates a low predicted probability for Wilson's disease based on current biochemical markers (Ceruloplasmin: {patient_data.get('Ceruloplasmin Level', 'N/A')}, Free Copper: {patient_data.get('Free Copper in Blood Serum', 'N/A')}).
+• This low statistical probability does not completely rule out atypical or early disease presentations if strong clinical signs persist.
 
 2. Follow-up Recommendations:
 • If clinical suspicion remains high (e.g., unexplained persistent elevation in ALT/AST or family history of liver disease), consider repeat 24-hour urinary copper screening and ophthalmologic slit-lamp exam for Kayser-Fleischer rings.
-• Continue routine hepatic and neurological evaluation as clinically indicated.
-"""
+• Continue routine hepatic and neurological evaluation as clinically indicated. Chelation therapy is not indicated based on this assessment.
+""" + CLINICAL_CDS_NOTE
         return sanitize_bot_answer(advice)
 
     def _extract_recent_topic(self, chat_history):

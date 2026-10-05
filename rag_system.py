@@ -156,8 +156,8 @@ def is_meaningless_query(user_question: str) -> bool:
         if len(dt) > 2 and dt in clean_text:
             return False
 
-    # 3. Conversational follow-ups (e.g. "what are its side effects", "why is it important")
-    conversational_pronouns = {"it", "its", "they", "them", "this", "that"}
+    # 3. Conversational follow-ups (e.g. "what are its side effects", "why is it important", "what is mine")
+    conversational_pronouns = {"it", "its", "they", "them", "this", "that", "mine", "my"}
     if any(w in conversational_pronouns for w in tokens) and len(tokens) >= 2:
         return False
 
@@ -240,6 +240,576 @@ def sanitize_bot_answer(text: str) -> str:
     cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
 
     return cleaned.strip()
+
+# =============================================================
+# CLINICAL MESSAGING CONSTANTS & HELPERS
+# =============================================================
+OUT_OF_SCOPE_MSG = (
+    "I am specialized exclusively in Wilson's Disease clinical education and patient assessment support. "
+    "I cannot assist with general knowledge, non-medical questions, or unrelated topics. "
+    "Please let me know if you have questions about Wilson's disease symptoms, biomarkers, "
+    "diagnostic criteria (such as the Leipzig score), treatment guidelines, or your assessment report."
+)
+
+CLINICAL_CDS_NOTE = (
+    "\n\nClinical Decision Support Notice:\n"
+    "This interpretation is provided as educational decision support based on available assessment markers. "
+    "It does not constitute a definitive medical diagnosis or personalized prescription. "
+    "All diagnostic confirmations, formal Leipzig evaluations, and treatment modifications require direct consultation "
+    "with a treating gastroenterologist, hepatologist, or neurologist."
+)
+
+def is_out_of_scope_query(user_question: str, chat_history=None) -> bool:
+    """
+    Conservative, medical- and Wilson-aware detector for completely unrelated non-medical queries.
+    Preserves all medical, laboratory, genetic, treatment, and conversational follow-up questions.
+    Only queries with clear non-medical subjects (sports, politics, entertainment, software coding,
+    foreign geography/trivia, weather, recipes, etc.) and NO medical/patient context are flagged.
+    """
+    if not user_question:
+        return False
+
+    text = user_question.strip().lower()
+    clean_text = re.sub(r'[^\w\s]', ' ', text)
+    tokens = set(clean_text.split())
+
+    # 1. Broad in-domain keywords (Medical, Wilson's, Patient Report, Biomarkers, Genetics, Treatments, Decision Support)
+    in_domain_keywords = {
+        # Core Wilson & Genetics
+        "wilson", "wilsons", "atp7b", "atp7", "copper", "cu", "ceruloplasmin", "apoceruloplasmin",
+        "kayser", "fleischer", "kf", "ring", "rings", "cornea", "corneal", "eye", "eyes", "slit", "lamp",
+        "leipzig", "ferenci", "mutation", "mutations", "gene", "genes", "genetic", "genetics", "autosomal", "recessive",
+        # Labs & Biomarkers
+        "urine", "urinary", "serum", "blood", "free", "bound", "hepatic", "liver", "enzyme", "enzymes",
+        "alt", "ast", "alp", "ggt", "bilirubin", "albumin", "inr", "prothrombin", "biopsy", "platelet",
+        "creatinine", "hemolysis", "coombs", "anemia", "lab", "labs", "test", "tests", "testing",
+        "parameter", "parameters", "marker", "markers", "biomarker", "biomarkers", "level", "levels", "value", "values",
+        "range", "ranges", "normal", "abnormal", "elevated", "low", "high", "deficiency", "overload",
+        # Symptoms & Body
+        "tremor", "tremors", "dystonia", "dysarthria", "ataxia", "chorea", "parkinson", "rigidity",
+        "jaundice", "ascites", "cirrhosis", "hepatitis", "fatigue", "neurological", "neuro",
+        "psychiatric", "cognitive", "depression", "anxiety", "brain", "ganglia", "symptom", "symptoms", "sign", "signs",
+        # Treatments & Drugs
+        "treatment", "treatments", "therapy", "therapies", "chelation", "chelator", "chelators",
+        "penicillamine", "trientine", "cuprimine", "syprine", "zinc", "galzin", "acetate", "gluconate",
+        "pyridoxine", "b6", "transplant", "transplantation", "dose", "dosage", "medication", "medications",
+        "medicine", "medicines", "drug", "drugs", "prescription", "side", "effect", "effects",
+        "stop", "stopping", "pause", "pausing", "skip", "skipping", "discontinue", "substitute", "alternative",
+        # Diet & Lifestyle
+        "diet", "diets", "dietary", "food", "foods", "eat", "eating", "nutrition", "organ", "meat", "meats",
+        "shellfish", "oyster", "oysters", "nut", "nuts", "seed", "seeds", "chocolate", "cocoa", "mushroom", "mushrooms",
+        # Patient context / AI report / General healthcare
+        "patient", "report", "assessment", "result", "results", "prediction", "probability", "risk",
+        "score", "scores", "doctor", "physician", "specialist", "hepatologist", "neurologist", "gastroenterologist",
+        "hospital", "clinic", "clinical", "health", "healthy", "illness", "disease", "disorder", "diagnose", "diagnosis",
+        "my", "mine", "me", "i", "model", "shap", "ai", "neuromed", "recommendation", "recommendations", "advice"
+    }
+
+    # If any token is in domain, it is NOT out of scope
+    if any(t in in_domain_keywords for t in tokens):
+        return False
+
+    compound_in_domain = [
+        "wilson", "copper", "atp7b", "kf ring", "ceruloplasmin", "urine copper", "urinary copper",
+        "free copper", "liver enzyme", "leipzig", "side effect", "blood test", "what should i do",
+        "explain my", "my report", "my result", "my risk", "why is it", "is it normal", "can you explain"
+    ]
+    if any(cid in clean_text for cid in compound_in_domain):
+        return False
+
+    # 2. Check if recent chat history had medical context (for short follow-up questions)
+    if chat_history:
+        for turn in reversed(chat_history[-3:]):
+            prev_content = (turn.get("content") or "").lower()
+            if any(term in prev_content for term in ["copper", "ceruloplasmin", "wilson", "leipzig", "treatment", "penicillamine", "trientine", "zinc"]):
+                if any(w in tokens for w in ["why", "how", "what", "is", "can", "tell", "explain", "more"]):
+                    return False
+
+    # 3. Explicit non-medical domains
+    out_of_scope_indicators = [
+        # Sports
+        r'\b(football|soccer|cricket|basketball|nba|nfl|fifa|ipl|tennis|messi|ronaldo|ipl score|match score)\b',
+        # Entertainment / Pop culture
+        r'\b(movie|movies|cinema|actor|actress|hollywood|bollywood|netflix|song|songs|music|singer|celebrity|album)\b',
+        # General Geography & Trivia
+        r'\b(capital of|population of|president of|prime minister of|currency of|flag of|continent|mount everest|eiffel tower)\b',
+        # Coding / Software
+        r'\b(python script|python code|python|javascript|html|css|write code|debug code|coding|code|sql query|git push|react component|docker container)\b',
+        # Weather / Astronomy
+        r'\b(weather in|forecast for|temperature today|will it rain|mars rover|how far is the moon|solar eclipse)\b',
+        # Math & Homework
+        r'\b(solve equation|integral of|derivative of|pythagorean theorem|math homework)\b',
+        # Non-medical cooking recipes
+        r'\b(how to bake|cake recipe|pizza dough|pasta recipe|cookie recipe|chocolate cake recipe)\b',
+    ]
+
+    for pattern in out_of_scope_indicators:
+        if re.search(pattern, clean_text):
+            return True
+
+    # 4. If query lacks ANY medical/health/patient/conversational anchor and is a general trivia question
+    trivia_openers = ["who is ", "where is ", "when did ", "what is the capital", "how tall is ", "who won "]
+    if any(clean_text.startswith(to) for to in trivia_openers):
+        return True
+
+    return False
+
+def calculate_patient_leipzig_score(p_data: dict) -> str:
+    """
+    Calculates the Leipzig Consensus Score strictly from objectively evaluated
+    patient parameters available in the record (ceruloplasmin, 24h urinary copper,
+    Kayser-Fleischer rings, and ATP7B mutation).
+    
+    In accordance with clinical guidelines and project documentation:
+    - Custom assessment scores (Neurological / Psychiatric) are reported as contextual
+      findings but are NOT assumed to equate to formal Leipzig neurological manifestation points.
+    - Unassessed or unavailable criteria (Biopsy, Coombs test) are explicitly documented as unassessed (0 pts).
+    - Missing patient parameters are marked as 'Not available' and do not silently add points.
+    - Diagnostic interpretation is presented as clinical decision support, emphasizing physician confirmation.
+    """
+    if not p_data or not isinstance(p_data, dict):
+        return (
+            "No patient assessment data is currently loaded. Please complete an assessment "
+            "or enter clinical biomarkers to calculate a patient-specific Leipzig score."
+        )
+
+    score = 0
+    lines = []
+    lines.append("📋 Patient-Specific Leipzig Score Evaluation (AASLD / EASL Criteria)\n")
+
+    # 1. Kayser-Fleischer Rings (Slit-lamp examination)
+    kfr = p_data.get("Kayser-Fleischer Rings")
+    if kfr is None or str(kfr).strip() == "":
+        lines.append("• Kayser-Fleischer Rings: Not available in record (0 pts assigned)")
+    else:
+        try:
+            kfr_val = int(float(kfr))
+            if kfr_val == 1:
+                score += 2
+                lines.append("• Kayser-Fleischer Rings: Present (+2 pts) [Corneal copper deposition observed]")
+            else:
+                lines.append("• Kayser-Fleischer Rings: Absent (0 pts)")
+        except (ValueError, TypeError):
+            lines.append(f"• Kayser-Fleischer Rings: Recorded as '{kfr}' (0 pts assigned)")
+
+    # 2. Serum Ceruloplasmin
+    cerulo = p_data.get("Ceruloplasmin Level")
+    if cerulo is None or str(cerulo).strip() == "":
+        lines.append("• Serum Ceruloplasmin: Not available in record (0 pts assigned)")
+    else:
+        try:
+            c_val = float(cerulo)
+            if c_val < 10.0:
+                score += 2
+                lines.append(f"• Serum Ceruloplasmin: {c_val:.1f} mg/dL (+2 pts) [< 10 mg/dL, strongly indicative]")
+            elif 10.0 <= c_val < 20.0:
+                score += 1
+                lines.append(f"• Serum Ceruloplasmin: {c_val:.1f} mg/dL (+1 pt) [10–19.9 mg/dL, borderline low]")
+            else:
+                lines.append(f"• Serum Ceruloplasmin: {c_val:.1f} mg/dL (0 pts) [≥ 20 mg/dL, within normal range 20–40 mg/dL]")
+        except (ValueError, TypeError):
+            lines.append(f"• Serum Ceruloplasmin: Recorded as '{cerulo}' (0 pts assigned)")
+
+    # 3. 24-Hour Urinary Copper Excretion
+    u_cu = p_data.get("Copper in Urine")
+    if u_cu is None or str(u_cu).strip() == "":
+        lines.append("• 24h Urinary Copper: Not available in record (0 pts assigned)")
+    else:
+        try:
+            u_val = float(u_cu)
+            if u_val > 100.0:
+                score += 2
+                lines.append(f"• 24h Urinary Copper: {u_val:.1f} µg/24h (+2 pts) [> 100 µg/24h (>2× ULN), pathological overload]")
+            elif 40.0 <= u_val <= 100.0:
+                score += 1
+                lines.append(f"• 24h Urinary Copper: {u_val:.1f} µg/24h (+1 pt) [40–100 µg/24h (1–2× ULN), intermediate elevation]")
+            else:
+                lines.append(f"• 24h Urinary Copper: {u_val:.1f} µg/24h (0 pts) [< 40 µg/24h, within normal limits]")
+        except (ValueError, TypeError):
+            lines.append(f"• 24h Urinary Copper: Recorded as '{u_cu}' (0 pts assigned)")
+
+    # 4. ATP7B Mutation Analysis
+    gene = p_data.get("ATB7B Gene Mutation")
+    if gene is None or str(gene).strip() == "":
+        lines.append("• ATP7B Mutation Analysis: Not available in record (0 pts assigned)")
+    else:
+        try:
+            g_val = int(float(gene))
+            if g_val == 1:
+                score += 2
+                lines.append("• ATP7B Mutation Analysis: Pathogenic mutation detected (+2 pts)")
+            else:
+                lines.append("• ATP7B Mutation Analysis: No mutation detected / Normal (0 pts)")
+        except (ValueError, TypeError):
+            lines.append(f"• ATP7B Mutation Analysis: Recorded as '{gene}' (0 pts assigned)")
+
+    # 5. Neurological / Psychiatric Manifestation Evaluation (Explicitly distinct from formal Leipzig scoring)
+    neuro = p_data.get("Neurological Symptoms Score")
+    psych = p_data.get("Psychiatric Symptoms")
+    neuro_str = f"{neuro}" if neuro is not None else "Not recorded"
+    psych_str = "Reported" if str(psych).strip() in ("1", "Yes", "true") else ("Not reported" if psych is not None else "Not recorded")
+    lines.append(
+        f"• Neurological & Psychiatric Findings: Recorded assessment score = {neuro_str} (Psychiatric: {psych_str}). "
+        f"Note: Formal Leipzig neurological manifestation points (0–2) require structured neurological examination "
+        f"and brain MRI by a specialist, so no points are assumed here (0 pts counted)."
+    )
+
+    # 6. Unassessed Criteria (Biopsy & Coombs)
+    lines.append("• Hepatic Copper Content (Liver Biopsy): Quantification not available in patient record (unassessed, 0 pts)")
+    lines.append("• Coombs-Negative Hemolytic Anemia: Coombs test not available in patient record (unassessed, 0 pts)")
+
+    # Diagnostic Likelihood & Interpretation (Clinical Decision Support Wording)
+    lines.append(f"\n🎯 Total Leipzig Score from Evaluated Criteria: {score} points\n")
+    if score >= 4:
+        lines.append(
+            f"• Clinical Interpretation:\n"
+            f"  The calculated Leipzig score from the available assessment data is {score}. "
+            f"This falls within a range associated with a higher likelihood of Wilson Disease, "
+            f"but formal clinical diagnosis requires comprehensive evaluation and confirmation by your treating hepatologist or physician."
+        )
+    elif score == 3:
+        lines.append(
+            f"• Clinical Interpretation:\n"
+            f"  The calculated Leipzig score from the available assessment data is {score} (Probable Wilson's disease). "
+            f"Further diagnostic work-up—including formal neurological/brain MRI scoring, penicillamine challenge, or liver biopsy—is clinically indicated."
+        )
+    else:
+        lines.append(
+            f"• Clinical Interpretation:\n"
+            f"  The calculated Leipzig score from the available assessment data is {score} (Lower statistical likelihood based on evaluated markers). "
+            f"Clinical follow-up remains important if hepatic or neurological symptoms persist."
+        )
+
+    lines.append(CLINICAL_CDS_NOTE)
+    return sanitize_bot_answer("\n".join(lines))
+
+def evaluate_patient_specific_biomarker(biomarker_key: str, p_data: dict) -> str:
+    """
+    Evaluates a specific clinical biomarker from the patient's actual assessment record,
+    comparing it against medical guideline reference ranges.
+    Zero hallucination: If the value is missing in p_data, it explicitly states it is not available.
+    """
+    if not p_data or not isinstance(p_data, dict):
+        return (
+            "No patient report is currently active. Please complete a patient assessment "
+            "to view personalized biomarker evaluations."
+        )
+
+    b = biomarker_key.lower()
+
+    # --- 1. CERULOPLASMIN ---
+    if "ceruloplasmin" in b:
+        val = p_data.get("Ceruloplasmin Level")
+        if val is None or str(val).strip() == "":
+            return "Serum Ceruloplasmin Level is not available in the current patient assessment."
+        try:
+            v = float(val)
+        except (ValueError, TypeError):
+            return f"Serum Ceruloplasmin Level is recorded as: {val}."
+
+        if v < 10.0:
+            status = "Markedly Low (Diagnostic marker, +2 Leipzig points)"
+            interp = (
+                f"Your serum ceruloplasmin is {v:.1f} mg/dL, which is significantly below the normal range of 20–40 mg/dL.\n"
+                f"• Biological Mechanism: In Wilson disease, mutations in the ATP7B copper-transporting ATPase impair the incorporation "
+                f"of copper into apoceruloplasmin during hepatic synthesis. The resulting apoceruloplasmin molecule is unstable and is rapidly degraded in circulation.\n"
+                f"• Clinical Significance: Levels below 10 mg/dL strongly suggest impaired copper export and form one of the central pillars of Wilson's disease diagnosis."
+            )
+        elif 10.0 <= v < 20.0:
+            status = "Borderline Low (+1 Leipzig point)"
+            interp = (
+                f"Your serum ceruloplasmin is {v:.1f} mg/dL, which is borderline low compared to the normal range of 20–40 mg/dL.\n"
+                f"• Clinical Significance: While not severely depressed, borderline values warrant correlation with 24-hour urinary copper and free serum copper."
+            )
+        else:
+            status = "Normal Range (20–40 mg/dL)"
+            interp = (
+                f"Your serum ceruloplasmin is {v:.1f} mg/dL, which falls within the normal physiological reference range of 20–40 mg/dL.\n"
+                f"• Clinical Nuance: Note that ceruloplasmin is an acute-phase reactant; severe systemic or hepatic inflammation can transiently elevate ceruloplasmin levels into the normal range even in some Wilson's disease cases."
+            )
+
+        return sanitize_bot_answer(
+            f"🧪 Your Serum Ceruloplasmin Evaluation:\n\n"
+            f"• Patient Value: {v:.1f} mg/dL\n"
+            f"• Reference Range: 20 – 40 mg/dL\n"
+            f"• Clinical Status: {status}\n\n"
+            f"{interp}"
+        )
+
+    # --- 2. 24-HOUR URINARY COPPER ---
+    if any(k in b for k in ["urine", "urinary"]):
+        val = p_data.get("Copper in Urine")
+        if val is None or str(val).strip() == "":
+            return "24-Hour Urinary Copper is not available in the current patient assessment."
+        try:
+            v = float(val)
+        except (ValueError, TypeError):
+            return f"24-Hour Urinary Copper is recorded as: {val}."
+
+        if v > 100.0:
+            status = "Markedly Elevated (+2 Leipzig points)"
+            interp = (
+                f"Your 24-hour urine copper excretion is {v:.1f} µg/24h, significantly exceeding the normal upper limit of 40 µg/24h.\n"
+                f"• Pathophysiology: When the liver's storage capacity for excess copper is overwhelmed, unbound copper spills into the bloodstream and is filtered by renal glomeruli, resulting in hypercupriuria.\n"
+                f"• Clinical Meaning: Excretion > 100 µg/24h strongly supports symptomatic Wilson's disease."
+            )
+        elif 40.0 <= v <= 100.0:
+            status = "Intermediate / Moderately Elevated (+1 Leipzig point)"
+            interp = (
+                f"Your 24-hour urine copper excretion is {v:.1f} µg/24h (normal: < 40 µg/24h).\n"
+                f"• Clinical Meaning: Intermediate elevation is common in presymptomatic Wilson disease or chronic cholestatic liver conditions."
+            )
+        else:
+            status = "Normal Excretion (< 40 µg/24h)"
+            interp = (
+                f"Your 24-hour urinary copper is {v:.1f} µg/24h, which is within the normal healthy baseline (< 40 µg/24h)."
+            )
+
+        return sanitize_bot_answer(
+            f"🧪 Your 24-Hour Urinary Copper Evaluation:\n\n"
+            f"• Patient Value: {v:.1f} µg/24h\n"
+            f"• Reference Range: < 40 µg/24h (Normal); > 100 µg/24h (Diagnostic threshold)\n"
+            f"• Clinical Status: {status}\n\n"
+            f"{interp}"
+        )
+
+    # --- 3. FREE SERUM COPPER ---
+    if "free copper" in b:
+        val = p_data.get("Free Copper in Blood Serum")
+        if val is None or str(val).strip() == "":
+            return "Free Copper in Blood Serum is not available in the current patient assessment."
+        try:
+            v = float(val)
+        except (ValueError, TypeError):
+            return f"Free Copper in Blood Serum is recorded as: {val}."
+
+        if v > 15.0:
+            status = "Elevated Unbound Toxic Copper"
+            interp = (
+                f"Your free serum copper is {v:.1f} µg/dL, above the normal threshold (< 15 µg/dL).\n"
+                f"• Clinical Significance: Free copper is non-ceruloplasmin-bound and represents the toxic fraction capable of penetrating tissues (brain, liver, kidneys)."
+            )
+        else:
+            status = "Normal Unbound Copper (< 15 µg/dL)"
+            interp = f"Your free serum copper is {v:.1f} µg/dL, within the target safe reference limit (< 15 µg/dL)."
+
+        return sanitize_bot_answer(
+            f"🧪 Your Free (Non-Ceruloplasmin-Bound) Serum Copper:\n\n"
+            f"• Patient Value: {v:.1f} µg/dL\n"
+            f"• Normal Reference Range: 5 – 15 µg/dL\n"
+            f"• Clinical Status: {status}\n\n"
+            f"{interp}"
+        )
+
+    # --- 4. LIVER ENZYMES (ALT / AST) ---
+    if any(k in b for k in ["alt", "ast", "liver enzyme"]):
+        alt_val = p_data.get("ALT")
+        ast_val = p_data.get("AST")
+        if alt_val is None and ast_val is None:
+            return "Liver transaminases (ALT/AST) are not available in the current patient assessment."
+        
+        alt_str = f"{float(alt_val):.1f} U/L" if alt_val is not None else "N/A"
+        ast_str = f"{float(ast_val):.1f} U/L" if ast_val is not None else "N/A"
+        
+        is_elevated = False
+        try:
+            if alt_val is not None and float(alt_val) > 40.0: is_elevated = True
+            if ast_val is not None and float(ast_val) > 40.0: is_elevated = True
+        except (ValueError, TypeError):
+            pass
+
+        status = "Elevated Transaminases (Hepatocellular injury)" if is_elevated else "Within Normal Baseline (10–40 U/L)"
+        return sanitize_bot_answer(
+            f"🧪 Your Liver Enzyme (Transaminases) Evaluation:\n\n"
+            f"• ALT (Alanine Aminotransferase): {alt_str} (Normal: 10 – 40 U/L)\n"
+            f"• AST (Aspartate Aminotransferase): {ast_str} (Normal: 10 – 40 U/L)\n"
+            f"• Clinical Status: {status}\n\n"
+            f"• Medical Context: Hepatocellular injury from copper accumulation causes transaminases to leak into the bloodstream. "
+            f"In acute Wilsonian liver presentations, an AST:ALT ratio > 2 with low alkaline phosphatase can be an important diagnostic clue."
+        )
+
+    # --- 5. KAYSER-FLEISCHER RINGS ---
+    if any(k in b for k in ["kayser", "fleischer", "kf", "ring"]):
+        kfr = p_data.get("Kayser-Fleischer Rings")
+        if kfr is None or str(kfr).strip() == "":
+            return "Kayser-Fleischer Rings status is not available in the current patient assessment."
+        try:
+            is_present = int(float(kfr)) == 1
+        except (ValueError, TypeError):
+            is_present = str(kfr).strip() in ("1", "Yes", "true", "True")
+
+        status = "Present (+2 Leipzig points)" if is_present else "Absent (0 points)"
+        interp = (
+            "Slit-lamp examination confirmed copper deposition in Descemet's membrane of the cornea. "
+            "KF rings are present in over 90% of neurological Wilson disease presentations and gradually resolve with de-coppering therapy."
+            if is_present else
+            "No corneal copper deposition reported on slit-lamp exam. Note that KF rings may be absent in up to 50% of hepatic presentations."
+        )
+        return sanitize_bot_answer(
+            f"👁️ Your Kayser-Fleischer (KF) Rings Evaluation:\n\n"
+            f"• Recorded Finding: {'Present' if is_present else 'Absent'}\n"
+            f"• Status: {status}\n\n"
+            f"• Clinical Context: {interp}"
+        )
+
+    # --- 6. ATP7B GENE MUTATION ---
+    if any(k in b for k in ["atp7b", "mutation", "gene", "genetic"]):
+        gene = p_data.get("ATB7B Gene Mutation")
+        if gene is None or str(gene).strip() == "":
+            return "ATP7B Gene Mutation status is not available in the current patient assessment."
+        try:
+            is_detected = int(float(gene)) == 1
+        except (ValueError, TypeError):
+            is_detected = str(gene).strip() in ("1", "Yes", "true", "True")
+
+        status = "Pathogenic Mutation Detected (+2 Leipzig points)" if is_detected else "No Mutation Detected / Normal"
+        interp = (
+            "Pathogenic mutation detected in the ATP7B copper-transport gene on chromosome 13q14.3. "
+            "First-degree relatives (especially siblings) should be offered genetic screening."
+            if is_detected else
+            "No mutation detected in standard ATP7B screening. Clinical diagnosis relies on biochemical and slit-lamp markers."
+        )
+        return sanitize_bot_answer(
+            f"🧬 Your ATP7B Genetic Analysis Evaluation:\n\n"
+            f"• Genetic Finding: {'Mutation Detected' if is_detected else 'Not Detected / Normal'}\n"
+            f"• Status: {status}\n\n"
+            f"• Clinical Significance: {interp}"
+        )
+
+    return f"Parameter '{biomarker_key}' evaluation is not available in the record."
+
+def generate_patient_risk_explanation(prob, pred_text, p_data: dict, model_breakdown: dict = None) -> str:
+    """
+    Generates a personalized prediction and risk explanation referencing the patient's
+    actual values from p_data rather than generic copy.
+    """
+    if prob is None:
+        return "No prediction probability is currently loaded. Please submit an assessment to view your risk analysis."
+
+    c_val = p_data.get("Ceruloplasmin Level")
+    u_val = p_data.get("Copper in Urine")
+    f_val = p_data.get("Free Copper in Blood Serum")
+    alt_val = p_data.get("ALT")
+    ast_val = p_data.get("AST")
+    kfr_val = p_data.get("Kayser-Fleischer Rings")
+    gene_val = p_data.get("ATB7B Gene Mutation")
+
+    # Determine key driving factors from authentic data
+    drivers = []
+    if c_val is not None:
+        try:
+            if float(c_val) < 10.0:
+                drivers.append(f"Markedly depressed ceruloplasmin ({float(c_val):.1f} mg/dL, normal 20–40)")
+            elif float(c_val) < 20.0:
+                drivers.append(f"Borderline low ceruloplasmin ({float(c_val):.1f} mg/dL)")
+        except (ValueError, TypeError): pass
+
+    if u_val is not None:
+        try:
+            if float(u_val) > 100.0:
+                drivers.append(f"High 24h urinary copper excretion ({float(u_val):.1f} µg/24h, normal <40)")
+            elif float(u_val) >= 40.0:
+                drivers.append(f"Elevated 24h urinary copper ({float(u_val):.1f} µg/24h)")
+        except (ValueError, TypeError): pass
+
+    if f_val is not None:
+        try:
+            if float(f_val) > 15.0:
+                drivers.append(f"Elevated toxic free serum copper ({float(f_val):.1f} µg/dL, normal <15)")
+        except (ValueError, TypeError): pass
+
+    if kfr_val is not None:
+        try:
+            if int(float(kfr_val)) == 1:
+                drivers.append("Presence of Kayser-Fleischer corneal rings")
+        except (ValueError, TypeError): pass
+
+    if gene_val is not None:
+        try:
+            if int(float(gene_val)) == 1:
+                drivers.append("Detected pathogenic ATP7B gene mutation")
+        except (ValueError, TypeError): pass
+
+    if alt_val is not None or ast_val is not None:
+        try:
+            alt_f = float(alt_val) if alt_val is not None else 0
+            ast_f = float(ast_val) if ast_val is not None else 0
+            if alt_f > 40.0 or ast_f > 40.0:
+                drivers.append(f"Elevated transaminases (ALT: {alt_f:.0f} U/L, AST: {ast_f:.0f} U/L)")
+        except (ValueError, TypeError): pass
+
+    driver_text = ""
+    if drivers:
+        driver_text = "• Key Patient Markers Influencing This Probability:\n" + "\n".join(f"  - {d}" for d in drivers) + "\n\n"
+    else:
+        driver_text = "• Key Patient Markers: Core copper and hepatic markers fall within typical physiological ranges in your record.\n\n"
+
+    # Model consensus breakdown
+    mb_text = ""
+    if model_breakdown and isinstance(model_breakdown, dict):
+        svm_p = model_breakdown.get("svm")
+        lstm_p = model_breakdown.get("bilstm")
+        log_p = model_breakdown.get("logreg")
+        parts = []
+        if lstm_p is not None: parts.append(f"Bi-LSTM: {lstm_p}%")
+        if svm_p is not None: parts.append(f"SVM: {svm_p}%")
+        if log_p is not None: parts.append(f"Logistic Regression: {log_p}%")
+        if parts:
+            mb_text = f"• Ensemble Model Consensus: Stacking Meta-Classifier synthesizes {', '.join(parts)} into a consensus probability of {prob}%.\n\n"
+
+    if prob < 40.0:
+        body = (
+            f"📊 Patient Risk Interpretation: Low Statistical Risk ({prob}% — {pred_text})\n\n"
+            f"• Model Assessment:\n"
+            f"  The ensemble classifier estimates a {prob}% probability of Wilson's disease based on your entered markers. "
+            f"Your clinical parameters generally reflect preserved copper homeostasis.\n\n"
+            f"{mb_text}"
+            f"{driver_text}"
+            f"• Clinical Guidance:\n"
+            f"  A low algorithmic score suggests low probability, but clinical correlation is essential if unexplained liver or neurological symptoms persist."
+        )
+    elif prob < 60.0:
+        body = (
+            f"📊 Patient Risk Interpretation: Intermediate / Indeterminate Risk ({prob}% — {pred_text})\n\n"
+            f"• Model Assessment:\n"
+            f"  The ensemble classifier estimates an intermediate probability ({prob}%). "
+            f"Your entered parameters present a mixed clinical picture where some biomarkers suggest abnormal copper kinetics while others remain indeterminate.\n\n"
+            f"{mb_text}"
+            f"{driver_text}"
+            f"• Recommended Clinical Next Steps:\n"
+            f"  Discuss this result with a gastroenterologist or hepatologist for formal confirmatory evaluation, "
+            f"including repeat 24-hour urine copper, slit-lamp exam for KF rings, and Leipzig scoring."
+        )
+    else:
+        body = (
+            f"📊 Patient Risk Interpretation: High Risk Signal ({prob}% — {pred_text})\n\n"
+            f"• Model Assessment:\n"
+            f"  The ensemble classifier estimates a high probability ({prob}%) that the entered profile resembles Wilson's disease.\n\n"
+            f"{mb_text}"
+            f"{driver_text}"
+            f"• Recommended Urgent Next Steps:\n"
+            f"  Prompt clinical consultation with a specialist (hepatologist/gastroenterologist) is strongly advised for formal diagnostic confirmation "
+            f"(formal Leipzig scoring, slit-lamp examination, and consideration of initial de-coppering chelation therapy)."
+        )
+
+    return sanitize_bot_answer(body + CLINICAL_CDS_NOTE)
+
+def handle_medication_safety(clean_q: str) -> str:
+    """
+    Provides safe, clinical guidance when a user asks about stopping, pausing,
+    skipping, or altering medication/dosage. Never prescribes or advises self-discontinuation.
+    """
+    return sanitize_bot_answer(
+        "⚠️ Critical Clinical Medication Safety Advisory:\n\n"
+        "• Medical therapy for Wilson's disease (including D-Penicillamine, Trientine, and Zinc salts) "
+        "is life-long and must NEVER be stopped, skipped, or modified without direct supervision from your treating physician.\n\n"
+        "• Risk of Abrupt Cessation: Abruptly stopping de-coppering therapy allows toxic copper to rapidly re-accumulate, "
+        "which can precipitate fatal acute fulminant liver failure or irreversible neurological crisis within months.\n\n"
+        "• If You Experience Adverse Symptoms: If you are experiencing difficult side effects (such as rash, nausea, taste loss, or worsening tremor), "
+        "contact your treating hepatologist or neurologist immediately. They can safely evaluate dosage adjustments, "
+        "co-prescribe Pyridoxine (Vitamin B6), or transition you to alternative therapies (e.g., Trientine or Zinc salts).\n\n"
+        "NeuroMed AI is an informational decision support tool and cannot prescribe medications or authorize dosage modifications."
+    )
 
 class MedicalRAGSystem:
     def __init__(self):
@@ -616,15 +1186,17 @@ Provide clear headings for:
 
     def _extract_recent_topic(self, chat_history):
         """
-        Scans recent chat history (from newest to oldest) to identify the clinical subject
-        or entity being discussed, enabling pronoun and follow-up reference resolution.
+        Scans recent chat history to identify the clinical subject or entity
+        being discussed, prioritizing the user's recent questions.
         """
         if not chat_history:
             return None
 
-        # Inspect up to 4 recent messages in reverse order
-        for turn in reversed(chat_history[-4:]):
-            text = (turn.get("content") or "").lower()
+        def _match_topic(text):
+            if "leipzig" in text:
+                return "leipzig score"
+            if any(term in text for term in ["risk", "probability", "prediction"]):
+                return "risk score"
             if "trientine" in text:
                 return "trientine"
             if "penicillamine" in text:
@@ -635,18 +1207,37 @@ Provide clear headings for:
                 return "ceruloplasmin"
             if any(term in text for term in ["kayser", "kf ring", "kf rings"]):
                 return "kayser-fleischer rings"
-            if "leipzig" in text:
-                return "leipzig score"
             if "atp7b" in text:
                 return "atp7b gene"
-            if "urinary copper" in text or "urine copper" in text:
+            if "urinary copper" in text or "urine copper" in text or "24h copper" in text or "24-hour" in text:
                 return "urinary copper"
             if "free copper" in text:
                 return "free copper"
+            if "alt" in text or "ast" in text or "liver enzyme" in text or "transaminase" in text:
+                return "liver enzymes"
+            if "bilirubin" in text:
+                return "bilirubin"
+            if "albumin" in text:
+                return "albumin"
             if "liver transplant" in text or "transplantation" in text:
                 return "liver transplantation"
             if "chelation" in text:
                 return "chelation therapy"
+            return None
+
+        # 1. First inspect previous user messages (most accurate indicator of user topic)
+        for turn in reversed(chat_history[-4:]):
+            if turn.get("role") == "user":
+                t = _match_topic((turn.get("content") or "").lower())
+                if t:
+                    return t
+
+        # 2. Then inspect assistant turns
+        for turn in reversed(chat_history[-4:]):
+            t = _match_topic((turn.get("content") or "").lower())
+            if t:
+                return t
+
         return None
 
     def ask_chatbot(self, user_question, patient_context=None, chat_history=None):
@@ -660,17 +1251,31 @@ Provide clear headings for:
 
         raw_msg = user_question.strip()
         q = raw_msg.lower().strip()
-        clean_q = re.sub(r'[^\w\s]', '', q).strip()
+        clean_q = re.sub(r'[^\w\s]', ' ', q)
+        clean_q = " ".join(clean_q.split())
         words = clean_q.split()
 
         # Parse patient report context if available
         prob = None
         pred_text = ""
         p_data = {}
+        model_breakdown = {}
         if patient_context and isinstance(patient_context, dict):
             prob = patient_context.get("probability")
             pred_text = patient_context.get("prediction", "")
             p_data = patient_context.get("data", {})
+            model_breakdown = patient_context.get("model_breakdown", {})
+
+        # Extract recent subject from conversational turns for pronoun resolution
+        recent_topic = self._extract_recent_topic(chat_history)
+
+        # Detect referential expressions / pronouns for patient-specific values
+        has_possessive = any(w in words for w in ["my", "mine"]) or "my value" in clean_q or "my level" in clean_q
+        is_referential_followup = any(phrase in clean_q for phrase in [
+            "why is it low", "why is it high", "why is it elevated", "is it normal",
+            "is it low", "is it high", "is it abnormal", "what is it", "why low", "why high",
+            "what about mine", "calculate mine", "is mine normal", "is mine high", "is mine low"
+        ])
 
         # =============================================================
         # 1. TWO-STAGE CONVERSATIONAL GREETING & STATUS FLOW
@@ -703,50 +1308,142 @@ Provide clear headings for:
             return sanitize_bot_answer("I am NeuroMed AI, your clinical AI assistant for Wilson's Disease early diagnosis and treatment recommendations. How may I help you?")
 
         # =============================================================
-        # 1.5 GUARD: HANDLE RANDOM / MEANINGLESS INPUT SAFELY
+        # 1.5 GUARD: OUT-OF-SCOPE DETECTION (Conservative & Medical-Aware)
+        # =============================================================
+        if is_out_of_scope_query(user_question, chat_history):
+            return sanitize_bot_answer(OUT_OF_SCOPE_MSG)
+
+        # =============================================================
+        # 1.8 GUARD: HANDLE RANDOM / MEANINGLESS INPUT SAFELY
         # =============================================================
         if is_meaningless_query(user_question):
             return sanitize_bot_answer(CLARIFICATION_MSG)
 
         # =============================================================
-        # 2. PATIENT-REPORT-AWARE HANDLERS (AASLD / EASL Question Bank Grounded)
+        # 1.9 MEDICATION SAFETY GUARD (Discontinuation / Self-Medication)
         # =============================================================
+        is_med_safety_query = any(w in words for w in ["stop", "stopping", "pause", "pausing", "skip", "skipping", "quit", "quitting", "discontinue", "discontinuing", "cease"]) and any(w in words for w in ["medicine", "medication", "drug", "drugs", "treatment", "therapy", "penicillamine", "trientine", "zinc", "chelation", "dose", "dosage"])
+        if is_med_safety_query or any(phrase in clean_q for phrase in ["can i stop taking", "can i stop my medication", "should i stop taking", "stop my medicine", "stop treatment", "change my dose", "change dosage", "skip my dose", "skip dose"]):
+            return handle_medication_safety(clean_q)
 
-        # --- A. RISK SCORE & PREDICTION INTERPRETATION ---
-        score_keywords = ["risk", "prediction", "probability", "score", "percent", "percentage", "result"]
-        query_asks_score = any(k in clean_q for k in ["why", "what", "explain", "interpret", "meaning", "mean", "how"]) and any(k in clean_q for k in score_keywords)
-        if query_asks_score or any(term in clean_q for term in ["my risk", "my score", "my prediction", "why 33", "what does 33"]):
+        # =============================================================
+        # 2. LEIPZIG CONSENSUS SCORING (Patient-Specific vs Educational)
+        # =============================================================
+        is_leipzig_query = any(term in clean_q for term in ["leipzig", "leipzig score", "leipzig criteria", "leipzig points"]) or (recent_topic == "leipzig score" and (has_possessive or is_referential_followup or "score" in words or "criteria" in words))
+        is_patient_leipzig = is_leipzig_query and (has_possessive or any(phrase in clean_q for phrase in ["my score", "my leipzig", "calculate my", "calculate score", "my points", "what is mine", "calculate mine"]))
+
+        if is_patient_leipzig:
+            return calculate_patient_leipzig_score(p_data)
+
+        if is_leipzig_query and not has_possessive and any(w in words for w in ["what", "how", "explain", "describe", "tell", "overview"]):
+            return sanitize_bot_answer(
+                "📋 Leipzig Consensus Scoring System for Wilson's Disease (Question Bank Sec. 4.15–4.16)\n\n"
+                "The Leipzig score is a validated consensus system combining clinical, biochemical, and genetic findings:\n\n"
+                "• Kayser-Fleischer Rings (Slit-lamp exam):\n"
+                "  Present = +2 points | Absent = 0 points\n\n"
+                "• Neurological Symptoms / Characteristic Brain MRI:\n"
+                "  Severe = +2 points | Mild = +1 point | Absent = 0 points\n\n"
+                "• Serum Ceruloplasmin:\n"
+                "  < 10 mg/dL = +2 points | 10–20 mg/dL = +1 point | Normal (> 20 mg/dL) = 0 points\n\n"
+                "• 24-Hour Urinary Copper Excretion:\n"
+                "  > 100 µg/24h (>2× ULN) = +2 points | 40–100 µg/24h (1–2× ULN) = +1 point | Normal (< 40 µg/24h) = 0 points\n\n"
+                "• Hepatic Copper Content (Liver Biopsy):\n"
+                "  > 250 µg/g dry weight = +2 points | 50–250 µg/g = +1 point | Normal = -1 point\n\n"
+                "• Coombs-Negative Hemolytic Anemia:\n"
+                "  Present = +1 point | Absent = 0 points\n\n"
+                "• ATP7B Gene Mutation Analysis:\n"
+                "  Mutations detected on both chromosomes = +4 points | 1 chromosome = +1 point\n\n"
+                "🎯 Clinical Diagnostic Likelihood Thresholds:\n"
+                "• Score ≥ 4: Diagnosis Established (Definite Wilson's Disease)\n"
+                "• Score = 3: Diagnosis Probable (further confirmatory testing indicated)\n"
+                "• Score ≤ 2: Diagnosis Unlikely"
+            )
+
+        # =============================================================
+        # 3. PATIENT RISK & PREDICTION EXPLANATION (Actual Values & CDS Note)
+        # =============================================================
+        score_keywords = ["risk", "prediction", "probability", "score", "percent", "percentage", "result", "results", "model"]
+        query_asks_score = any(k in words for k in ["why", "what", "explain", "interpret", "meaning", "mean", "how", "breakdown"]) and any(k in words for k in score_keywords)
+        is_risk_explanation = query_asks_score or any(phrase in clean_q for phrase in [
+            "my risk", "my score", "my prediction", "my probability", "explain my result", "explain my score",
+            "why is my risk", "why is risk", "why positive", "why negative", "why 33", "what does 33", "diagnose me"
+        ])
+        if is_risk_explanation:
             if prob is not None:
-                if prob < 40:
-                    return sanitize_bot_answer(
-                        f"📊 Personalized Risk Interpretation for Your Assessment ({prob}% — Low Statistical Risk)\n\n"
-                        f"• What this means (AASLD 2023 / Question Bank Sec. 8):\n"
-                        f"  Based on your entered clinical and laboratory parameters, the stacking ensemble model estimates a low probability ({prob}%) that this pattern is consistent with Wilson's disease. This is a statistical estimate, not a clinical diagnosis.\n\n"
-                        f"• Why your risk is {prob}%:\n"
-                        f"  Core diagnostic markers—such as non-elevated free copper, absence of Kayser-Fleischer rings, and preserved liver synthetic function—pulled the prediction into the lower risk category.\n\n"
-                        f"• Important Clinical Note:\n"
-                        f"  A low-risk score suggests low likelihood but does not completely rule out atypical presentations. As recommended by AASLD guidelines, clinical judgment by a physician always remains necessary if any liver or neurological symptoms persist."
-                    )
-                elif prob < 60:
-                    return sanitize_bot_answer(
-                        f"📊 Personalized Risk Interpretation for Your Assessment ({prob}% — Moderate / Intermediate Risk)\n\n"
-                        f"• What this means (EASL-ERN / Question Bank Sec. 9):\n"
-                        f"  The model finds a mixed or intermediate pattern of features—some parameters resemble Wilson's disease while others do not. The result is uncertain and warrants closer clinical assessment rather than a firm conclusion.\n\n"
-                        f"• Recommended Confirmatory Actions:\n"
-                        f"  Discuss this result with a physician to perform targeted diagnostic testing: serum ceruloplasmin, 24-hour urinary copper, and a slit-lamp eye examination for Kayser-Fleischer rings (AASLD / Leipzig score)."
-                    )
-                else:
-                    return sanitize_bot_answer(
-                        f"📊 Personalized Risk Interpretation for Your Assessment ({prob}% — High Risk Signal)\n\n"
-                        f"• What this means (AASLD / EASL / Question Bank Sec. 10):\n"
-                        f"  Your entered biochemical and clinical indicators strongly resemble patterns associated with Wilson's disease in trained clinical cohorts.\n\n"
-                        f"• Recommended Urgent Next Steps:\n"
-                        f"  A high model probability is a strong signal warranting prompt clinical evaluation by a gastroenterologist or hepatologist for confirmatory Leipzig scoring and discussion of first-line de-coppering chelation therapy."
-                    )
+                return generate_patient_risk_explanation(prob, pred_text, p_data, model_breakdown)
+            else:
+                return sanitize_bot_answer(
+                    "No patient assessment data is currently loaded. When a patient evaluation is submitted, "
+                    "NeuroMed AI uses a stacking ensemble (SVM, Logistic Regression, and Bi-LSTM) to calculate consensus risk "
+                    "and SHAP feature attribution to explain how each biomarker contributed to the prediction."
+                )
 
-        # --- B. CONTEXTUAL DIET & FOOD RESTRICTIONS ---
+        # =============================================================
+        # 4. PATIENT-SPECIFIC BIOMARKER EVALUATION & PRONOUN RESOLUTION
+        # =============================================================
+        # Check if the query asks about a specific patient lab biomarker (directly or via pronoun follow-up)
+        # A. Ceruloplasmin
+        if "ceruloplasmin" in clean_q and (has_possessive or any(w in words for w in ["mine", "level", "value"])):
+            return evaluate_patient_specific_biomarker("ceruloplasmin", p_data)
+        if (has_possessive or is_referential_followup) and recent_topic == "ceruloplasmin" and p_data:
+            return evaluate_patient_specific_biomarker("ceruloplasmin", p_data)
+
+        # B. 24h Urinary Copper
+        if any(phrase in clean_q for phrase in ["my urine copper", "my urinary copper", "my 24h copper", "my 24 hour copper", "my copper in urine"]):
+            return evaluate_patient_specific_biomarker("urine copper", p_data)
+        if (has_possessive or is_referential_followup) and recent_topic == "urinary copper" and p_data:
+            return evaluate_patient_specific_biomarker("urine copper", p_data)
+
+        # C. Free Copper
+        if "free copper" in clean_q and has_possessive:
+            return evaluate_patient_specific_biomarker("free copper", p_data)
+        if (has_possessive or is_referential_followup) and recent_topic == "free copper" and p_data:
+            return evaluate_patient_specific_biomarker("free copper", p_data)
+
+        # D. Liver Enzymes (ALT / AST)
+        if any(term in clean_q for term in ["my alt", "my ast", "my liver enzyme", "my liver enzymes", "my transaminases"]):
+            return evaluate_patient_specific_biomarker("alt", p_data)
+        if (has_possessive or is_referential_followup) and recent_topic == "liver enzymes" and p_data:
+            return evaluate_patient_specific_biomarker("alt", p_data)
+
+        # E. Kayser-Fleischer Rings
+        if any(term in clean_q for term in ["my kf", "my kayser", "do i have kf", "do i have rings", "my rings"]):
+            return evaluate_patient_specific_biomarker("kf rings", p_data)
+        if (has_possessive or is_referential_followup) and recent_topic == "kayser-fleischer rings" and p_data:
+            return evaluate_patient_specific_biomarker("kf rings", p_data)
+
+        # F. ATP7B Gene Mutation
+        if any(term in clean_q for term in ["my atp7b", "my mutation", "my gene", "do i have atp7b", "do i have mutation"]):
+            return evaluate_patient_specific_biomarker("atp7b", p_data)
+        if (has_possessive or is_referential_followup) and recent_topic == "atp7b gene" and p_data:
+            return evaluate_patient_specific_biomarker("atp7b", p_data)
+
+        # G. All Patient Labs Summary
+        if any(phrase in clean_q for phrase in ["my labs", "my values", "my parameters", "my lab values", "my test results", "my numbers"]):
+            if p_data:
+                cerulo = p_data.get("Ceruloplasmin Level", "N/A")
+                u_copper = p_data.get("Copper in Urine", "N/A")
+                f_copper = p_data.get("Free Copper in Blood Serum", "N/A")
+                alt = p_data.get("ALT", "N/A")
+                ast = p_data.get("AST", "N/A")
+                kfr = "Present (+2 Leipzig pts)" if str(p_data.get("Kayser-Fleischer Rings", "")).strip() in ("1", "Yes", "true") else "Absent"
+                gene = "Mutation Detected (+2 Leipzig pts)" if str(p_data.get("ATB7B Gene Mutation", "")).strip() in ("1", "Yes", "true") else "Normal"
+                return sanitize_bot_answer(
+                    f"📋 Your Entered Clinical Assessment Biomarkers:\n\n"
+                    f"• Serum Ceruloplasmin: {cerulo} mg/dL (Normal: 20–40 mg/dL; <10 mg/dL suggests Wilson disease)\n"
+                    f"• 24h Urinary Copper: {u_copper} µg/24h (Normal: <40 µg/24h; >100 µg/24h supports diagnosis)\n"
+                    f"• Free Serum Copper: {f_copper} µg/dL (Normal: <15 µg/dL)\n"
+                    f"• Liver Transaminases (ALT / AST): {alt} U/L / {ast} U/L (Normal: 10–40 U/L)\n"
+                    f"• Kayser-Fleischer Rings: {kfr}\n"
+                    f"• ATP7B Gene Mutation: {gene}\n\n"
+                    f"💡 Model Assessment: {pred_text} ({prob}% probability)"
+                )
+
+        # =============================================================
+        # 5. DIETARY & NUTRITIONAL GUIDANCE
+        # =============================================================
         diet_terms = {"diet", "diets", "food", "foods", "eat", "eating", "nutrition"}
-        is_diet_query = any(w in diet_terms for w in words) or any(phrase in clean_q for phrase in ["foods to avoid", "copper food", "what can i eat", "food to avoid"])
+        is_diet_query = any(w in diet_terms for w in words) or any(phrase in clean_q for phrase in ["foods to avoid", "copper food", "what can i eat", "food to avoid", "can i eat chocolate", "can i eat shellfish", "can i eat nuts"])
         if is_diet_query:
             if prob is not None and prob < 40:
                 return sanitize_bot_answer(
@@ -772,9 +1469,11 @@ Provide clear headings for:
                     f"💧 Water Precaution: Test household drinking water; copper levels >0.1 ppm require certified filtration. Never use unlined copper pots or cookware."
                 )
 
-        # --- C. CONTEXTUAL PRECAUTIONS & TREATMENT PLAN ---
+        # =============================================================
+        # 6. CLINICAL PRECAUTIONS & HEALTHCARE PLAN
+        # =============================================================
         plan_terms = {"precaution", "precautions", "prevention", "treatment", "treatments", "plan", "plans", "medicine", "medication", "medications", "drug", "drugs"}
-        is_plan_query = any(w in plan_terms for w in words) or any(phrase in clean_q for phrase in ["what should i do", "what to do", "next step", "next steps"])
+        is_plan_query = any(w in plan_terms for w in words) or any(phrase in clean_q for phrase in ["what should i do", "what to do", "next step", "next steps", "discuss with doctor", "what should i discuss with my doctor"])
         if is_plan_query:
             if prob is not None and prob < 40:
                 return sanitize_bot_answer(
@@ -792,32 +1491,12 @@ Provide clear headings for:
                     f"   • D-Penicillamine: 750–1,500 mg daily in divided doses on an empty stomach. Must be co-prescribed with Pyridoxine (Vitamin B6, 25–50 mg/day) to prevent deficiency.\n"
                     f"   • Trientine Dihydrochloride: 900–1,500 mg daily; alternative chelator with milder side-effect profile, preferred in neurological cases or penicillamine intolerance.\n"
                     f"   • Zinc Salts (Maintenance): 50 mg elemental zinc 3 times daily to block intestinal copper absorption once copper levels normalize.\n\n"
-                    f"3. Critical Rule: Prescribed medical therapy for Wilson's disease must NEVER be stopped without doctor supervision; cessation can cause fatal acute liver failure."
-                )
-
-        # --- D. PATIENT-SPECIFIC LAB VALUES QUERY ---
-        if any(term in clean_q for term in ["my ceruloplasmin", "my urine copper", "my alt", "my ast", "my kf", "my rings", "my copper", "my bilirubin", "my labs", "my values"]):
-            if p_data:
-                cerulo = p_data.get("Ceruloplasmin Level", "N/A")
-                u_copper = p_data.get("Copper in Urine", "N/A")
-                f_copper = p_data.get("Free Copper in Blood Serum", "N/A")
-                alt = p_data.get("ALT", "N/A")
-                ast = p_data.get("AST", "N/A")
-                kfr = p_data.get("Kayser-Fleischer Rings", "N/A")
-                gene = p_data.get("ATB7B Gene Mutation", "N/A")
-                return sanitize_bot_answer(
-                    f"📋 Your Recorded Clinical Lab Parameters:\n\n"
-                    f"• Serum Ceruloplasmin: {cerulo} mg/dL (Normal: 20–40 mg/dL; <10 mg/dL suggests Wilson disease)\n"
-                    f"• 24h Urinary Copper: {u_copper} µg/24h (Normal: <40 µg/24h; >100 µg/24h supports diagnosis)\n"
-                    f"• Free Serum Copper: {f_copper} µg/dL (Normal: <15 µg/dL)\n"
-                    f"• Liver Enzymes (ALT / AST): {alt} U/L / {ast} U/L (Normal: 10–40 U/L)\n"
-                    f"• Kayser-Fleischer Rings: {kfr} (Ophthalmic copper corneal deposition)\n"
-                    f"• ATP7B Gene Mutation: {gene}\n\n"
-                    f"💡 Overall Ensemble Prediction: {pred_text} ({prob}% probability)"
+                    f"3. Critical Safety Principle: Prescribed medical therapy for Wilson's disease must NEVER be stopped without doctor supervision; cessation can cause fatal acute liver failure."
+                    + CLINICAL_CDS_NOTE
                 )
 
         # =============================================================
-        # 3. TECHNICAL & MEDICAL DOMAIN QUESTIONS (Question Bank Grounded)
+        # 7. TECHNICAL & EDUCATIONAL INQUIRIES (Question Bank Grounded)
         # =============================================================
 
         # --- WHAT IS RAG? ---
@@ -830,8 +1509,8 @@ Provide clear headings for:
                 "3. Contextual Grounding: When you ask a question, the RAG engine retrieves the exact verified clinical passage and generates an accurate, hallucination-free answer tailored to the active patient's report!"
             )
 
-        # --- WHAT IS CERULOPLASMIN? ---
-        if any(term in clean_q for term in ["what is ceruloplasmin", "explain ceruloplasmin", "ceruloplasmin is what", "ceruloplasmin"]):
+        # --- WHAT IS CERULOPLASMIN? (Educational) ---
+        if any(term in clean_q for term in ["what is ceruloplasmin", "explain ceruloplasmin", "ceruloplasmin is what", "tell me about ceruloplasmin"]) or (clean_q == "ceruloplasmin"):
             return sanitize_bot_answer(
                 "🧪 Ceruloplasmin Overview (Question Bank Sec. 4.3–4.6)\n\n"
                 "• Definition: Ceruloplasmin is the primary copper-carrying glycoprotein synthesized by hepatocytes in the liver. Under normal physiology, over 90% of circulating blood copper is bound to it.\n\n"
@@ -839,22 +1518,6 @@ Provide clear headings for:
                 "• Role in Wilson's Disease:\n"
                 "  Mutations in the ATP7B gene impair the incorporation of copper into apoceruloplasmin, causing unstable molecules that are rapidly degraded. Consequently, serum ceruloplasmin is typically < 10 mg/dL in Wilson disease (+2 Leipzig points).\n\n"
                 "• Clinical Nuance: In ~5–15% of patients (especially during acute liver inflammation), ceruloplasmin can be within normal limits because it is an acute-phase reactant."
-            )
-
-        # --- WHAT IS LEIPZIG SCORE? ---
-        if any(term in clean_q for term in ["leipzig", "score", "criteria", "points"]):
-            return sanitize_bot_answer(
-                "📋 Leipzig Consensus Scoring System for Wilson's Disease (Question Bank Sec. 4.15–4.16)\n\n"
-                "• Kayser-Fleischer Rings: Present = +2 | Absent = 0\n"
-                "• Neurological Symptoms / Brain MRI: Severe = +2 | Mild = +1 | None = 0\n"
-                "• Serum Ceruloplasmin: < 10 mg/dL = +2 | 10–20 mg/dL = +1 | > 20 mg/dL = 0\n"
-                "• 24-Hour Urinary Copper: > 2× ULN (>100 µg/d) = +2 | 1–2× ULN = +1 | Normal = 0\n"
-                "• Hepatic Copper (Biopsy): > 250 µg/g dry weight = +2 | 50–250 µg/g = +1\n"
-                "• ATP7B Gene Mutation: Both chromosomes = +4 | 1 chromosome = +1\n\n"
-                "🎯 Diagnostic Interpretation:\n"
-                "• ≥ 4 Points: Diagnosis Established (Definite Wilson's Disease)\n"
-                "• 3 Points: Diagnosis Probable (requires further clinical testing)\n"
-                "• ≤ 2 Points: Diagnosis Unlikely"
             )
 
         # --- WHAT ARE KAYSER-FLEISCHER RINGS? ---

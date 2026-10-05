@@ -523,7 +523,8 @@
     window.CURRENT_PATIENT_REPORT = {
       prediction: "{{ prediction_text }}",
       probability: {{ (probability * 100)|round(1) }},
-      data: {{ data|tojson }}
+      data: {{ data|tojson }},
+      model_breakdown: {{ model_breakdown|tojson if model_breakdown else {} }}
     };
 
     let chatOpen = true;

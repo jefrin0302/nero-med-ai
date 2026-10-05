@@ -228,7 +228,7 @@ def _shap_values_to_array(sv):
 
 
 def create_shap_plots(explainer, shap_values, X, feature_names):
-    out = {"waterfall": None, "beeswarm": None, "bar": None}
+    out = {"waterfall": None}
 
     arr = _shap_values_to_array(shap_values)
     if arr is None: return out
@@ -257,30 +257,6 @@ def create_shap_plots(explainer, shap_values, X, feature_names):
         out["waterfall"] = save_plot(fig, f"shap_waterfall_{timestamp}.png")
     except Exception as e:
         logger.warning("Waterfall plot failed: %s", e)
-
-    # Beeswarm
-    try:
-        plt.close('all')
-        plt.figure(figsize=(11, 7))
-        shap.summary_plot(arr, X, feature_names=feature_names, color_bar=False, show=False)
-        m = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm)
-        cb = plt.colorbar(m, ax=plt.gca(), ticks=[0, 1], aspect=50)
-        cb.set_ticklabels(['Low', 'High'])
-        cb.set_label('Feature value', size=11, labelpad=0)
-        fig = plt.gcf()
-        out["beeswarm"] = save_plot(fig, f"shap_beeswarm_{timestamp}.png")
-    except Exception as e:
-        logger.warning("Beeswarm failed: %s", e)
-
-    # Bar
-    try:
-        plt.close('all')
-        plt.figure(figsize=(11, 7))
-        shap.summary_plot(arr, X, feature_names=feature_names, plot_type="bar", show=False)
-        fig = plt.gcf()
-        out["bar"] = save_plot(fig, f"shap_bar_{timestamp}.png")
-    except Exception as e:
-        logger.warning("Bar failed: %s", e)
 
     return out
 
@@ -325,7 +301,7 @@ def safe_shap_and_predict(df_raw):
     }
 
     # 3. Deterministic Full-Ensemble SHAP Explanation (Authentic patient data, zero noise)
-    shap_results = {"waterfall": None, "beeswarm": None, "bar": None}
+    shap_results = {"waterfall": None}
     if ensemble_explainer is not None:
         try:
             import time
@@ -505,8 +481,6 @@ def submit():
             prediction_text=txt,
             probability=round(prob, 4),
             shap_waterfall=shap_res.get("waterfall"),
-            shap_beeswarm=shap_res.get("beeswarm"),
-            shap_bar=shap_res.get("bar"),
             data=patient_dict,
             used_synthetic=used_syn,
             clinical_advice=rag_advice,

@@ -386,50 +386,32 @@
       </div>
     </div>
 
-    <!-- EXPLAINABLE AI (SHAP PLOTS) SECTION -->
+    <!-- EXPLAINABLE AI (SHAP WATERFALL PLOT) SECTION -->
     <div class="card-glass collapsible-card" id="card-shap">
       <div class="collapsible-trigger" onclick="toggleCard('card-shap')">
-        <h2 class="section-title" style="margin-bottom: 0;">📊 Explainable AI (SHAP Feature Attribution)</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">📊 Explainable AI — Patient Risk Attribution</h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
       <div class="collapsible-content">
         <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">
-          SHAP (SHapley Additive exPlanations) visualizes how each biochemical feature pushed the diagnosis towards Positive (red) or Negative (blue).
+          SHAP (SHapley Additive exPlanations) Waterfall analysis visualizes how the current patient's clinical markers contributed to the ensemble prediction, shifting risk toward Positive (red, + risk) or Negative (blue, - risk) relative to baseline expectation.
         </p>
 
         <div style="display: flex; flex-direction: column; gap: 24px;">
 
           {% if shap_waterfall %}
-          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
+          <div style="background: white; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              🔍 Waterfall Plot (Patient Local Risk Attribution)
+              🔍 SHAP Waterfall Plot — Current Patient Explanation
             </h3>
             <img src="{{ url_for('static', filename=shap_waterfall) }}" alt="SHAP Waterfall Plot" style="width: 100%; border-radius: 8px;">
           </div>
           {% endif %}
 
-          {% if shap_beeswarm %}
-          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
-            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              🌡️ Beeswarm Plot (Global Feature Distribution & Impact)
-            </h3>
-            <img src="{{ url_for('static', filename=shap_beeswarm) }}" alt="SHAP Beeswarm Plot" style="width: 100%; border-radius: 8px;">
-          </div>
-          {% endif %}
-
-          {% if shap_bar %}
-          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
-            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              📌 Feature Importance Ranking (Bar Plot)
-            </h3>
-            <img src="{{ url_for('static', filename=shap_bar) }}" alt="SHAP Bar Plot" style="width: 100%; border-radius: 8px;">
-          </div>
-          {% endif %}
-
-          {% if not shap_waterfall and not shap_beeswarm and not shap_bar %}
+          {% if not shap_waterfall %}
           <div style="background: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; color: var(--text-muted);">
-            SHAP feature attribution plots are generated dynamically during assessment.
+            SHAP feature attribution waterfall plot is generated dynamically during assessment.
           </div>
           {% endif %}
 

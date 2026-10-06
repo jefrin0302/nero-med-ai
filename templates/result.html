@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wilson Disease Diagnostic Report — NeuroMed AI</title>
+  <title>Wilson Disease Clinical AI Risk Evaluation & Decision Support Report — NeuroMed AI</title>
 
   <!-- Modern Theme CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
@@ -92,6 +92,189 @@
     .eval-abnormal-low { background: #fef3c7; color: #92400e; }
     .eval-neutral { background: #f1f5f9; color: #475569; }
     .eval-warning { background: #fef3c7; color: #92400e; }
+
+    /* =========================================================
+       PRINT / PDF GENERATION STYLES (ISSUE-7)
+       ========================================================= */
+    @media print {
+      /* Remove web-only navigation and interactive controls */
+      .navbar-custom,
+      .web-action-controls,
+      .web-collapsible-controls,
+      .chat-btn-in-card,
+      .chevron-badge,
+      #chat-toggle,
+      #chat-widget,
+      .pwa-install-btn,
+      .btn-secondary,
+      .btn-prime,
+      footer.footer-custom {
+        display: none !important;
+      }
+
+      /* Clean page setup */
+      @page {
+        size: A4 portrait;
+        margin: 12mm 12mm 12mm 12mm;
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .main-wrapper {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* Compact header to eliminate large blank void on Page 1 */
+      .report-header {
+        background: #1e1b4b !important;
+        color: #ffffff !important;
+        padding: 16px 20px !important;
+        margin-bottom: 14px !important;
+        border-radius: 8px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .report-header h1 {
+        font-size: 22px !important;
+        margin-top: 2px !important;
+        margin-bottom: 4px !important;
+      }
+
+      .report-header p {
+        font-size: 11px !important;
+        margin-bottom: 0 !important;
+      }
+
+      .status-pill {
+        padding: 6px 14px !important;
+        font-size: 13px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* Ensure all collapsible card bodies are always visible in print */
+      .collapsible-content {
+        display: block !important;
+        height: auto !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+
+      .card-glass {
+        background: #ffffff !important;
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        padding: 16px 18px !important;
+        margin-bottom: 14px !important;
+        page-break-inside: auto;
+        break-inside: auto;
+      }
+
+      .section-title {
+        font-size: 16px !important;
+        margin-bottom: 10px !important;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      /* Keep gauge and leipzig checklist cards together */
+      #card-gauge,
+      #card-checklist {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .risk-gauge-container {
+        margin-top: 8px !important;
+        gap: 16px !important;
+      }
+
+      /* Clinical table: prevent rows from splitting, keep table together where reasonably possible */
+      .data-table-container {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        margin-top: 8px !important;
+        overflow: visible !important;
+      }
+
+      .data-table {
+        font-size: 11px !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+
+      .data-table thead {
+        display: table-header-group;
+      }
+
+      .data-table tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .data-table th {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        padding: 8px 10px !important;
+        font-size: 10px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .data-table td {
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+      }
+
+      .eval-badge {
+        font-size: 10px !important;
+        padding: 2px 6px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* SHAP Card and Plot: keep header with plot, avoid splitting */
+      #card-shap {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      #card-shap .collapsible-trigger,
+      #card-shap h2,
+      #shap-plot-container h3 {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      #shap-plot-container {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        padding: 12px !important;
+      }
+
+      .shap-plot-img {
+        max-width: 100% !important;
+        max-height: 480px !important;
+        width: auto !important;
+        margin: 0 auto;
+        display: block;
+        object-fit: contain !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -122,7 +305,7 @@
   <main class="main-wrapper">
 
     <!-- ACTION CONTROLS -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+    <div class="web-action-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
       <a href="{{ url_for('about') }}" class="btn-secondary">
         ⬅ Back to Input Form
       </a>
@@ -162,7 +345,7 @@
     </div>
 
     <!-- COLLAPSIBLE CONTROLS TOOLBAR -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+    <div class="web-collapsible-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
       <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">
         📑 Interactive Diagnostic Sections:
       </span>
@@ -179,7 +362,7 @@
     <!-- RISK GAUGE & METRIC DIAL -->
     <div class="card-glass collapsible-card" id="card-gauge">
       <div class="collapsible-trigger" onclick="toggleCard('card-gauge')">
-        <h2 class="section-title" style="margin-bottom: 0;">⚡ Predicted Risk Score & Model Confidence</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">⚡ Predicted Risk Score & Model Output Confidence</h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
@@ -190,13 +373,13 @@
           <div style="position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
             <svg width="160" height="160" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="10" />
-              <circle cx="60" cy="60" r="50" fill="none" 
-                      stroke="{% if probability > 0.5 %}#ef4444{% else %}#10b981{% endif %}" 
-                      stroke-width="10" 
-                      stroke-dasharray="314" 
-                      stroke-dashoffset="{{ 314 - (314 * probability) }}" 
-                      stroke-linecap="round" 
-                      transform="rotate(-90 60 60)" 
+              <circle cx="60" cy="60" r="50" fill="none"
+                      stroke="{% if probability > 0.5 %}#ef4444{% else %}#10b981{% endif %}"
+                      stroke-width="10"
+                      stroke-dasharray="314"
+                      stroke-dashoffset="{{ 314 - (314 * probability) }}"
+                      stroke-linecap="round"
+                      transform="rotate(-90 60 60)"
                       style="transition: stroke-dashoffset 1s ease-in-out;" />
             </svg>
             <div style="position: absolute; text-align: center;">
@@ -221,9 +404,9 @@
               </div>
 
               <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
-                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">DECISION CONFIDENCE</span>
+                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">MODEL OUTPUT CONFIDENCE</span>
                 <strong style="font-size: 18px; color: {% if probability > 0.8 or probability < 0.2 %}var(--success){% else %}var(--warning){% endif %};">
-                  {% if probability > 0.8 or probability < 0.2 %}High Model Confidence{% else %}Moderate Model Confidence{% endif %}
+                  {% if probability > 0.8 or probability < 0.2 %}High Model Output Confidence{% else %}Moderate Model Output Confidence{% endif %}
                 </strong>
               </div>
             </div>
@@ -268,7 +451,7 @@
           🩺 Clinical Recommendations (RAG Support)
         </h2>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
+          <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime chat-btn-in-card" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
             💬 Chat
           </button>
           <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
@@ -295,8 +478,11 @@
       </div>
 
       <div class="collapsible-content">
-        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">
           Structured table displaying patient clinical measurements alongside standard medical reference ranges.
+        </p>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 16px; font-style: italic;">
+          ℹ️ Reference ranges shown are project-configured clinical reference values and may vary by laboratory.
         </p>
 
         <div class="data-table-container">
@@ -340,7 +526,7 @@
     <!-- LEIPZIG SCORE BREAKDOWN & CLINICAL ACTION CHECKLIST -->
     <div class="card-glass collapsible-card" id="card-checklist">
       <div class="collapsible-trigger" onclick="toggleCard('card-checklist')">
-        <h2 class="section-title" style="margin-bottom: 0;">📋 Leipzig Criteria & Diagnostic Checklist</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">📋 Leipzig Criteria Contribution</h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
@@ -348,14 +534,17 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
           
           <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
               <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin: 0;">
                 🔍 Leipzig Criteria Contribution
               </h4>
               <span style="font-size: 13px; font-weight: 800; background: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 12px;">
-                Score: {{ leipzig_breakdown.total_score if leipzig_breakdown else 0 }} pts
+                Contribution: {{ leipzig_breakdown.total_score if leipzig_breakdown else 0 }} {% if leipzig_breakdown and leipzig_breakdown.total_score == 1 %}point{% else %}points{% endif %}
               </span>
             </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 12px; line-height: 1.4;">
+              This project calculates selected available Leipzig criteria only. Complete Leipzig assessment requires additional clinical and laboratory evaluation.
+            </p>
             
             {% if leipzig_breakdown %}
             <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8; margin-bottom: 12px;">
@@ -363,7 +552,7 @@
               <li>
                 {{ crit.name }}: 
                 <strong style="color: {% if crit.points > 0 %}#b91c1c{% else %}#15803d{% endif %};">
-                  {% if crit.points > 0 %}+{{ crit.points }} points{% else %}0 points{% endif %}
+                  {% if crit.points == 1 %}+1 point{% elif crit.points > 1 %}+{{ crit.points }} points{% else %}0 points{% endif %}
                 </strong>
                 <span style="color: var(--text-muted); font-size: 12px;">({{ crit.note }})</span>
               </li>
@@ -425,11 +614,11 @@
         <div style="display: flex; flex-direction: column; gap: 24px;">
 
           {% if shap_waterfall %}
-          <div style="background: white; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
+          <div id="shap-plot-container" style="background: white; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
               🔍 SHAP Waterfall Plot — Current Patient Explanation
             </h3>
-            <img src="{{ url_for('static', filename=shap_waterfall) }}" alt="SHAP Waterfall Plot" style="width: 100%; border-radius: 8px;">
+            <img src="{{ url_for('static', filename=shap_waterfall) }}" alt="SHAP Waterfall Plot" class="shap-plot-img" style="width: 100%; border-radius: 8px;">
           </div>
           {% endif %}
 

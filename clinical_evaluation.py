@@ -366,17 +366,17 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             })
             continue
 
-        # 13. Neurological Symptoms Score (Item 8 Fix)
+        # 13. Neurological Symptoms Score
         if "neurological" in key.lower():
             try:
                 n_val = float(raw_val)
                 table.append({
                     "label": "Neurological Symptoms Score",
                     "raw_key": key,
-                    "formatted_value": f"{n_val:.1f} / 10",
-                    "reference_boundary": "Clinical Scale (0 – 10)",
+                    "formatted_value": f"{n_val:.1f}",
+                    "reference_boundary": "Documented Clinical Score",
                     "badge_class": "eval-neutral",
-                    "badge_text": f"Score: {n_val:.1f}/10 Documented"
+                    "badge_text": f"Score: {n_val:.1f} — Documented"
                 })
             except (ValueError, TypeError):
                 pass
@@ -601,22 +601,26 @@ def calculate_patient_leipzig_breakdown(patient_dict: Dict[str, Any]) -> Dict[st
     ]
 
     # Clinical interpretation text
+    pts_word = "1 point" if total_score == 1 else f"{total_score} points"
     if total_score >= 4:
         interpretation = (
-            f"The calculated score from available assessment data is {total_score} points. "
-            "In clinical practice guidelines, a Leipzig score of ≥ 4 is associated with a high likelihood "
-            "of Wilson Disease. Definitive diagnosis requires formal confirmation by a hepatologist or neurologist."
+            f"Available criteria contribution: {pts_word}. "
+            "This contribution is separate from the machine-learning predicted probability. "
+            "In formal clinical practice guidelines, an official total Leipzig score of ≥ 4 indicates established Wilson Disease; "
+            "definitive evaluation requires complete clinical and laboratory confirmation by a hepatologist or neurologist."
         )
     elif total_score == 3:
         interpretation = (
-            f"The calculated score from available assessment data is {total_score} points (Probable Wilson Disease). "
-            "Further clinical investigations (e.g. repeat urinary copper, ophthalmic slit-lamp exam, or liver biopsy) are indicated."
+            f"Available criteria contribution: {pts_word}. "
+            "This contribution is separate from the machine-learning predicted probability. "
+            "In formal guidelines, an official score of 3 indicates probable Wilson Disease. "
+            "Further specialist investigations (e.g. repeat urinary copper, ophthalmic slit-lamp exam, or liver biopsy) are indicated."
         )
     else:
         interpretation = (
-            f"The calculated score from available assessment data is {total_score} points. "
-            "This reflects a lower statistical likelihood based on the evaluated laboratory criteria. "
-            "Clinical vigilance remains recommended if unexplained symptoms persist."
+            f"Available criteria contribution: {pts_word}. "
+            "This contribution is separate from the machine-learning predicted probability. "
+            "Only selected panel criteria were evaluated here. Clinical vigilance remains recommended if unexplained symptoms persist."
         )
 
     return {

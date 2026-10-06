@@ -1146,7 +1146,7 @@ Lab Parameters: {patient_data}
 
 Provide clear headings for:
 1. Diagnostic Findings & Interpretation
-2. Pharmacotherapy & Chelation Recommendations (if High Risk)
+2. Pharmacotherapy & Specialist Consultation Considerations (if High Risk, provide general decision support without specific dosing)
 3. Dietary Copper Restrictions
 4. Monitoring Schedule
 """
@@ -1159,29 +1159,29 @@ Provide clear headings for:
         if is_positive:
             advice = f"""Clinical Management Guidelines for High Predicted Risk (Decision Support)
 
-1. Pharmacotherapy & De-coppering Options (Subject to Physician Confirmation):
-• First-line Chelation Therapy: D-Penicillamine (750 mg – 1500 mg/day in divided doses, taken on an empty stomach). Co-administer Pyridoxine (Vitamin B6, 25–50 mg/day) to prevent deficiency.
-• Alternative Chelator: Trientine Dihydrochloride (900 mg – 1500 mg/day) if D-Penicillamine is not tolerated or in patients with neurological involvement.
-• Maintenance / Zinc Therapy: Zinc Acetate (50 mg elemental zinc 3 times daily) to block intestinal copper absorption once copper levels normalize.
+1. Pharmacotherapy & Specialist Consultation Considerations:
+• Chelation or zinc therapy may be considered by an appropriate specialist after diagnostic confirmation and individualized assessment.
+• Therapeutic classes evaluated in clinical guidelines include chelating agents (such as D-Penicillamine or Trientine) and zinc salts, selected according to hepatic versus neurological presentation and individual tolerability.
+• Specific medication selection, dosage titrations, and adjuvant therapies (such as Pyridoxine) require direct prescription and ongoing oversight by a qualified physician.
 
-2. Dietary Copper Restrictions (Supportive):
-• Organ meats (liver, kidney), shellfish (oysters, crab), nuts (cashews, almonds), seeds, chocolate/cocoa, and mushrooms should be restricted.
-• Test drinking water for elevated copper levels and avoid unlined copper cookware.
+2. Dietary Copper Guidance (Supportive):
+• Dietary copper restriction (avoiding organ meats, shellfish, nuts, seeds, chocolate/cocoa, and mushrooms) is commonly recommended as supportive management during initial and maintenance phases.
+• Testing domestic drinking water for elevated copper levels and avoiding unlined copper cookware may be advised.
 
-3. Required Diagnostic Monitoring:
-• Monitor 24-hour urinary copper (target: 200–500 µg/day on chelation), free serum copper (target: 5–15 µg/dL), CBC, LFTs, and renal function.
-• Life-long medication adherence under specialist supervision is essential to prevent acute fulminant hepatic failure.
+3. Diagnostic Confirmation & Clinical Monitoring:
+• Comprehensive evaluation should include specialist ophthalmic slit-lamp examination, repeat 24-hour urinary copper, free serum copper, complete blood count, and hepatic/renal panels.
+• Ongoing specialist follow-up is necessary to monitor disease status, organ function, and therapeutic response.
 """ + CLINICAL_CDS_NOTE
         else:
-            advice = f"""Clinical Summary for Low Predicted Risk
+            advice = f"""Clinical Summary for Low Predicted Risk (Decision Support)
 
 1. Diagnostic Interpretation:
-• The machine learning model indicates a low predicted probability for Wilson's disease based on current biochemical markers (Ceruloplasmin: {patient_data.get('Ceruloplasmin Level', 'N/A')}, Free Copper: {patient_data.get('Free Copper in Blood Serum', 'N/A')}).
-• This low statistical probability does not completely rule out atypical or early disease presentations if strong clinical signs persist.
+• The machine learning ensemble indicates a low overall statistical alignment with Wilson disease in this assessment. However, some clinical markers are abnormal or borderline and may warrant routine clinical follow-up or further evaluation based on clinical context.
+• This statistical prediction does not rule out atypical, early, or co-existing clinical conditions if signs or symptoms persist.
 
 2. Follow-up Recommendations:
-• If clinical suspicion remains high (e.g., unexplained persistent elevation in ALT/AST or family history of liver disease), consider repeat 24-hour urinary copper screening and ophthalmologic slit-lamp exam for Kayser-Fleischer rings.
-• Continue routine hepatic and neurological evaluation as clinically indicated. Chelation therapy is not indicated based on this assessment.
+• If clinical suspicion remains high or abnormal findings persist (e.g., unexplained elevation in transaminases or neurological symptoms), consider specialist referral and confirmatory testing such as repeat 24-hour urinary copper and an ophthalmic slit-lamp examination.
+• Chelation therapy is not indicated based on this assessment. Any medical therapy remains subject to specialist clinical evaluation.
 """ + CLINICAL_CDS_NOTE
         return sanitize_bot_answer(advice)
 

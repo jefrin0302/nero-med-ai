@@ -46,6 +46,11 @@ import logging
 from datetime import datetime
 
 from rag_system import MedicalRAGSystem
+from clinical_evaluation import (
+    evaluate_clinical_parameters,
+    calculate_patient_leipzig_breakdown,
+    generate_physician_next_steps
+)
 
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -470,11 +475,16 @@ def submit():
 
         prob, pred, shap_res, used_syn, used_df, model_breakdown = safe_shap_and_predict(df)
 
-        txt = "Positive – Wilson Disease Detected" if pred == 1 else "Negative – No Wilson Disease"
+        txt = "High Predicted Risk – Wilson Disease" if pred == 1 else "Low Predicted Risk – Wilson Disease"
 
         # Generate RAG clinical recommendations with 100% authentic patient data
         patient_dict = used_df.iloc[0].to_dict()
         rag_advice = rag_assistant.get_clinical_recommendations(patient_dict, txt)
+
+        # Dynamic Patient-Based Clinical Evaluation & Interpretation (Issue-7)
+        clinical_table = evaluate_clinical_parameters(patient_dict)
+        leipzig_breakdown = calculate_patient_leipzig_breakdown(patient_dict)
+        physician_steps = generate_physician_next_steps(pred, prob, patient_dict, leipzig_breakdown["total_score"])
 
         return render_template(
             "result.html",
@@ -482,6 +492,9 @@ def submit():
             probability=round(prob, 4),
             shap_waterfall=shap_res.get("waterfall"),
             data=patient_dict,
+            clinical_table=clinical_table,
+            leipzig_breakdown=leipzig_breakdown,
+            physician_steps=physician_steps,
             used_synthetic=used_syn,
             clinical_advice=rag_advice,
             model_breakdown=model_breakdown

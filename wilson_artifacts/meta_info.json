@@ -1,8 +1,125 @@
 {
-  "removed_leakage_columns": [
-    "Age"
+  "model_version": "v2.0.0-calibrated",
+  "constituent_models": [
+    "Bi-LSTM",
+    "SVM",
+    "LogisticRegression"
   ],
-  "feature_names": [
+  "meta_model": "LogisticRegression (Stacking)",
+  "calibration_method": "Isotonic Regression",
+  "validation_metrics": {
+    "accuracy": 0.99925,
+    "roc_auc": 0.9999768026714324,
+    "brier_score": 0.0006541101055806938,
+    "log_loss": 0.0028962256426443415,
+    "ece": 0.0,
+    "precision": 0.9992498124531133,
+    "sensitivity": 0.9985007496251874,
+    "specificity": 0.9996249062265566,
+    "confusion_matrix": {
+      "tn": 2665,
+      "fp": 1,
+      "fn": 2,
+      "tp": 1332
+    }
+  },
+  "test_metrics_calibrated": {
+    "accuracy": 0.998,
+    "roc_auc": 0.9995769471051679,
+    "brier_score": 0.001855116449711899,
+    "log_loss": 0.023601315925241527,
+    "ece": 0.0010153166397749178,
+    "precision": 0.9977460555972952,
+    "sensitivity": 0.9962490622655664,
+    "specificity": 0.9988751406074241,
+    "confusion_matrix": {
+      "tn": 2664,
+      "fp": 3,
+      "fn": 5,
+      "tp": 1328
+    }
+  },
+  "test_metrics_raw": {
+    "accuracy": 0.998,
+    "roc_auc": 0.9999561195135679,
+    "brier_score": 0.0018758442884918706,
+    "log_loss": 0.010232777657538798,
+    "ece": 0.0009618040414185169,
+    "precision": 0.9977460555972952,
+    "sensitivity": 0.9962490622655664,
+    "specificity": 0.9988751406074241,
+    "confusion_matrix": {
+      "tn": 2664,
+      "fp": 3,
+      "fn": 5,
+      "tp": 1328
+    }
+  },
+  "test_metrics_bilstm": {
+    "accuracy": 0.994,
+    "roc_auc": 0.9998247593394411,
+    "brier_score": 0.004650574661326388,
+    "log_loss": 0.016036011273832165,
+    "ece": 0.0032071794318035097,
+    "precision": 0.9924755455229496,
+    "sensitivity": 0.9894973743435859,
+    "specificity": 0.9962504686914135,
+    "confusion_matrix": {
+      "tn": 2657,
+      "fp": 10,
+      "fn": 14,
+      "tp": 1319
+    }
+  },
+  "test_metrics_svm": {
+    "accuracy": 0.99775,
+    "roc_auc": 0.9999088636051027,
+    "brier_score": 0.0017293528806512698,
+    "log_loss": 0.009870555101515455,
+    "ece": 0.001434278164646068,
+    "precision": 0.996996996996997,
+    "sensitivity": 0.9962490622655664,
+    "specificity": 0.9985001874765654,
+    "confusion_matrix": {
+      "tn": 2663,
+      "fp": 4,
+      "fn": 5,
+      "tp": 1328
+    }
+  },
+  "test_metrics_logreg": {
+    "accuracy": 0.997,
+    "roc_auc": 0.9998810163733285,
+    "brier_score": 0.002239718728825052,
+    "log_loss": 0.009919492572799822,
+    "ece": 0.0009687830500295871,
+    "precision": 0.9954988747186797,
+    "sensitivity": 0.9954988747186797,
+    "specificity": 0.9977502812148481,
+    "confusion_matrix": {
+      "tn": 2661,
+      "fp": 6,
+      "fn": 6,
+      "tp": 1327
+    }
+  },
+  "test_ci95": {
+    "roc_auc_ci95": [
+      0.9989886512540589,
+      0.9999842871912746
+    ],
+    "brier_score_ci95": [
+      0.0006953960425986359,
+      0.0032655390097865986
+    ],
+    "ece_ci95": [
+      0.0001858182720230699,
+      0.0022830538207778907
+    ]
+  },
+  "features": [
+    "Age",
+    "Sex",
     "Ceruloplasmin Level",
     "Copper in Blood Serum",
     "Free Copper in Blood Serum",
@@ -14,50 +131,49 @@
     "Alkaline Phosphatase (ALP)",
     "Prothrombin Time / INR",
     "Gamma-Glutamyl Transferase (GGT)",
+    "Kayser-Fleischer Rings",
     "Neurological Symptoms Score",
+    "Psychiatric Symptoms",
     "Cognitive Function Score",
-    "BMI",
-    "Sex_Female",
-    "Sex_Male",
-    "Region_East",
-    "Region_North",
-    "Region_South",
-    "Region_West",
-    "Socioeconomic Status_High",
-    "Socioeconomic Status_Low",
-    "Socioeconomic Status_Medium",
-    "Kayser-Fleischer Rings_0",
-    "Kayser-Fleischer Rings_1",
-    "Psychiatric Symptoms_0",
-    "Psychiatric Symptoms_1",
-    "Family History_0",
-    "Family History_1",
-    "ATB7B Gene Mutation_0",
-    "ATB7B Gene Mutation_1"
+    "Family History",
+    "ATB7B Gene Mutation",
+    "Region",
+    "Socioeconomic Status",
+    "Alcohol Use",
+    "BMI"
   ],
-  "model_list": [
-    "BiLSTM",
-    "SVM",
-    "LogReg",
-    "StackedMeta"
+  "processed_features": [
+    "num__Age",
+    "num__Ceruloplasmin Level",
+    "num__Copper in Blood Serum",
+    "num__Free Copper in Blood Serum",
+    "num__Copper in Urine",
+    "num__ALT",
+    "num__AST",
+    "num__Total Bilirubin",
+    "num__Albumin",
+    "num__Alkaline Phosphatase (ALP)",
+    "num__Prothrombin Time / INR",
+    "num__Gamma-Glutamyl Transferase (GGT)",
+    "num__Kayser-Fleischer Rings",
+    "num__Neurological Symptoms Score",
+    "num__Psychiatric Symptoms",
+    "num__Cognitive Function Score",
+    "num__Family History",
+    "num__ATB7B Gene Mutation",
+    "num__BMI",
+    "cat__Sex_Female",
+    "cat__Sex_Male",
+    "cat__Region_East",
+    "cat__Region_North",
+    "cat__Region_South",
+    "cat__Region_West",
+    "cat__Socioeconomic Status_High",
+    "cat__Socioeconomic Status_Low",
+    "cat__Socioeconomic Status_Medium",
+    "cat__Alcohol Use_False",
+    "cat__Alcohol Use_True"
   ],
-  "metrics_summary": {
-    "BiLSTM": {
-      "accuracy": 0.9980833333333333,
-      "auc": 0.99998040625
-    },
-    "SVM": {
-      "accuracy": 0.99875,
-      "auc": 0.9999881562499999
-    },
-    "LogReg": {
-      "accuracy": 0.99875,
-      "auc": 0.9999895
-    },
-    "StackedMeta": {
-      "accuracy": 0.9990833333333333,
-      "auc": 0.9999909687499999
-    }
-  },
-  "artifact_path": "C:\\Users\\LENOVO\\OneDrive\\Desktop\\Wilson-Disease-Project-main\\Wilson-Disease-Project-main\\Wilson-Disease-Project-main\\wilson_artifacts"
+  "intermediate_prob_percentage": 0.025,
+  "timestamp": "2026-10-09T13:27:42.441538+00:00"
 }

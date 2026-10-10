@@ -34,6 +34,18 @@
         <li><a class="nav-link-item active" href="{{ url_for('do') }}">Analytics</a></li>
         <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
         <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        {% if current_user.is_authenticated %}
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        <li>
+          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
+          </form>
+        </li>
+        {% else %}
+        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
+        {% endif %}
         <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
       </ul>
     </div>

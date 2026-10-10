@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NeuroMed AI — Clinical Test Form</title>
+  <title>NeuroMed AI — Clinical Test Form & Lab Import</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
   
   <!-- PWA Progressive Web App Meta -->
@@ -14,6 +14,268 @@
   <meta name="apple-mobile-web-app-title" content="Wilson AI" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
   <script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
+
+  <style>
+    /* Patient Identification & Lab Import Enhancements */
+    .patient-identity-card {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 244, 255, 0.85));
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.06);
+    }
+
+    .lab-import-card {
+      background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92));
+      border: 1.5px dashed rgba(99, 102, 241, 0.35);
+      border-radius: var(--radius-md);
+      padding: 22px;
+      margin-bottom: 24px;
+      transition: all 0.25s ease;
+    }
+
+    .lab-import-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 10px 28px rgba(79, 70, 229, 0.08);
+    }
+
+    .patient-id-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(79, 70, 229, 0.12);
+      color: var(--primary);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .alert-banner {
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 14px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .alert-banner.success {
+      display: flex;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .alert-banner.error {
+      display: flex;
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .alert-banner.info {
+      display: flex;
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(6px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: var(--radius-lg);
+      max-width: 820px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+      animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-header {
+      padding: 20px 26px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+    }
+
+    .modal-body {
+      padding: 24px 26px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 16px 26px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      background: #f8fafc;
+    }
+
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .stat-chip-green {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .stat-chip-yellow {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .stat-chip-red {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    .preview-table th {
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 2px solid #cbd5e1;
+    }
+
+    .preview-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--text-main);
+    }
+
+    .preview-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    .field-status-badge {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .status-ok { background: #dcfce7; color: #15803d; }
+    .status-missing { background: #fef3c7; color: #b45309; }
+    .status-rejected { background: #fee2e2; color: #b91c1c; }
+
+    .btn-action-small {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-action-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+    .btn-action-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-action-secondary {
+      background: #ffffff;
+      color: var(--text-main);
+      border: 1px solid #cbd5e1;
+    }
+    .btn-action-secondary:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    .drag-drop-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius-sm);
+      padding: 24px;
+      text-align: center;
+      background: #ffffff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .drag-drop-area.dragover {
+      border-color: var(--primary);
+      background: rgba(79, 70, 229, 0.04);
+    }
+
+    .template-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .template-link:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
 
@@ -31,9 +293,21 @@
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
         <li><a class="nav-link-item active" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
         <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
         <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
         <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        {% if current_user.is_authenticated %}
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        <li>
+          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
+          </form>
+        </li>
+        {% else %}
+        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
+        {% endif %}
         <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
       </ul>
     </div>
@@ -50,12 +324,12 @@
             🧪 Wilson's Disease Clinical Diagnostic Form
           </h1>
           <p style="font-size: 15px; color: var(--text-muted);">
-            Enter the patient's biochemical indicators to perform AI multi-model risk assessment, SHAP feature attribution, and RAG protocol lookup.
+            Manage patient records, import laboratory findings, or fill clinical parameters for multi-model AI risk prediction, SHAP attribution, and RAG guidance.
           </p>
         </div>
 
         <!-- QUICK PRESET BUTTONS -->
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button type="button" class="btn-secondary btn-preset-healthy" onclick="fillHealthySample()">
             🟢 Quick Fill: Healthy Sample
           </button>
@@ -66,9 +340,120 @@
       </div>
     </div>
 
-    <!-- INPUT FORM -->
+    <!-- NOTIFICATION ALERT BANNER -->
+    <div id="patientStatusAlert" class="alert-banner" role="alert">
+      <span id="alertMessage">Notification</span>
+      <button type="button" onclick="dismissAlert()" style="background: none; border: none; font-size: 16px; cursor: pointer; color: inherit;">✕</button>
+    </div>
+
+    <!-- FAST-TRACK LAB REPORT IMPORT CARD -->
+    <div class="lab-import-card">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--dark); margin: 0;">
+              📁 Fast-Track Laboratory Report Import (CSV / JSON / PDF / Word)
+            </h2>
+            <span class="patient-id-badge">Max 2 MB</span>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+            Upload patient biochemistry panel or clinical records (.csv, .json, .pdf, or Word .docx/.doc) to auto-populate form fields. Imported data is reviewed before submission and never runs prediction automatically.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+          <a href="/api/sample_template?format=csv" class="template-link" download="wilson_lab_template.csv">
+            📥 Sample CSV Template
+          </a>
+          <span style="color: #cbd5e1;">|</span>
+          <a href="/api/sample_template?format=json" class="template-link" download="wilson_lab_template.json">
+            📥 Sample JSON Template
+          </a>
+          <span style="color: #cbd5e1;">|</span>
+          <a href="/api/sample_template?format=docx" class="template-link" download="wilson_lab_template.docx">
+            📥 Sample Word Template
+          </a>
+        </div>
+      </div>
+
+      <!-- UPLOAD DROP ZONE & CONTROLS -->
+      <div style="display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 260px;">
+          <input type="file" id="labFileInput" accept=".csv,.json,.pdf,.docx,.doc" style="width: 100%; font-size: 14px; padding: 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: var(--radius-sm);" />
+        </div>
+        <button type="button" id="btnUploadLabFile" class="btn-action-small btn-action-primary" onclick="uploadAndInspectLabFile()" style="padding: 10px 20px;">
+          📤 Parse & Preview Laboratory Report
+        </button>
+      </div>
+      <div id="uploadStatusText" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;"></div>
+    </div>
+
+    <!-- MAIN FORM -->
     <div class="card-glass">
-      <form action="/submit" method="post">
+      <form action="/submit" method="post" id="clinicalForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <!-- PATIENT IDENTITY SECTION -->
+        <div class="patient-identity-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <h2 style="font-size: 18px; font-weight: 800; color: var(--dark); margin: 0;">
+                👤 Patient Identification & Medical Records
+              </h2>
+              <span class="patient-id-badge">Identity Isolation Guaranteed</span>
+            </div>
+
+            <!-- BUTTONS: LOAD SAVED PATIENT / NEW ASSESSMENT -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" id="btnLoadPatient" class="btn-action-small btn-action-secondary" onclick="loadSelectedPatient()">
+                📂 Load Selected Patient
+              </button>
+              <button type="button" id="btnNewPatient" class="btn-action-small btn-action-primary" onclick="startNewAssessment()">
+                ➕ New Patient Assessment
+              </button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+            <!-- Patient ID -->
+            <div class="form-group">
+              <label class="form-label" for="patientId">
+                Patient ID
+                <small style="color: var(--primary); font-weight: 600;">(Sequential / System Assigned)</small>
+              </label>
+              <input type="text" class="form-control-custom" id="patientId" name="patientId" value="{{ next_patient_id }}" readonly style="background: #f1f5f9; cursor: not-allowed; font-weight: 700; color: var(--primary);">
+              <small class="form-text" style="color: var(--text-muted); font-size: 11px; margin-top: 3px; display: block;">Auto-generated sequential record ID (e.g. NEUROMED001).</small>
+            </div>
+
+            <!-- Patient Name -->
+            <div class="form-group">
+              <label class="form-label" for="patientName">
+                Patient Full Name <span style="color: var(--danger);">*</span>
+              </label>
+              <input type="text" class="form-control-custom" id="patientName" name="patientName" placeholder="e.g. Eleanor Vance" required>
+              <small class="form-text" style="color: var(--text-muted); font-size: 11px; margin-top: 3px; display: block;">Required for clinical identification in generated reports.</small>
+            </div>
+
+            <!-- Select Existing Patient Dropdown -->
+            <div class="form-group">
+              <label class="form-label" for="selectExistingPatient">
+                Select Existing Patient
+                <small style="color: var(--text-muted);">(Optional Lookup)</small>
+              </label>
+              <select class="form-control-custom" id="selectExistingPatient" onchange="onExistingPatientDropdownChange()">
+                <option value="">-- Choose Existing Patient --</option>
+                {% if patients %}
+                  {% for p in patients %}
+                    <option value="{{ p.patient_id }}">
+                      {{ p.patient_id }} — {{ p.patient_name }} (Age {{ p.age if p.age else '-' }}, {{ p.sex if p.sex else '-' }})
+                    </option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+              <small class="form-text" style="color: var(--text-muted); font-size: 11px; margin-top: 3px; display: block;">Select to load recorded demographics for reassessment.</small>
+            </div>
+          </div>
+        </div>
         
         <div class="form-grid">
 
@@ -79,7 +464,7 @@
 
           <div class="form-group">
             <label class="form-label" for="inputAge">Age (Years)</label>
-            <input type="number" class="form-control-custom" id="inputAge" name="inputAge" placeholder="e.g. 24" required>
+            <input type="number" class="form-control-custom" id="inputAge" name="inputAge" placeholder="e.g. 24" min="1" max="120" required>
           </div>
 
           <div class="form-group">
@@ -112,7 +497,7 @@
 
           <div class="form-group">
             <label class="form-label" for="inputBMI">BMI (kg/m²)</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputBMI" name="inputBMI" placeholder="e.g. 22.5" required>
+            <input type="number" step="0.1" class="form-control-custom" id="inputBMI" name="inputBMI" placeholder="e.g. 22.5" min="10" max="65" required>
           </div>
 
           <div class="form-group">
@@ -239,7 +624,7 @@
         </div>
 
         <div style="text-align: center; margin-top: 36px;">
-          <button type="submit" class="btn-prime" style="font-size: 17px; padding: 14px 40px;">
+          <button type="submit" id="btnSubmitAssessment" class="btn-prime" style="font-size: 17px; padding: 14px 40px;">
             ⚡ RUN CLINICAL DIAGNOSTIC ASSESSMENT
           </button>
         </div>
@@ -249,14 +634,438 @@
 
   </main>
 
+  <!-- IMPORT PREVIEW MODAL -->
+  <div id="labImportModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalTitle" style="font-size: 20px; font-weight: 800; color: var(--dark); margin: 0;">
+            🧪 Laboratory Import Preview
+          </h2>
+          <p id="modalSubtitle" style="font-size: 13px; color: var(--text-muted); margin: 2px 0 0 0;">
+            Verify imported clinical findings before applying them to the diagnostic form.
+          </p>
+        </div>
+        <button type="button" onclick="closeImportModal()" aria-label="Close" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1;">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Summary Chips -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;" id="modalStatChips">
+          <span class="stat-chip stat-chip-green" id="chipRecognized">✅ 0 Recognized</span>
+          <span class="stat-chip stat-chip-yellow" id="chipMissing">⚠️ 0 Missing</span>
+          <span class="stat-chip stat-chip-red" id="chipRejected" style="display: none;">❌ 0 Rejected</span>
+        </div>
+
+        <!-- Patient Info Card if detected in file -->
+        <div id="modalPatientBadge" style="display: none; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #3730a3;">
+          👤 <strong>Patient Found in File:</strong> <span id="modalPatientText">None</span>
+        </div>
+
+        <!-- Overwrite Warning Note -->
+        <div id="modalOverwriteWarning" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #92400e;">
+          ⚠️ <strong>Notice:</strong> Form fields already contain data. Applying this import will update populated fields with imported laboratory values.
+        </div>
+
+        <!-- Recognized Fields Table -->
+        <div style="margin-bottom: 20px;">
+          <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 8px;">
+            Recognized Clinical Indicators (<span id="modalRecognizedCount">0</span>)
+          </h3>
+          <div style="max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm);">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th>Clinical Indicator</th>
+                  <th>Imported Value</th>
+                  <th>Form Target</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="modalRecognizedTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Missing Fields Container -->
+        <div id="modalMissingContainer" style="margin-bottom: 18px;">
+          <h3 style="font-size: 14px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
+            ⚠️ Missing Clinical Indicators (<span id="modalMissingCount">0</span>)
+          </h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
+            Missing laboratory indicators are strictly preserved as missing and will NOT be fabricated or zero-filled.
+          </p>
+          <div id="modalMissingList" style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <!-- Badges -->
+          </div>
+        </div>
+
+        <!-- Rejected Fields Container -->
+        <div id="modalRejectedContainer" style="display: none; margin-bottom: 18px;">
+          <h3 style="font-size: 14px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
+            ❌ Rejected / Out-of-Bounds Indicators (<span id="modalRejectedCount">0</span>)
+          </h3>
+          <div id="modalRejectedList" style="font-size: 12px; color: #991b1b; background: #fee2e2; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid #fecaca;">
+            <!-- Errors -->
+          </div>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0; background: #f8fafc; padding: 8px 12px; border-radius: 6px;">
+          ℹ️ <strong>Safety Protocol:</strong> Applying this import will populate the clinical form for review. It does <em>not</em> run the diagnostic prediction model until you press "Run Clinical Diagnostic Assessment".
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-action-small btn-action-secondary" onclick="closeImportModal()">
+          ✕ Cancel
+        </button>
+        <button type="button" id="btnApplyImport" class="btn-action-small btn-action-primary" onclick="applyImportedDataToForm()">
+          ✅ Apply Values to Form
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- FOOTER -->
   <footer class="footer-custom">
     <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
   </footer>
 
-  <!-- SCRIPT FOR PRESET QUICK FILLS -->
+  <!-- JAVASCRIPT LOGIC -->
   <script>
+    // State cache
+    let activeImportResult = null;
+
+    // --- ALERT BANNER UTILITIES ---
+    function showAlert(message, type = 'info') {
+      const banner = document.getElementById('patientStatusAlert');
+      const msgSpan = document.getElementById('alertMessage');
+      if (!banner || !msgSpan) return;
+      banner.className = 'alert-banner ' + type;
+      msgSpan.textContent = message;
+      banner.style.display = 'flex';
+      banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function dismissAlert() {
+      const banner = document.getElementById('patientStatusAlert');
+      if (banner) banner.style.display = 'none';
+    }
+
+    // --- HTML ESCAPER (XSS DEFENSE) ---
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // --- PATIENT MANAGEMENT ACTIONS ---
+    function onExistingPatientDropdownChange() {
+      const sel = document.getElementById('selectExistingPatient');
+      if (sel && sel.value) {
+        // Optional quick prompt
+      }
+    }
+
+    async function loadSelectedPatient() {
+      const sel = document.getElementById('selectExistingPatient');
+      const patientId = sel ? sel.value.trim() : '';
+
+      if (!patientId) {
+        showAlert('Please select an existing patient from the dropdown before clicking "Load".', 'error');
+        if (sel) sel.focus();
+        return;
+      }
+
+      const btn = document.getElementById('btnLoadPatient');
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Loading...';
+      }
+
+      try {
+        const resp = await fetch(`/api/patient/${encodeURIComponent(patientId)}`);
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.error || 'Failed to load patient records from database.');
+        }
+
+        const p = data.patient;
+        document.getElementById('patientId').value = p.patient_id;
+        document.getElementById('patientName').value = p.patient_name || '';
+
+        // Auto-populate saved demographics
+        if (p.age !== null && p.age !== undefined) document.getElementById('inputAge').value = p.age;
+        if (p.sex) document.getElementById('inputGender').value = p.sex;
+        if (p.region) document.getElementById('inputRegion').value = p.region;
+        if (p.ses) document.getElementById('inputSocioeconomicStatus').value = p.ses;
+        if (p.bmi !== null && p.bmi !== undefined) document.getElementById('inputBMI').value = p.bmi;
+        if (p.alcohol_use !== null && p.alcohol_use !== undefined) {
+          const alcStr = String(p.alcohol_use).toLowerCase();
+          document.getElementById('inputAlcoholUse').value = (alcStr === 'true' || alcStr === '1' || alcStr === 'yes') ? 'True' : 'False';
+        }
+
+        showAlert(`Successfully loaded patient profile: ${p.patient_name} (${p.patient_id}). Baseline demographics populated.`, 'success');
+      } catch (err) {
+        showAlert(`Error loading patient: ${err.message}`, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }
+
+    async function startNewAssessment() {
+      const btn = document.getElementById('btnNewPatient');
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Assigning ID...';
+      }
+
+      try {
+        const resp = await fetch('/api/next_patient_id');
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.error || 'Could not allocate sequential patient ID.');
+        }
+
+        // Reset form inputs
+        document.getElementById('clinicalForm').reset();
+        document.getElementById('patientId').value = data.next_patient_id;
+        document.getElementById('patientName').value = '';
+        const sel = document.getElementById('selectExistingPatient');
+        if (sel) sel.value = '';
+
+        showAlert(`Started new patient assessment with ID: ${data.next_patient_id}. Please enter patient name and clinical indicators.`, 'info');
+        const nameField = document.getElementById('patientName');
+        if (nameField) nameField.focus();
+      } catch (err) {
+        showAlert(`Error starting new assessment: ${err.message}`, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }
+
+    // --- LABORATORY DATA UPLOAD & INSPECT ---
+    async function uploadAndInspectLabFile() {
+      const fileInput = document.getElementById('labFileInput');
+      const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+      if (!file) {
+        showAlert('Please choose a .csv, .json, .pdf, or Word (.docx/.doc) laboratory report file to inspect.', 'error');
+        return;
+      }
+
+      // Client-side 2 MB check
+      const MAX_BYTES = 2 * 1024 * 1024;
+      if (file.size > MAX_BYTES) {
+        showAlert(`File exceeds maximum permitted upload limit of 2 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB).`, 'error');
+        return;
+      }
+
+      const fname = file.name.toLowerCase();
+      const validExtensions = ['.csv', '.json', '.pdf', '.docx', '.doc'];
+      if (!validExtensions.some(ext => fname.endsWith(ext))) {
+        showAlert('Unsupported format. Please select a valid .csv, .json, .pdf, .docx, or .doc file.', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btnUploadLabFile');
+      const originalText = btn ? btn.innerHTML : '';
+      const statusText = document.getElementById('uploadStatusText');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Parsing & Validating...';
+      }
+      if (statusText) {
+        statusText.style.display = 'block';
+        statusText.textContent = `Analyzing ${file.name} (${(file.size / 1024).toFixed(1)} KB)...`;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('csrf_token', '{{ csrf_token() }}');
+
+        const resp = await fetch('/api/upload_lab_file', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+          },
+          body: formData
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.error || 'Failed to parse laboratory file.');
+        }
+
+        activeImportResult = data;
+        openImportModal(data);
+        if (statusText) statusText.style.display = 'none';
+      } catch (err) {
+        showAlert(`Laboratory File Error: ${err.message}`, 'error');
+        if (statusText) statusText.style.display = 'none';
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }
+
+    // --- MODAL DIALOG DISPLAY ---
+    function openImportModal(data) {
+      const modal = document.getElementById('labImportModal');
+      if (!modal) return;
+
+      const recognizedCount = data.imported_count || Object.keys(data.imported_fields || {}).length;
+      const missingCount = (data.missing_fields || []).length;
+      const rejectedKeys = Object.keys(data.rejected_fields || {});
+      const rejectedCount = rejectedKeys.length;
+
+      // Update stat chips
+      document.getElementById('chipRecognized').textContent = `✅ ${recognizedCount} Recognized`;
+      document.getElementById('chipMissing').textContent = `⚠️ ${missingCount} Missing`;
+      const rejectedChip = document.getElementById('chipRejected');
+      if (rejectedCount > 0) {
+        rejectedChip.textContent = `❌ ${rejectedCount} Rejected`;
+        rejectedChip.style.display = 'inline-flex';
+      } else {
+        rejectedChip.style.display = 'none';
+      }
+
+      // Patient identity badge
+      const pBadge = document.getElementById('modalPatientBadge');
+      const pText = document.getElementById('modalPatientText');
+      if (data.patient_name || data.patient_id) {
+        pBadge.style.display = 'block';
+        pText.textContent = `${data.patient_name || 'Anonymous'} (ID: ${data.patient_id || 'System Sequential'})`;
+      } else {
+        pBadge.style.display = 'none';
+      }
+
+      // Check if form currently has data
+      const hasExistingData = checkIfFormHasData();
+      const warnBox = document.getElementById('modalOverwriteWarning');
+      if (warnBox) warnBox.style.display = hasExistingData ? 'block' : 'none';
+
+      // Populate recognized fields table
+      const tbody = document.getElementById('modalRecognizedTableBody');
+      tbody.innerHTML = '';
+      document.getElementById('modalRecognizedCount').textContent = recognizedCount;
+
+      const formIdMap = data.form_field_map || {};
+      for (const [canonName, val] of Object.entries(data.imported_fields || {})) {
+        const tr = document.createElement('tr');
+        const formTargetId = Object.keys(formIdMap).find(id => formIdMap[id] === val) || canonName;
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(canonName)}</strong></td>
+          <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700;">${escapeHtml(String(val))}</code></td>
+          <td style="color: var(--text-muted); font-size: 12px;"><code>#${escapeHtml(formTargetId)}</code></td>
+          <td><span class="field-status-badge status-ok">Recognized</span></td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      // Populate missing fields badges
+      const missingList = document.getElementById('modalMissingList');
+      missingList.innerHTML = '';
+      document.getElementById('modalMissingCount').textContent = missingCount;
+      (data.missing_fields || []).forEach(f => {
+        const badge = document.createElement('span');
+        badge.className = 'field-status-badge status-missing';
+        badge.style.fontSize = '12px';
+        badge.textContent = f;
+        missingList.appendChild(badge);
+      });
+
+      // Populate rejected fields if any
+      const rejContainer = document.getElementById('modalRejectedContainer');
+      const rejList = document.getElementById('modalRejectedList');
+      if (rejectedCount > 0) {
+        rejContainer.style.display = 'block';
+        document.getElementById('modalRejectedCount').textContent = rejectedCount;
+        rejList.innerHTML = rejectedKeys.map(k => `<div><strong>${escapeHtml(k)}:</strong> ${escapeHtml(data.rejected_fields[k])}</div>`).join('');
+      } else {
+        rejContainer.style.display = 'none';
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeImportModal() {
+      const modal = document.getElementById('labImportModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function checkIfFormHasData() {
+      const inputs = document.querySelectorAll('#clinicalForm input, #clinicalForm select');
+      for (const inp of inputs) {
+        if (inp.id === 'patientId' || inp.type === 'hidden') continue;
+        if (inp.value && inp.value.trim() !== '') return true;
+      }
+      return false;
+    }
+
+    // --- APPLY IMPORTED DATA TO CLINICAL FORM ---
+    function applyImportedDataToForm() {
+      if (!activeImportResult || !activeImportResult.form_field_map) {
+        closeImportModal();
+        return;
+      }
+
+      let appliedCount = 0;
+      const map = activeImportResult.form_field_map;
+
+      for (const [fieldId, val] of Object.entries(map)) {
+        const el = document.getElementById(fieldId);
+        if (el) {
+          el.value = val;
+          appliedCount++;
+          // Highlight effect
+          el.style.transition = 'background-color 0.4s ease';
+          el.style.backgroundColor = 'rgba(79, 70, 229, 0.12)';
+          setTimeout(() => { el.style.backgroundColor = ''; }, 1200);
+        }
+      }
+
+      // Apply patient identity if in file
+      if (activeImportResult.patient_name) {
+        const nameEl = document.getElementById('patientName');
+        if (nameEl) nameEl.value = activeImportResult.patient_name;
+      }
+      if (activeImportResult.patient_id) {
+        const idEl = document.getElementById('patientId');
+        if (idEl) idEl.value = activeImportResult.patient_id;
+      }
+
+      closeImportModal();
+      showAlert(`Successfully populated ${appliedCount} clinical and laboratory indicators into the diagnostic form. Please review and verify all fields before submitting.`, 'success');
+      
+      // Scroll to form
+      const formEl = document.getElementById('clinicalForm');
+      if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // --- PRESET QUICK FILLS ---
     function fillHealthySample() {
+      document.getElementById('patientName').value = 'Healthy Baseline Sample';
       document.getElementById('inputAge').value = 28;
       document.getElementById('inputGender').value = 'Female';
       document.getElementById('inputRegion').value = 'North';
@@ -283,9 +1092,12 @@
       document.getElementById('inputCognitive').value = 95.0;
       document.getElementById('inputFamilyHistory').value = 'No';
       document.getElementById('inputGeneMutation').value = 'No';
+
+      showAlert('Populated healthy reference test sample. Ready for assessment.', 'info');
     }
 
     function fillWilsonSample() {
+      document.getElementById('patientName').value = 'High-Risk Wilson Sample';
       document.getElementById('inputAge').value = 19;
       document.getElementById('inputGender').value = 'Male';
       document.getElementById('inputRegion').value = 'South';
@@ -312,13 +1124,34 @@
       document.getElementById('inputCognitive').value = 65.0;
       document.getElementById('inputFamilyHistory').value = 'Yes';
       document.getElementById('inputGeneMutation').value = 'Yes';   // ATP7B positive
+
+      showAlert('Populated high-risk Wilson Disease sample. Ready for assessment.', 'info');
     }
+
+    // --- FORM SUBMIT PROTECTION (DUPLICATE SUBMISSIONS) ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('clinicalForm');
+      if (form) {
+        form.addEventListener('submit', (e) => {
+          const btn = document.getElementById('btnSubmitAssessment');
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Computing Multi-Model Consensus & SHAP Attribution...';
+          }
+        });
+      }
+
+      // Close modal on escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeImportModal();
+      });
+    });
+
     function toggleNavMenu() {
       const links = document.getElementById('main-nav-links');
       if (links) links.classList.toggle('nav-open');
     }
   </script>
-
 
 </body>
 </html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinician Login — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <style>
+    .login-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 75vh;
+      padding: 20px;
+    }
+    .login-card {
+      max-width: 440px;
+      width: 100%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      border: 1px solid #e2e8f0;
+      padding: 36px 32px;
+    }
+    .login-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .login-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary, #4f46e5);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+    .alert-box {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .alert-info {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+    .notice-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 24px;
+      line-height: 1.5;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Corneal Guide</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main class="login-wrapper">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-icon">🔐</div>
+        <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 6px 0;">
+          Clinician & Staff Login
+        </h1>
+        <p style="font-size: 13px; color: #64748b; margin: 0;">
+          NeuroMed AI Clinical Decision Support
+        </p>
+      </div>
+
+      {% if error %}
+      <div class="alert-box alert-error">
+        ⚠️ {{ error }}
+      </div>
+      {% endif %}
+
+      {% if message %}
+      <div class="alert-box alert-info">
+        ℹ️ {{ message }}
+      </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        {% if next_url %}
+        <input type="hidden" name="next" value="{{ next_url }}" />
+        {% endif %}
+
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" class="form-control" placeholder="Enter your username" required autofocus autocomplete="username" />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required autocomplete="current-password" />
+        </div>
+
+        <button type="submit" class="btn-prime" style="width: 100%; padding: 12px; font-size: 15px; font-weight: 700; border-radius: 8px; cursor: pointer; margin-top: 6px;">
+          Sign In
+        </button>
+      </form>
+
+      <div class="notice-box">
+        🔒 <strong>Authorized Healthcare Personnel Only:</strong><br />
+        This system contains protected clinical evaluation tools. All login attempts and data access are monitored and logged. To request an account, contact your system administrator.
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence System</p>
+  </footer>
+
+</body>
+</html>

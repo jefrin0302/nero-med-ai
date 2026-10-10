@@ -19,6 +19,8 @@ logging.basicConfig(level=logging.INFO)
 PERSIST_DIR = "chroma_db"
 DOCS_DIR = "medical_docs"
 
+NO_DOCS_MSG = "I do not have access to any medical documents and cannot answer."
+
 CLARIFICATION_MSG = (
     "I'm not sure what you mean. Please ask a question related to Wilson disease, "
     "diagnosis, treatment, laboratory tests, diet, or your patient report."
@@ -821,6 +823,28 @@ class MedicalRAGSystem:
 
         self._init_knowledge_base()
 
+    def has_medical_documents(self) -> bool:
+        """
+        Checks whether medical_docs/ contains any non-empty clinical knowledge documents.
+        Returns False if the directory does not exist or has no valid document files.
+        """
+        if not os.path.isdir(DOCS_DIR):
+            return False
+        valid_extensions = ('.txt', '.md', '.pdf', '.docx', '.csv', '.json')
+        for f in os.listdir(DOCS_DIR):
+            if f.startswith('.'):
+                continue
+            if f.lower().endswith(valid_extensions):
+                full_path = os.path.join(DOCS_DIR, f)
+                if os.path.isfile(full_path) and os.path.getsize(full_path) > 0:
+                    return True
+        return False
+
+    def _ensure_documents_loaded(self):
+        """Loads documents into memory if they exist on disk but haven't been loaded yet."""
+        if self.has_medical_documents() and not self.passages and not self.qa_bank:
+            self._init_knowledge_base()
+
     def _init_knowledge_base(self):
         # 1. Load structured Q&A pairs from Question Bank for instant answer lookup
         self._load_qa_bank()
@@ -944,7 +968,7 @@ class MedicalRAGSystem:
         Returns ONLY the authoritative answer(s), never echoing the question.
         Enforces confidence thresholds and intent checks to prevent poor or spurious matches.
         """
-        if not getattr(self, "qa_bank", None):
+        if not self.has_medical_documents() or not getattr(self, "qa_bank", None):
             return None
 
         clean_user_q = re.sub(r'^\d+[\.\)]?\s*', '', user_question).strip()
@@ -1072,6 +1096,9 @@ class MedicalRAGSystem:
         logger.info("No external LLM API key detected. Running grounded clinical RAG engine.")
 
     def retrieve_relevant_context(self, query):
+        if not self.has_medical_documents():
+            return ""
+
         if self.use_langchain and self.retriever:
             try:
                 docs = self.retriever.invoke(query)
@@ -1127,6 +1154,10 @@ class MedicalRAGSystem:
         return "\n\n".join(top_passages)
 
     def get_clinical_recommendations(self, patient_data, prediction_text):
+        if not self.has_medical_documents():
+            return None
+
+        self._ensure_documents_loaded()
         is_positive = ("High" in prediction_text or "Positive" in prediction_text)
 
         query = f"Wilson Disease Evaluation: {prediction_text}. Patient indicators: Ceruloplasmin: {patient_data.get('Ceruloplasmin Level')}, Free Copper: {patient_data.get('Free Copper in Blood Serum')}, Urinary Copper: {patient_data.get('Copper in Urine')}, ALT: {patient_data.get('ALT')}, AST: {patient_data.get('AST')}, Kayser Fleischer Rings: {patient_data.get('Kayser-Fleischer Rings')}."
@@ -1246,7 +1277,15 @@ Provide clear headings for:
         Conversational Clinical RAG assistant grounded in the AASLD/EASL/INASL Question Bank
         and aware of the active Patient Dashboard / Prediction Report.
         All responses are cleanly sanitized to remove raw asterisks (**) and bullet hyphens (-).
+        When medical_docs/ is empty, strictly returns NO_DOCS_MSG and disables all built-in answers.
         """
+        if not self.has_medical_documents():
+            self.passages = []
+            self.qa_bank = []
+            return NO_DOCS_MSG
+
+        self._ensure_documents_loaded()
+
         if chat_history is None:
             chat_history = []
 
@@ -1511,7 +1550,7 @@ Provide clear headings for:
             )
 
         # --- WHAT IS CERULOPLASMIN? (Educational) ---
-        if any(term in clean_q for term in ["what is ceruloplasmin", "explain ceruloplasmin", "ceruloplasmin is what", "tell me about ceruloplasmin"]) or (clean_q == "ceruloplasmin"):
+        if ("ceruloplasmin" in clean_q and not has_possessive and not is_referential_followup) or (clean_q == "ceruloplasmin"):
             return sanitize_bot_answer(
                 "🧪 Ceruloplasmin Overview (Question Bank Sec. 4.3–4.6)\n\n"
                 "• Definition: Ceruloplasmin is the primary copper-carrying glycoprotein synthesized by hepatocytes in the liver. Under normal physiology, over 90% of circulating blood copper is bound to it.\n\n"

@@ -246,18 +246,19 @@ class TestAppIntegration(unittest.TestCase):
 
     def test_rag_chat_strictly_rejects_when_medical_docs_empty(self):
         """Verifies /api/chat strictly says it has no medical documents when medical_docs/ is empty."""
-        chat_payload = {"message": "What does my 0.0% risk score mean?"}
-        response = self.client.post(
-            "/api/chat",
-            data=json.dumps(chat_payload),
-            content_type="application/json"
-        )
-        self.assertEqual(response.status_code, 200)
-        res_data = response.get_json()
-        self.assertEqual(
-            res_data["response"],
-            "I do not have access to any medical documents and cannot answer."
-        )
+        with patch("app.rag_assistant.has_medical_documents", return_value=False):
+            chat_payload = {"message": "What does my 0.0% risk score mean?"}
+            response = self.client.post(
+                "/api/chat",
+                data=json.dumps(chat_payload),
+                content_type="application/json"
+            )
+            self.assertEqual(response.status_code, 200)
+            res_data = response.get_json()
+            self.assertEqual(
+                res_data["response"],
+                "I do not have access to any medical documents and cannot answer."
+            )
 
 
 if __name__ == "__main__":

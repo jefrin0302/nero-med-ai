@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laboratory Data Import & Validation — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <style>
+    .lab-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      padding: 32px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
+    }
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 768px) {
+      .grid-2col {
+        grid-template-columns: 1fr;
+      }
+    }
+    .panel-card {
+      background: white;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .panel-card h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--dark);
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius-md);
+      padding: 36px 20px;
+      text-align: center;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 16px;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-size: 13px;
+    }
+    .preview-table th, .preview-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    .preview-table th {
+      background: #f1f5f9;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+    .badge-present {
+      background: #dcfce7;
+      color: #15803d;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .badge-missing {
+      background: #fef3c7;
+      color: #b45309;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .badge-invalid {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('lab_import_page') }}">Lab Ingestion</a></li>
+        {% if current_user.role == 'clinician' %}
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+        {% endif %}
+        <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        <li>
+          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
+          </form>
+        </li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper">
+
+    <!-- HEADER BANNER -->
+    <div class="lab-header">
+      <span style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; text-transform: uppercase;">
+        Laboratory Services Subsystem
+      </span>
+      <h1 style="font-size: 26px; font-weight: 800; margin: 12px 0 6px;">
+        Laboratory Data Ingestion & Schema Validation
+      </h1>
+      <p style="font-size: 14px; color: #94a3b8; margin: 0; max-width: 720px; line-height: 1.5;">
+        Upload laboratory reports in CSV, JSON, PDF, or Word (.docx / .doc) format for clinical biomarker extraction, type coercion, and range checks.
+        Model inference and clinical diagnosis reports are restricted to authorized clinicians.
+      </p>
+    </div>
+
+    <!-- 2 COLUMN GRID -->
+    <div class="grid-2col">
+      <!-- PANEL 1: DOWNLOAD TEMPLATES -->
+      <div class="panel-card">
+        <h2>📥 1. Standard Laboratory Templates</h2>
+        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+          Download approved schema templates matching the 23 clinical parameters evaluated for Wilson’s Disease.
+        </p>
+        <div style="display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap;">
+          <a href="{{ url_for('api_sample_template', format='csv') }}" class="btn-prime" style="text-decoration: none; padding: 10px 18px; font-size: 13px;">
+            📄 Download CSV Template
+          </a>
+          <a href="{{ url_for('api_sample_template', format='json') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 18px; font-size: 13px;">
+            📋 Download JSON Template
+          </a>
+          <a href="{{ url_for('api_sample_template', format='docx') }}" class="btn-prime" style="text-decoration: none; padding: 10px 18px; font-size: 13px; background: #4f46e5;">
+            📝 Download Word Template
+          </a>
+        </div>
+      </div>
+
+      <!-- PANEL 2: UPLOAD & VALIDATE -->
+      <div class="panel-card">
+        <h2>🔬 2. Upload Lab Report</h2>
+        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+          Select or drag a laboratory file (<span style="font-weight: 600;">.csv</span>, <span style="font-weight: 600;">.json</span>, <span style="font-weight: 600;">.pdf</span>, or <span style="font-weight: 600;">Word .docx/.doc</span>, max 2 MB) for automated parameter verification.
+        </p>
+
+        <form id="labUploadForm">
+          <input type="hidden" name="csrf_token" id="csrfToken" value="{{ csrf_token() }}">
+          <input type="file" id="labFileInput" accept=".csv,.json,.pdf,.docx,.doc" style="display: none;" onchange="handleFileSelect(this.files[0])" />
+
+          <div class="drop-zone" id="dropZone" onclick="document.getElementById('labFileInput').click()">
+            <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
+            <div style="font-weight: 700; color: var(--dark); font-size: 14px;">Click to select file or drag here</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Supports CSV, JSON, PDF, or Word DOCX/DOC (up to 2 MB)</div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- VALIDATION RESULT PANEL -->
+    <div class="panel-card" id="validationResultCard" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+        <div>
+          <h2 style="margin: 0;" id="resultFilename">Validation Summary</h2>
+          <span id="patientMeta" style="font-size: 13px; color: var(--text-muted);"></span>
+        </div>
+        <div id="statusBadgeContainer"></div>
+      </div>
+
+      <div id="validationNotes" style="margin-bottom: 16px; font-size: 13px;"></div>
+
+      <div style="overflow-x: auto;">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>Biomarker / Clinical Feature</th>
+              <th>Parsed Value</th>
+              <th>Standard Unit / Range</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="previewTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence System</p>
+  </footer>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const csrfToken = document.getElementById('csrfToken').value;
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) handleFileSelect(files[0]);
+    });
+
+    function handleFileSelect(file) {
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('csrf_token', csrfToken);
+
+      const resCard = document.getElementById('validationResultCard');
+      resCard.style.display = 'block';
+      document.getElementById('resultFilename').textContent = 'Validating ' + file.name + '...';
+      document.getElementById('validationNotes').innerHTML = '<span style="color: var(--primary);">Processing laboratory schema...</span>';
+      document.getElementById('previewTableBody').innerHTML = '';
+
+      fetch('/api/upload_lab_file', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken
+        },
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          document.getElementById('resultFilename').textContent = file.name + ' — Validation Failed';
+          document.getElementById('statusBadgeContainer').innerHTML = '<span class="badge-invalid">Validation Error</span>';
+          document.getElementById('validationNotes').innerHTML = '<div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px;">⚠️ ' + (data.error || 'Parsing error') + '</div>';
+          return;
+        }
+
+        document.getElementById('resultFilename').textContent = file.name;
+        document.getElementById('statusBadgeContainer').innerHTML = '<span class="badge-present">Validated Successfully</span>';
+        
+        let metaTxt = '';
+        if (data.patient_id) metaTxt += 'Patient ID: ' + data.patient_id + ' | ';
+        if (data.patient_name) metaTxt += 'Name: ' + data.patient_name + ' | ';
+        metaTxt += 'Populated: ' + (data.populated_count || 0) + ' / 23 | Missing: ' + (data.missing_count || 0);
+        document.getElementById('patientMeta').textContent = metaTxt;
+
+        let notesHtml = '';
+        if (data.warnings && data.warnings.length > 0) {
+          notesHtml = '<div style="background: #fef3c7; color: #92400e; padding: 10px; border-radius: 6px; margin-bottom: 12px;"><strong>Warnings:</strong><ul style="margin: 4px 0 0 16px;">';
+          data.warnings.forEach(w => notesHtml += '<li>' + w + '</li>');
+          notesHtml += '</ul></div>';
+        }
+        document.getElementById('validationNotes').innerHTML = notesHtml;
+
+        // Populate table
+        const tbody = document.getElementById('previewTableBody');
+        tbody.innerHTML = '';
+        const params = data.extracted_parameters || {};
+        for (const [key, val] of Object.entries(params)) {
+          const row = document.createElement('tr');
+          const isMissing = (val === null || val === undefined);
+          row.innerHTML = `
+            <td><strong>${key}</strong></td>
+            <td>${isMissing ? '<em>Missing / Unspecified</em>' : val}</td>
+            <td>Standard Medical Unit</td>
+            <td>${isMissing ? '<span class="badge-missing">Missing</span>' : '<span class="badge-present">Valid</span>'}</td>
+          `;
+          tbody.appendChild(row);
+        }
+      })
+      .catch(err => {
+        document.getElementById('resultFilename').textContent = 'Upload Failed';
+        document.getElementById('statusBadgeContainer').innerHTML = '<span class="badge-invalid">Network Error</span>';
+        document.getElementById('validationNotes').innerHTML = '<div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px;">Network or server error validating file.</div>';
+      });
+    }
+  </script>
+
+</body>
+</html>

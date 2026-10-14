@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroMed AI — Patient Records Directory</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  
+  <style>
+    .directory-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: white;
+      padding: 30px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+    }
+    .filter-toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 240px;
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: white;
+      font-size: 14px;
+      color: var(--dark);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+    .filter-select {
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: white;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      outline: none;
+      cursor: pointer;
+    }
+    .patient-table-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+    }
+    .patient-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .patient-table th {
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 14px 16px;
+      font-weight: 700;
+      text-align: left;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .patient-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+      vertical-align: middle;
+    }
+    .patient-table tr:hover {
+      background: #f8fafc;
+    }
+    .badge-id {
+      background: #ede9fe;
+      color: #5b21b6;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 12px;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+      display: inline-block;
+    }
+    .badge-high-risk {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      display: inline-block;
+    }
+    .badge-low-risk {
+      background: #d1fae5;
+      color: #065f46;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      display: inline-block;
+    }
+    .badge-pending {
+      background: #f1f5f9;
+      color: #64748b;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 11px;
+      display: inline-block;
+    }
+    .btn-action-xs {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .btn-action-xs-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-action-xs-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-action-xs-secondary {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-action-xs-secondary:hover {
+      background: #e2e8f0;
+    }
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      font-size: 13px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+
+      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+        ☰
+      </button>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        {% if current_user.is_authenticated %}
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        <li>
+          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
+          </form>
+        </li>
+        {% else %}
+        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper">
+
+    <!-- DIRECTORY HEADER -->
+    <div class="directory-header">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <span style="color: #a5b4fc; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">
+            CLINICAL DATABASE & ASSESSMENT ARCHIVES
+          </span>
+          <h1 style="font-size: 28px; font-weight: 800; margin-top: 4px; margin-bottom: 6px;">
+            🗂️ Patient Records Directory
+          </h1>
+          <p style="color: #cbd5e1; font-size: 14px; margin: 0;">
+            Central repository of patient baseline demographics, multi-model Wilson Disease consensus risks, and assessment histories.
+          </p>
+        </div>
+
+        <a href="{{ url_for('about') }}" class="btn-prime" style="padding: 12px 24px; text-decoration: none;">
+          ➕ New Patient Assessment
+        </a>
+      </div>
+    </div>
+
+    <!-- FILTER & SEARCH CONTROLS -->
+    <form method="get" action="{{ url_for('patient_dashboard') }}" class="filter-toolbar">
+      <div style="display: flex; gap: 10px; flex: 1; flex-wrap: wrap;">
+        <!-- Search Input -->
+        <input 
+          type="text" 
+          name="search" 
+          class="search-input" 
+          placeholder="🔍 Search by Patient Name or ID (e.g. NEUROMED001)..." 
+          value="{{ search or '' }}"
+        />
+
+        <!-- Risk Category Filter -->
+        <select name="risk" class="filter-select" onchange="this.form.submit()">
+          <option value="all" {% if risk_filter == 'all' or not risk_filter %}selected{% endif %}>Risk Filter: All Patients</option>
+          <option value="high" {% if risk_filter == 'high' %}selected{% endif %}>🚨 High Predicted Risk</option>
+          <option value="low" {% if risk_filter == 'low' %}selected{% endif %}>🟢 Low Predicted Risk</option>
+          <option value="unassessed" {% if risk_filter == 'unassessed' %}selected{% endif %}>⏳ Unassessed Records</option>
+        </select>
+
+        <!-- Sort Select -->
+        <select name="sort" class="filter-select" onchange="this.form.submit()">
+          <option value="created_desc" {% if sort_by == 'created_desc' or not sort_by %}selected{% endif %}>Sort: Newest First</option>
+          <option value="created_asc" {% if sort_by == 'created_asc' %}selected{% endif %}>Sort: Oldest First</option>
+          <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Sort: Name (A – Z)</option>
+          <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Sort: Name (Z – A)</option>
+          <option value="risk_desc" {% if sort_by == 'risk_desc' %}selected{% endif %}>Sort: Highest Risk First</option>
+        </select>
+
+        <button type="submit" class="btn-prime" style="padding: 9px 18px; font-size: 13px;">Filter</button>
+        {% if search or (risk_filter and risk_filter != 'all') or (sort_by and sort_by != 'created_desc') %}
+        <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="padding: 9px 16px; font-size: 13px; text-decoration: none;">Reset</a>
+        {% endif %}
+      </div>
+
+      <div style="font-size: 13px; color: var(--text-muted); font-weight: 600;">
+        Showing {{ patients | length }} of {{ total_count or patients | length }} patient record{{ 's' if total_count != 1 else '' }}
+      </div>
+    </form>
+
+    <!-- PATIENT TABLE -->
+    <div class="patient-table-card">
+      {% if patients and patients | length > 0 %}
+      <table class="patient-table">
+        <thead>
+          <tr>
+            <th>Patient ID</th>
+            <th>Patient Full Name</th>
+            <th>Demographics</th>
+            <th>Assessments</th>
+            <th>Latest Test Date</th>
+            <th>Consensus Risk</th>
+            <th>Probability</th>
+            <th>Leipzig Score</th>
+            <th style="text-align: right;">Record Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in patients %}
+          <tr>
+            <td>
+              <span class="badge-id">{{ p.patient_id }}</span>
+            </td>
+            <td>
+              <strong style="color: var(--dark); font-size: 15px;">{{ p.patient_name }}</strong>
+            </td>
+            <td style="font-size: 13px; color: #64748b;">
+              {% if p.age %}{{ p.age | int }} yrs{% else %}—{% endif %}
+              {% if p.sex %} • {{ p.sex }}{% endif %}
+              {% if p.region %} • {{ p.region }}{% endif %}
+            </td>
+            <td>
+              <span style="font-weight: 700; color: #4338ca;">
+                {{ p.assessment_count }} test{% if p.assessment_count != 1 %}s{% endif %}
+              </span>
+            </td>
+            <td style="font-size: 13px; color: #64748b;">
+              {{ p.latest_assessment_date or 'No assessments recorded' }}
+            </td>
+            <td>
+              {% if p.latest_prediction_text %}
+                {% if 'High' in p.latest_prediction_text %}
+                  <span class="badge-high-risk">⚠️ High Risk</span>
+                {% else %}
+                  <span class="badge-low-risk">💚 Low Risk</span>
+                {% endif %}
+              {% else %}
+                <span class="badge-pending">Unassessed</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.latest_probability is not none %}
+                <strong style="color: #0f172a;">{{ (p.latest_probability * 100) | round(1) }}%</strong>
+                {% if p.latest_model_version %}
+                <span style="display: block; font-size: 10px; color: #6366f1; font-family: monospace; font-weight: 700;">{{ p.latest_model_version }}</span>
+                {% endif %}
+              {% else %}
+                <span style="color: #94a3b8;">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.latest_leipzig_score is not none %}
+                <span style="font-weight: 700; color: #4338ca;">{{ p.latest_leipzig_score }} pts</span>
+              {% else %}
+                <span style="color: #94a3b8;">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
+                <!-- Full History Button -->
+                <a href="{{ url_for('patient_history_view', patient_id=p.patient_id) }}" class="btn-action-xs btn-action-xs-secondary" title="View complete assessment timeline">
+                  📋 History
+                </a>
+
+                <!-- Latest Report Button -->
+                {% if p.latest_assessment_id %}
+                <a href="{{ url_for('historical_assessment_report', assessment_id=p.latest_assessment_id) }}" class="btn-action-xs btn-action-xs-primary" title="View latest clinical report">
+                  📄 Report
+                </a>
+                {% endif %}
+
+                <!-- Re-Assessment / Test Button -->
+                <a href="{{ url_for('about') }}" class="btn-action-xs btn-action-xs-secondary" title="Start new assessment for patient">
+                  ⚡ Test
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- PAGINATION CONTROLS -->
+      {% if total_pages and total_pages > 1 %}
+      <div class="pagination-bar">
+        <div>
+          Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong> (Total Records: {{ total_count }})
+        </div>
+        <div style="display: flex; gap: 8px;">
+          {% if page > 1 %}
+          <a href="{{ url_for('patient_dashboard', search=search, risk=risk_filter, sort=sort_by, page=page - 1) }}" class="btn-action-xs btn-action-xs-secondary">
+            ◀ Previous
+          </a>
+          {% endif %}
+          {% if page < total_pages %}
+          <a href="{{ url_for('patient_dashboard', search=search, risk=risk_filter, sort=sort_by, page=page + 1) }}" class="btn-action-xs btn-action-xs-secondary">
+            Next ▶
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% else %}
+      <!-- EMPTY STATE -->
+      <div style="padding: 48px; text-align: center; color: var(--text-muted);">
+        <div style="font-size: 40px; margin-bottom: 12px;">📁</div>
+        <h3 style="color: var(--dark); margin-bottom: 8px;">No Matching Patient Records Found</h3>
+        <p style="font-size: 14px; max-width: 480px; margin: 0 auto 20px auto;">
+          {% if search or (risk_filter and risk_filter != 'all') %}
+            No patient records matched your active search term or filter criteria.
+          {% else %}
+            No patient assessments have been saved yet. Submit a test from the diagnostic form to automatically store a patient record.
+          {% endif %}
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          {% if search or (risk_filter and risk_filter != 'all') %}
+          <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 20px;">
+            Clear Search & Filters
+          </a>
+          {% endif %}
+          <a href="{{ url_for('about') }}" class="btn-prime" style="text-decoration: none; padding: 10px 24px;">
+            Go to Clinical Diagnostic Form
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & Assessment Records</p>
+  </footer>
+
+  <script>
+    function toggleNavMenu() {
+      const links = document.getElementById('main-nav-links');
+      if (links) links.classList.toggle('nav-open');
+    }
+  </script>
+
+</body>
+</html>

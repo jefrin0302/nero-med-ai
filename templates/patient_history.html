@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assessment History for {{ patient.patient_name }} ({{ patient.patient_id }}) — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+
+  <style>
+    .history-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: white;
+      padding: 30px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+    }
+    .profile-card {
+      background: white;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      padding: 22px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .demographics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .demo-item {
+      background: #f8fafc;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #e2e8f0;
+    }
+    .demo-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .demo-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+    .timeline-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+    }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .history-table th {
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 14px 18px;
+      font-weight: 700;
+      text-align: left;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .history-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+      vertical-align: middle;
+    }
+    .history-table tr:hover {
+      background: #f8fafc;
+    }
+    .badge-id {
+      background: #ede9fe;
+      color: #5b21b6;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 12px;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+      display: inline-block;
+    }
+    .badge-high-risk {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      display: inline-block;
+    }
+    .badge-low-risk {
+      background: #d1fae5;
+      color: #065f46;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+
+      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+        ☰
+      </button>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        {% if current_user.is_authenticated %}
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        <li>
+          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
+          </form>
+        </li>
+        {% else %}
+        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper">
+
+    <!-- NAVIGATION BREADCRUMB -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+      <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
+        ⬅ Back to Patient Directory
+      </a>
+      <a href="{{ url_for('about') }}" class="btn-prime" style="font-size: 13px; text-decoration: none;">
+        ➕ Run New Assessment for this Patient
+      </a>
+    </div>
+
+    <!-- PATIENT HEADER CARD -->
+    <div class="history-header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span class="badge-id" style="background: rgba(255, 255, 255, 0.2); color: white; font-size: 14px; padding: 6px 12px;">
+              {{ patient.patient_id }}
+            </span>
+            <h1 style="font-size: 26px; font-weight: 800; margin: 0;">
+              {{ patient.patient_name }}
+            </h1>
+          </div>
+          <p style="color: #cbd5e1; font-size: 14px; margin: 0;">
+            Chronological Longitudinal Assessment Timeline & Disease Progression History
+          </p>
+        </div>
+
+        <div style="text-align: right; background: rgba(255, 255, 255, 0.1); padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.15);">
+          <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #a5b4fc; font-weight: 700; display: block;">Total Assessments</span>
+          <strong style="font-size: 24px; color: white;">{{ history | length }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEMOGRAPHICS PROFILE CARD -->
+    <div class="profile-card">
+      <h2 style="font-size: 16px; font-weight: 700; color: var(--dark); margin: 0 0 12px 0;">
+        👤 Baseline Demographic Profile
+      </h2>
+      <div class="demographics-grid">
+        <div class="demo-item">
+          <span class="demo-label">Age</span>
+          <span class="demo-value">{% if patient.age %}{{ patient.age | int }} Years{% else %}Not Specified{% endif %}</span>
+        </div>
+        <div class="demo-item">
+          <span class="demo-label">Biological Sex</span>
+          <span class="demo-value">{{ patient.sex or 'Not Specified' }}</span>
+        </div>
+        <div class="demo-item">
+          <span class="demo-label">Geographic Region</span>
+          <span class="demo-value">{{ patient.region or 'Not Specified' }}</span>
+        </div>
+        <div class="demo-item">
+          <span class="demo-label">Socioeconomic Status</span>
+          <span class="demo-value">{{ patient.ses or 'Not Specified' }}</span>
+        </div>
+        <div class="demo-item">
+          <span class="demo-label">Body Mass Index (BMI)</span>
+          <span class="demo-value">{% if patient.bmi %}{{ patient.bmi }} kg/m²{% else %}—{% endif %}</span>
+        </div>
+        <div class="demo-item">
+          <span class="demo-label">Alcohol Consumption</span>
+          <span class="demo-value">
+            {% if patient.alcohol_use in ('True', 'true', '1') %}Yes{% elif patient.alcohol_use in ('False', 'false', '0') %}No{% else %}—{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSESSMENT TIMELINE -->
+    <div class="timeline-card">
+      <div style="padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 0;">
+          📋 Assessment History (Newest Assessment First)
+        </h2>
+        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">
+          Archived Records: {{ history | length }}
+        </span>
+      </div>
+
+      {% if history and history | length > 0 %}
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Date & Time</th>
+            <th>Consensus Risk Prediction</th>
+            <th>Ensemble Probability</th>
+            <th>Leipzig Score</th>
+            <th>Model Breakdown</th>
+            <th style="text-align: right;">Archival Report</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in history %}
+          <tr>
+            <td>
+              <span class="badge-id">#{{ a.assessment_id }}</span>
+            </td>
+            <td style="font-size: 13px; color: #475569;">
+              {{ a.created_at }}
+            </td>
+            <td>
+              {% if a.prediction_text %}
+                {% if 'High' in a.prediction_text %}
+                  <span class="badge-high-risk">⚠️ {{ a.prediction_text }}</span>
+                {% else %}
+                  <span class="badge-low-risk">💚 {{ a.prediction_text }}</span>
+                {% endif %}
+              {% else %}
+                <span style="color: var(--text-muted);">Recorded</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.probability is not none %}
+                <strong style="font-size: 15px; color: var(--dark);">{{ (a.probability * 100) | round(1) }}%</strong>
+                {% if a.model_version %}
+                <span style="display: block; font-size: 10px; color: #6366f1; font-family: monospace; font-weight: 700;">{{ a.model_version }}</span>
+                {% endif %}
+              {% else %}
+                <span style="color: #94a3b8;">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.leipzig_score is not none %}
+                <span style="font-weight: 700; color: #4338ca;">{{ a.leipzig_score }} pts</span>
+              {% else %}
+                <span style="color: #94a3b8;">—</span>
+              {% endif %}
+            </td>
+            <td style="font-size: 12px; color: #64748b;">
+              {% if a.svm_prob is not none %}SVM: {{ a.svm_prob }}%{% endif %}
+              {% if a.logreg_prob is not none %} • LogReg: {{ a.logreg_prob }}%{% endif %}
+              {% if a.bilstm_prob is not none %} • BiLSTM: {{ a.bilstm_prob }}%{% endif %}
+            </td>
+            <td style="text-align: right;">
+              <a href="{{ url_for('historical_assessment_report', assessment_id=a.assessment_id) }}" class="btn-prime" style="padding: 7px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                📄 View Clinical Report
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="padding: 48px; text-align: center; color: var(--text-muted);">
+        <div style="font-size: 40px; margin-bottom: 12px;">🧪</div>
+        <h3 style="color: var(--dark); margin-bottom: 8px;">No Clinical Assessments Yet</h3>
+        <p style="font-size: 14px; max-width: 480px; margin: 0 auto 20px auto;">
+          This patient has a registered baseline profile, but no clinical assessments have been performed.
+        </p>
+        <a href="{{ url_for('about') }}" class="btn-prime" style="text-decoration: none; padding: 10px 24px;">
+          ⚡ Launch Assessment for {{ patient.patient_name }}
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & Assessment Records</p>
+  </footer>
+
+  <script>
+    function toggleNavMenu() {
+      const links = document.getElementById('main-nav-links');
+      if (links) links.classList.toggle('nav-open');
+    }
+  </script>
+
+</body>
+</html>

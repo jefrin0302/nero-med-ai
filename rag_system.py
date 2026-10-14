@@ -19,6 +19,8 @@ logging.basicConfig(level=logging.INFO)
 PERSIST_DIR = "chroma_db"
 DOCS_DIR = "medical_docs"
 
+NO_DOCS_MSG = "I do not have access to any medical documents and cannot answer."
+
 CLARIFICATION_MSG = (
     "I'm not sure what you mean. Please ask a question related to Wilson disease, "
     "diagnosis, treatment, laboratory tests, diet, or your patient report."
@@ -821,6 +823,28 @@ class MedicalRAGSystem:
 
         self._init_knowledge_base()
 
+    def has_medical_documents(self) -> bool:
+        """
+        Checks whether medical_docs/ contains any non-empty clinical knowledge documents.
+        Returns False if the directory does not exist or has no valid document files.
+        """
+        if not os.path.isdir(DOCS_DIR):
+            return False
+        valid_extensions = ('.txt', '.md', '.pdf', '.docx', '.csv', '.json')
+        for f in os.listdir(DOCS_DIR):
+            if f.startswith('.'):
+                continue
+            if f.lower().endswith(valid_extensions):
+                full_path = os.path.join(DOCS_DIR, f)
+                if os.path.isfile(full_path) and os.path.getsize(full_path) > 0:
+                    return True
+        return False
+
+    def _ensure_documents_loaded(self):
+        """Loads documents into memory if they exist on disk but haven't been loaded yet."""
+        if self.has_medical_documents() and not self.passages and not self.qa_bank:
+            self._init_knowledge_base()
+
     def _init_knowledge_base(self):
         # 1. Load structured Q&A pairs from Question Bank for instant answer lookup
         self._load_qa_bank()
@@ -944,10 +968,10 @@ class MedicalRAGSystem:
         Returns ONLY the authoritative answer(s), never echoing the question.
         Enforces confidence thresholds and intent checks to prevent poor or spurious matches.
         """
-        if not getattr(self, "qa_bank", None):
+        if not self.has_medical_documents() or not getattr(self, "qa_bank", None):
             return None
 
-        clean_user_q = re.sub(r'^\d+[\.\)]?\s*', '', user_question).strip()
+        clean_user_q = re.sub(r'^(?:\(?\d+[\.\)]|\d+\.)\s+', '', user_question).strip()
         norm_user = " ".join(re.sub(r'[^\w\s]', ' ', clean_user_q.lower()).split())
         if not norm_user or len(norm_user) < 3:
             return None
@@ -1071,7 +1095,406 @@ class MedicalRAGSystem:
 
         logger.info("No external LLM API key detected. Running grounded clinical RAG engine.")
 
+    @staticmethod
+    def _normalize_passage_text(text: str) -> str:
+        """Normalizes common PDF font ligatures, line breaks, hyphens, and bullet tags."""
+        text = text.replace('\ufb01', 'fi').replace('\ufb02', 'fl')
+        text = text.replace('\ufb00', 'ff').replace('\ufb03', 'ffi').replace('\ufb04', 'ffl')
+        text = text.replace('\u2010', '-').replace('\u2013', '-').replace('\u2014', '-')
+        text = text.replace('\u2018', "'").replace('\u2019', "'")
+        text = text.replace('\u201c', '"').replace('\u201d', '"')
+        # Clean specific PDF font/bullet artifact tags like /C15 while preserving units like mg/dl or and/or
+        text = re.sub(r'/C\d+[A-Za-z0-9]*\s*', ' ', text)
+        # Fix split ligatures or words broken by PDF spaces and hyphens
+        text = re.sub(r'\b(\w+)\s*-\s+(\w+)\b', r'\1-\2', text)
+        text = re.sub(r'\bspeci\s+fic', 'specific', text, flags=re.IGNORECASE)
+        text = re.sub(r'\bsigni\s+fic', 'signific', text, flags=re.IGNORECASE)
+        text = re.sub(r'\bde\s+ficit', 'deficit', text, flags=re.IGNORECASE)
+        text = re.sub(r'\bpro\s+file', 'profile', text, flags=re.IGNORECASE)
+        text = re.sub(r'[ \t]+', ' ', text)
+        return text.strip()
+
+    @staticmethod
+    def _get_guideline_display_name(src_file: str) -> str:
+        s = src_file.lower()
+        if "aasld" in s:
+            return "AASLD Guidelines"
+        elif "easl" in s:
+            return "EASL-ERN Guidelines"
+        elif "clinical practice guidelines in wd" in s or "inasl" in s:
+            return "INASL Guidelines"
+        elif "nih" in s or "gene" in s:
+            return "NIH / GeneReviews"
+        return "Clinical Practice Guidelines"
+
+    def _rank_passages_internal(self, query: str, top_n: int = 4) -> list:
+        """
+        Ranks clinical guideline passages using query-intent scoring, clinical concept expansion,
+        source quality filtering, and two-pass guideline diversification.
+        """
+        if not self.has_medical_documents() or not self.passages:
+            return []
+
+        query_clean = query.lower()
+        stop_words = {
+            "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
+            "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
+            "many", "much", "can", "does", "do", "it", "for", "of", "with", "from", "by",
+            "according", "cited", "guideline", "guidelines", "practice", "clinical", "please",
+            "explain", "recommend", "recommended", "consideration", "prompt", "findings"
+        }
+        raw_query_words = [
+            w for w in re.findall(r'\b\w+\b', query_clean)
+            if w not in stop_words and len(w) > 2
+        ]
+        if not raw_query_words:
+            return []
+
+        is_definition_query = any(phrase in query_clean for phrase in ["what is wilson", "what is wilson s", "explain wilson", "what is the definition", "define wilson"])
+        is_copper_accum_query = any(phrase in query_clean for phrase in ["copper accumulation", "copper accumulate", "accumulates in", "accumulation of copper"])
+        is_pediatric_query = any(w in query_clean for w in ["children", "child", "pediatric", "infant", "adolescent", "young"])
+        is_monitoring_query = (
+            any(w in query_clean for w in ["monitoring", "interval", "intervals", "frequency", "schedule", "surveillance"]) and
+            any(w in query_clean for w in ["chelator", "chelation", "therapy", "treatment", "penicillamine", "trientine", "zinc"])
+        )
+
+        scored = []
+        for p in self.passages:
+            header = ""
+            body = p
+            if p.startswith("[Source:") and "\n" in p:
+                header, body = p.split("\n", 1)
+            body = self._normalize_passage_text(body)
+            body_lower = body.lower()
+
+            # 1. Front-matter / glossary / bibliography detection
+            is_acronym_glossary = body.count(";") >= 4 and any(w in body for w in ["FDA", "INR", "MELD", "UWDRS", "co-first authors", "HCC"])
+            is_front_matter = any(phrase in body_lower for phrase in [
+                "co-first authors", "guidance documents, developed by a panel of experts",
+                "practice guidelines committee", "all rights reserved", "all rights are reserved",
+                "published by elsevier", "reprint requests", "table of contents", "conflict of interest",
+                "terms and conditions", "copyright notice", "data mining, ai training"
+            ])
+            is_bibliography = (
+                body.count(" et al.") >= 2 or
+                bool(re.search(r'\[\d+\]\s+[A-Z][a-z]+ [A-Z]{1,2},', body)) or
+                bool(re.search(r'\b(?:J Pediatr|Hepatology|Lancet|Gastroenterology)\.\s*\d{4};', body))
+            )
+            is_raw_table = len(re.findall(r'\b\d+[-–]\d+\b', body)) >= 4 or "score bilirubin" in body_lower or "table 10" in body_lower
+
+            # 2. Token overlap with clinical concept expansions
+            score = 0.0
+            matched_distinct = 0
+            for w in raw_query_words:
+                w_weight = 0.5 if w in ["wilson", "disease", "patient", "patients"] else 3.0
+                cnt = body_lower.count(w)
+                if w in ["chelator", "chelation"]:
+                    cnt += sum(body_lower.count(syn) for syn in ["chelator", "chelation", "chelating", "penicillamine", "trientine"])
+                elif w in ["interval", "intervals"]:
+                    cnt += sum(body_lower.count(syn) for syn in ["interval", "intervals", "annually", "yearly", "twice per year", "twice yearly", "twice annually", "every 6 to 12 months", "every 6-12 months", "every 6 months", "6–12 months", "6-12 months"])
+                elif w in ["children", "child", "pediatric"]:
+                    cnt += sum(body_lower.count(syn) for syn in ["children", "child", "pediatric"])
+                elif w in ["findings", "finding"]:
+                    cnt += sum(body_lower.count(syn) for syn in ["finding", "findings", "manifestation", "manifestations", "presentation"])
+
+                if cnt > 0:
+                    score += w_weight * (1.0 + min(cnt - 1, 3) * 0.4)
+                    matched_distinct += 1
+
+            if matched_distinct == 0:
+                continue
+
+            coverage = matched_distinct / len(raw_query_words)
+            score *= (0.5 + 1.5 * coverage)
+
+            # 3. Penalize boilerplate, glossary, and bibliography
+            if is_acronym_glossary:
+                score -= 30.0
+            if is_front_matter:
+                score -= 30.0
+            if is_bibliography:
+                score -= 35.0
+            if is_raw_table:
+                score -= 30.0
+
+            # 4. Intent-aware boosts
+            if is_definition_query:
+                if any(copula in body_lower for copula in ["autosomal recessive", "inborn error of copper", "disorder of copper metabolism", "defect in the atp7b", "genetic defect"]):
+                    score += 18.0
+                if "summary wilson" in body_lower or "summary: wilson" in body_lower or "summary wilson's" in body_lower:
+                    score += 10.0
+                if "hepatolenticular degeneration" in body_lower:
+                    score += 5.0
+
+            if is_copper_accum_query:
+                if "toxic hepatocellular copper accumulation" in body_lower or "copper accumulation" in body_lower or "accumulates in" in body_lower:
+                    score += 15.0
+                if "biliary excretion" in body_lower or "atp7b" in body_lower:
+                    score += 8.0
+
+            if is_pediatric_query:
+                if any(w in body_lower for w in ["children", "child", "pediatric"]):
+                    score += 10.0
+                if any(w in body_lower for w in ["hepatomegaly", "transaminases", "aminotransferase"]):
+                    score += 10.0
+                if ("asymptomatic" in body_lower and ("hepatomegaly" in body_lower or "aminotransferase" in body_lower or "transaminase" in body_lower or "liver" in body_lower)) or "incidental" in body_lower or "persistently increased" in body_lower or "persistently elevated" in body_lower:
+                    score += 12.0
+                if "ceruloplasmin" in body_lower and any(w in body_lower for w in ["threshold", "sensitivity", "14 mg", "20 mg"]):
+                    score += 8.0
+
+            if is_monitoring_query:
+                if any(w in body_lower for w in ["monitoring", "interval", "intervals", "annually", "yearly", "twice yearly", "twice annually", "twice per year", "every 6 to 12 months", "every 6-12 months", "6–12 months", "every 6 months"]):
+                    score += 12.0
+                if "urinary copper" in body_lower or "24-h" in body_lower or "24-hour" in body_lower:
+                    score += 8.0
+                if any(w in body_lower for w in ["complete blood count", "full blood count", "total blood count", "urinalysis", "urine analyses", "proteinuria", "liver biochemistries", "liver function tests", "renal profile", "renal function", "hepatic synthetic function", "inr"]):
+                    score += 12.0
+                if any(w in body_lower for w in ["guidance statement", "recommendation", "recommendations", "surveillance:", "monitoring on treatment"]):
+                    score += 8.0
+
+            min_cov = 0.20 if len(raw_query_words) >= 6 else 0.30
+            if score >= 8.0 and coverage >= min_cov:
+                scored.append((score, p))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        if not scored:
+            return []
+
+        best_score = scored[0][0]
+
+        # Two-pass selection for complex multi-guideline questions (pediatric and monitoring)
+        if is_monitoring_query or is_pediatric_query:
+            selected = []
+            seen_orgs = set()
+            # Pass 1: Select top passage per distinct guideline organization
+            for s, p in scored:
+                if s < 0.60 * best_score or s < 10.0:
+                    continue
+                header = p.split("\n", 1)[0]
+                m = re.match(r'\[Source:\s*([^|]+)', header)
+                org = self._get_guideline_display_name(m.group(1)) if m else "General"
+                if org not in seen_orgs:
+                    seen_orgs.add(org)
+                    selected.append(p)
+                if len(selected) >= top_n:
+                    break
+
+            # Pass 2: If space remains, fill with remaining highest scored passages
+            if len(selected) < top_n:
+                for s, p in scored:
+                    if p not in selected and (s >= 0.60 * best_score and s >= 10.0):
+                        selected.append(p)
+                    if len(selected) >= top_n:
+                        break
+            return selected
+
+        # Standard ranking up to top_n passages
+        results = [scored[0][1]]
+        for s, p in scored[1:]:
+            if len(results) >= top_n:
+                break
+            if s >= 0.70 * best_score and s >= 10.0:
+                results.append(p)
+
+        return results
+
+    def _synthesize_extractive_answer(self, user_question: str, top_passages: list) -> str:
+        """
+        Produces a concise, readable conversational explanation grounded in retrieved passages
+        without requiring an external LLM (Pathway B: Extractive Synthesis).
+        Keeps distinct guideline bodies (AASLD, EASL-ERN, INASL, NIH/GeneReviews) separate
+        for complex comparative clinical questions to avoid conflating different monitoring intervals
+        or recommendations.
+        If evidence is inadequate, honestly states that the documents lack sufficient evidence.
+        """
+        if not top_passages:
+            return (
+                "The available clinical practice guidelines do not contain sufficient evidence "
+                "to answer this specific question. Please consult a qualified gastroenterologist, "
+                "hepatologist, or neurologist for individualized clinical guidance."
+            )
+
+        q_clean = user_question.lower()
+        stop_words = {
+            "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
+            "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
+            "many", "much", "can", "does", "do", "it", "for", "of", "with", "from", "by",
+            "according", "cited", "guideline", "guidelines", "practice", "clinical", "please",
+            "explain", "recommend", "recommended", "consideration", "prompt", "findings"
+        }
+        q_words = set(re.findall(r'\b\w+\b', q_clean)) - stop_words
+
+        is_pediatric_query = any(w in q_clean for w in ["children", "child", "pediatric", "infant", "adolescent", "young"])
+        is_monitoring_query = (
+            any(w in q_clean for w in ["monitoring", "interval", "intervals", "frequency", "schedule", "surveillance"]) and
+            any(w in q_clean for w in ["chelator", "chelation", "therapy", "treatment", "penicillamine", "trientine", "zinc"])
+        )
+
+        guideline_data = {}
+
+        for p in top_passages:
+            header = ""
+            body = p
+            if p.startswith("[Source:") and "\n" in p:
+                header, body = p.split("\n", 1)
+
+            m = re.match(r'\[Source:\s*([^|]+)\|\s*Page:\s*(\d+)\]', header)
+            if m:
+                src_file = m.group(1).strip()
+                page_num = m.group(2).strip()
+                citation_str = f"{src_file}, p. {page_num}"
+                org_name = self._get_guideline_display_name(src_file)
+            else:
+                citation_str = "Clinical Practice Guidelines"
+                org_name = "Clinical Practice Guidelines"
+
+            if org_name not in guideline_data:
+                guideline_data[org_name] = {"sources": [], "sentences": []}
+            if citation_str not in guideline_data[org_name]["sources"]:
+                guideline_data[org_name]["sources"].append(citation_str)
+
+            body = self._normalize_passage_text(body)
+            # Strip document title/preamble junk from start of body
+            body = re.sub(r'^(?:[A-Za-z\s\-–—:]*Guidelines[^\n*]*\*\s*(?:Summary\s*)?|Summary\s*:?\s*|TABLE\s+\d+\s+)', '', body, flags=re.IGNORECASE)
+            # Normalize periods followed by citations/reference numbers before sentence splitting
+            body = re.sub(r'([.!?])\d+\s+', r'\1 ', body)
+            if "•" in body:
+                body = body.replace("•", ". ")
+
+            raw_sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z0-9])', body)
+            scored_sentences = []
+
+            for raw_s in raw_sentences:
+                s_clean = re.sub(r'\[[^\]]*\]', '', raw_s) # remove bracketed references e.g. [1,2] or [Schilsky et al 2022b]
+                s_clean = re.sub(r'\s*\([Ll]o[Ee]\s*\d+[^)]*\)', '', s_clean) # remove (LoE 3, strong recommendation, consensus)
+                s_clean = re.sub(r'\s*\([Tt]able\s*\d+\s*\)', '', s_clean) # remove (Table 1 )
+                s_clean = re.sub(r'^\d+%\s*', '', s_clean) # remove voting percentages e.g. '100% ', '97% '
+                s_clean = re.sub(r'^(?:\(?\d+[\.\)]|\d+\.)\s+', '', s_clean) # remove leading list numbers e.g. '21. ', '1) ', '(2) '
+                s_clean = re.sub(r'^(?:\d+,\s*)+\d+[\s–\-]+', '', s_clean) # remove leading citation chains e.g. '200,456,457 '
+                s_clean = re.sub(r',\d+\s+', ', ', s_clean) # comma citations e.g. ',200,456 '
+                s_clean = re.sub(r'^[,\s–\-:;]+', '', s_clean) # leading punctuation
+                # Remove stray leading reference numbers (e.g. '79 The best WD...') while preserving units ('24 h', '14 mg')
+                m_lead = re.match(r'^(\d+)\s+([A-Za-z]+)', s_clean)
+                if m_lead and m_lead.group(2).lower() not in {'h', 'hr', 'hrs', 'hour', 'hours', 'd', 'day', 'days', 'wk', 'week', 'weeks', 'mo', 'month', 'months', 'yr', 'year', 'years', 'mg', 'g', 'kg', 'dl', 'ml', 'l', 'mmol', 'umol', 'lmol', 'points', 'percent'}:
+                    s_clean = s_clean[len(m_lead.group(1)):].strip()
+                s_clean = re.sub(r'\s+', ' ', s_clean).strip()
+
+                # Require valid terminal punctuation
+                last_p = max(s_clean.rfind('.'), s_clean.rfind('!'), s_clean.rfind('?'))
+                if last_p != -1:
+                    s_clean = s_clean[:last_p + 1].strip()
+                else:
+                    continue
+
+                if s_clean.endswith(':'):
+                    continue
+                # Complete sentences start with a capital letter; discard cross-chunk broken fragments
+                if not s_clean or s_clean[0].islower():
+                    continue
+
+                s_lower = s_clean.lower()
+                if len(s_clean) < 30:
+                    continue
+                if any(s_lower.startswith(lead) for lead in ['guidance statement', 'guidance statements', 'practice guidance', 'table ', 'recommendation ', 'recommendations ']):
+                    continue
+                if any(b in s_lower for b in ["all rights reserved", "elsevier b.v", "co-first authors", "reprint requests", "fda, food"]):
+                    continue
+                if s_clean.count(";") >= 3 and any(w in s_clean for w in ["FDA", "INR", "MELD"]):
+                    continue
+                if len(re.findall(r'\b\d+[-–]\d+\b', s_clean)) >= 3:
+                    continue
+                if any(lead in s_lower for lead in ["score bilirubin", "zinc salts d-penicillamine trientine", "king 's college wilson index"]):
+                    continue
+
+                s_words = set(re.findall(r'\b\w+\b', s_lower))
+                overlap = len(q_words.intersection(s_words))
+                s_score = overlap * 2.0
+
+                if any(cop in s_lower for cop in ["is an autosomal recessive", "is an inborn error", "disorder of copper metabolism", "characterized by", "toxic hepatocellular copper accumulation", "biliary excretion"]):
+                    s_score += 6.0
+
+                if is_pediatric_query:
+                    if any(w in s_lower for w in ["hepatomegaly", "transaminases", "aminotransferase"]):
+                        s_score += 4.0
+                    if "asymptomatic" in s_lower and any(w in s_lower for w in ["hepatomegaly", "transaminases", "aminotransferase"]):
+                        s_score += 10.0
+                    if "incidentally" in s_lower or "incidental" in s_lower:
+                        s_score += 6.0
+                    if "persistently increased" in s_lower or "persistently elevated" in s_lower:
+                        s_score += 8.0
+                    if "ceruloplasmin" in s_lower and any(w in s_lower for w in ["threshold", "sensitivity", "14 mg", "20 mg"]):
+                        s_score += 8.0
+                    if any(w in s_lower for w in ["acute viral hepatitis", "autoimmune hepatitis", "steatosis", "chronic hepatitis", "acute liver failure", "splenomegaly", "alf"]):
+                        s_score += 6.0
+
+                if is_monitoring_query:
+                    if any(w in s_lower for w in ["complete blood count", "full blood count", "total blood count", "urinalysis", "urine analyses", "proteinuria"]):
+                        s_score += 10.0
+                    if any(w in s_lower for w in ["liver biochemistries", "liver function tests", "liver profile", "hepatic synthetic function", "inr"]):
+                        s_score += 8.0
+                    if "renal profile" in s_lower or "renal function" in s_lower:
+                        s_score += 6.0
+                    if any(w in s_lower for w in ["24-h urinary copper", "24-hour urinary copper", "urinary copper excretion"]):
+                        s_score += 8.0
+                    if any(w in s_lower for w in ["at least twice per year", "twice per year", "twice annually", "twice yearly", "every 6 to 12 months", "6 –12 months", "6-12 months"]):
+                        s_score += 10.0
+                    if any(w in s_lower for w in ["at least annually", "measured yearly", "measured annually", "once annually"]):
+                        s_score += 8.0
+                    if any(w in s_lower for w in ["more frequent", "more frequently", "frequently", "nonadherence", "non-adherence", "dosage adjustments", "treatment initiation"]):
+                        s_score += 9.0
+
+                if s_score >= 4.0:
+                    scored_sentences.append((s_score, s_clean))
+
+            scored_sentences.sort(key=lambda x: x[0], reverse=True)
+            for sc, sent in scored_sentences:
+                if not any(sent[:45].lower() in existing[:45].lower() for existing in guideline_data[org_name]["sentences"]):
+                    guideline_data[org_name]["sentences"].append(sent)
+                if len(guideline_data[org_name]["sentences"]) >= (2 if (is_monitoring_query or is_pediatric_query) else 3):
+                    break
+
+        active_orgs = [org for org, data in guideline_data.items() if data["sentences"]]
+        if not active_orgs:
+            return (
+                "The available clinical practice guidelines do not contain sufficient evidence "
+                "to answer this specific question. Please consult a qualified gastroenterologist, "
+                "hepatologist, or neurologist for individualized clinical guidance."
+            )
+
+        # Multi-guideline comparative attribution
+        if (is_monitoring_query or is_pediatric_query) and len(active_orgs) > 1:
+            lines = ["According to clinical practice guidelines:"]
+            for org in active_orgs:
+                data = guideline_data[org]
+                sources_str = "; ".join(data["sources"])
+                lines.append(f"\n{org} ({sources_str}):")
+                for sent in data["sentences"][:2]:
+                    lines.append(f"• {sent}")
+            return "\n".join(lines).strip()
+        else:
+            lines = ["According to the cited clinical practice guidelines:"]
+            all_sources = []
+            all_sentences = []
+            for org, data in guideline_data.items():
+                for s in data["sources"]:
+                    if s not in all_sources:
+                        all_sources.append(s)
+                for sent in data["sentences"]:
+                    if not any(sent[:45].lower() in ex[:45].lower() for ex in all_sentences):
+                        all_sentences.append(sent)
+            for sent in all_sentences[:3]:
+                lines.append(f"• {sent}")
+            lines.append("")
+            if len(all_sources) == 1:
+                lines.append(f"Source: {all_sources[0]}")
+            else:
+                lines.append("Sources: " + "; ".join(all_sources))
+            return "\n".join(lines).strip()
+
     def retrieve_relevant_context(self, query):
+        if not self.has_medical_documents():
+            return ""
+
         if self.use_langchain and self.retriever:
             try:
                 docs = self.retriever.invoke(query)
@@ -1079,54 +1502,14 @@ class MedicalRAGSystem:
             except Exception as e:
                 logger.warning(f"LangChain retriever error: {e}")
 
-        # Keyword and semantic scoring over clean guideline sections
-        query_lower = query.lower()
-        words = set(re.findall(r'\w+', query_lower))
-        stop_words = {
-            "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
-            "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
-            "many", "much", "can", "does", "do", "it", "for", "of", "with"
-        }
-        meaningful_words = words - stop_words
-        if not meaningful_words:
-            return ""
-
-        # Check intent to avoid cross-domain false matches (e.g. food passages for testing queries)
-        is_test_query = any(w in meaningful_words for w in [
-            "test", "tests", "testing", "tested", "lab", "labs", "biopsy", "measure",
-            "measures", "measured", "screen", "screening", "diagnosis", "diagnostic"
-        ])
-        is_diet_query = any(w in meaningful_words for w in [
-            "food", "foods", "eat", "eating", "diet", "diets", "dietary", "nutrition",
-            "meat", "shellfish", "nut", "nuts", "chocolate", "mushroom", "mushrooms", "soy"
-        ])
-
-        scored = []
-        for p in self.passages:
-            p_lower = p.lower()
-            p_words = set(re.findall(r'\w+', p_lower))
-            # Match score with extra weight for exact multi-word substring match
-            score = len(meaningful_words.intersection(p_words)) * 2
-            if any(term in p_lower for term in meaningful_words if len(term) > 3):
-                score += 3
-
-            # Intent penalty: do not return food/diet info for a testing/diagnostic query
-            if is_test_query and not is_diet_query:
-                if any(w in p_lower for w in ["soy", "soybean", "tofu", "wheat", "shellfish", "oyster", "recipes", "dietary copper restriction"]):
-                    score -= 15
-            elif is_diet_query and not is_test_query:
-                if any(w in p_lower for w in ["biopsy", "leipzig score", "slit-lamp", "penicillamine challenge"]):
-                    score -= 10
-
-            if score > 0:
-                scored.append((score, p))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        top_passages = [p for s, p in scored[:2] if s >= 4]
-
-        return "\n\n".join(top_passages)
+        top_passages = self._rank_passages_internal(query)
+        return "\n\n".join(top_passages) if top_passages else ""
 
     def get_clinical_recommendations(self, patient_data, prediction_text):
+        if not self.has_medical_documents():
+            return None
+
+        self._ensure_documents_loaded()
         is_positive = ("High" in prediction_text or "Positive" in prediction_text)
 
         query = f"Wilson Disease Evaluation: {prediction_text}. Patient indicators: Ceruloplasmin: {patient_data.get('Ceruloplasmin Level')}, Free Copper: {patient_data.get('Free Copper in Blood Serum')}, Urinary Copper: {patient_data.get('Copper in Urine')}, ALT: {patient_data.get('ALT')}, AST: {patient_data.get('AST')}, Kayser Fleischer Rings: {patient_data.get('Kayser-Fleischer Rings')}."
@@ -1246,7 +1629,15 @@ Provide clear headings for:
         Conversational Clinical RAG assistant grounded in the AASLD/EASL/INASL Question Bank
         and aware of the active Patient Dashboard / Prediction Report.
         All responses are cleanly sanitized to remove raw asterisks (**) and bullet hyphens (-).
+        When medical_docs/ is empty, strictly returns NO_DOCS_MSG and disables all built-in answers.
         """
+        if not self.has_medical_documents():
+            self.passages = []
+            self.qa_bank = []
+            return NO_DOCS_MSG
+
+        self._ensure_documents_loaded()
+
         if chat_history is None:
             chat_history = []
 
@@ -1511,7 +1902,7 @@ Provide clear headings for:
             )
 
         # --- WHAT IS CERULOPLASMIN? (Educational) ---
-        if any(term in clean_q for term in ["what is ceruloplasmin", "explain ceruloplasmin", "ceruloplasmin is what", "tell me about ceruloplasmin"]) or (clean_q == "ceruloplasmin"):
+        if ("ceruloplasmin" in clean_q and not has_possessive and not is_referential_followup) or (clean_q == "ceruloplasmin"):
             return sanitize_bot_answer(
                 "🧪 Ceruloplasmin Overview (Question Bank Sec. 4.3–4.6)\n\n"
                 "• Definition: Ceruloplasmin is the primary copper-carrying glycoprotein synthesized by hepatocytes in the liver. Under normal physiology, over 90% of circulating blood copper is bound to it.\n\n"
@@ -1734,9 +2125,10 @@ Provide clear headings for:
             if recent_topic:
                 retrieval_query = f"{user_question} ({recent_topic})"
 
-        context = self.retrieve_relevant_context(retrieval_query)
+        top_passages = self._rank_passages_internal(retrieval_query)
+        context = "\n\n".join(top_passages) if top_passages else ""
 
-        if self.llm:
+        if self.llm and context:
             try:
                 history_str = ""
                 if chat_history:
@@ -1766,20 +2158,7 @@ CLINICAL ANSWER:"""
             except Exception as e:
                 logger.warning(f"LLM chat generation failed: {e}")
 
-        # Grounded structured clinical summary from retrieved guidelines
-        # Strip any questions or headers so only pure answers are returned
-        if not context or not context.strip():
-            return sanitize_bot_answer(CLARIFICATION_MSG)
-
-        lines = context.replace("===", "").strip().splitlines()
-        content_lines = []
-        for l in lines:
-            if re.match(r'^\s*\d+[\.\)]\s+.*[?]', l) or re.match(r'^[A-Z][^?]*\?', l):
-                continue
-            content_lines.append(l)
-        clean_body = "\n".join(content_lines).strip()
-        if not clean_body:
-            return sanitize_bot_answer(CLARIFICATION_MSG)
-
-        return sanitize_bot_answer(clean_body)
+        # Grounded extractive conversational synthesis from retrieved guidelines
+        synthesized_reply = self._synthesize_extractive_answer(user_question, top_passages)
+        return sanitize_bot_answer(synthesized_reply)
 

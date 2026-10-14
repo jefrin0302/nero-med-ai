@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Access Forbidden — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% if current_user.is_authenticated %}
+        <li><span class="nav-link-item" style="color: #cbd5e1; font-size: 13px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        {% else %}
+        <li><a class="nav-link-item" href="{{ url_for('login') }}">Login</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </header>
+
+  <main class="main-wrapper" style="display: flex; align-items: center; justify-content: center; min-height: 60vh;">
+    <div class="card-glass" style="max-width: 580px; width: 100%; text-align: center; padding: 48px 36px; border-top: 6px solid #ef4444;">
+      <div style="font-size: 56px; margin-bottom: 16px;">🛡️</div>
+      <h1 style="font-size: 26px; font-weight: 800; color: #991b1b; margin-bottom: 10px;">
+        Access Forbidden (403)
+      </h1>
+      <p style="font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 26px;">
+        {{ message or "You do not have the required role or authorization to access this clinical decision-support resource." }}
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <a href="{{ url_for('home') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 24px;">
+          🏠 Return to Home
+        </a>
+        {% if not current_user.is_authenticated %}
+        <a href="{{ url_for('login') }}" class="btn-prime" style="text-decoration: none; padding: 10px 24px;">
+          🔐 Clinician Login
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence System</p>
+  </footer>
+
+</body>
+</html>

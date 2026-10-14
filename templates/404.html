@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Record Not Found — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main class="main-wrapper" style="display: flex; align-items: center; justify-content: center; min-height: 60vh;">
+    <div class="card-glass" style="max-width: 580px; width: 100%; text-align: center; padding: 48px 36px;">
+      <div style="font-size: 56px; margin-bottom: 16px;">🔍</div>
+      <h1 style="font-size: 26px; font-weight: 800; color: var(--dark); margin-bottom: 10px;">
+        Record Not Found
+      </h1>
+      <p style="font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 26px;">
+        {{ message or "The requested patient or clinical assessment record could not be found in the database." }}
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <a href="{{ url_for('patient_dashboard') }}" class="btn-prime" style="text-decoration: none; padding: 10px 24px;">
+          🗂️ View Patient Directory
+        </a>
+        <a href="{{ url_for('about') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 24px;">
+          ➕ New Clinical Assessment
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence System</p>
+  </footer>
+
+</body>
+</html>

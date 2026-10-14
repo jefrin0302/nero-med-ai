@@ -18,6 +18,12 @@ logging.basicConfig(level=logging.INFO)
 
 PERSIST_DIR = "chroma_db"
 DOCS_DIR = "medical_docs"
+APPROVED_PDFS = [
+    "AASLD WD Guidelines.pdf",
+    "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf",
+    "NIH Wilson Disease.pdf",
+    "clinical practice guidelines in WD.pdf"
+]
 
 NO_DOCS_MSG = "I do not have access to any medical documents and cannot answer."
 
@@ -846,10 +852,10 @@ class MedicalRAGSystem:
             self._init_knowledge_base()
 
     def _init_knowledge_base(self):
-        # 1. Load structured Q&A pairs from Question Bank for instant answer lookup
-        self._load_qa_bank()
+        # 1. Question bank is disabled: medical evidence must come strictly from approved PDFs
+        self.qa_bank = []
 
-        # 2. Load clinical passages directly from guidelines
+        # 2. Load clinical passages exclusively from approved PDF passage index
         self._load_clinical_passages()
 
         # 2. Try loading ChromaDB vectorstore via LangChain if available
@@ -879,195 +885,23 @@ class MedicalRAGSystem:
         self._init_llm()
 
     def _load_clinical_passages(self):
-        # 1. Load Question Bank
-        qb_path = os.path.join(DOCS_DIR, "wilson_disease_question_bank.txt")
-        if os.path.exists(qb_path):
+        """Loads clinical passages exclusively from the 4 approved PDF guidelines index."""
+        self.passages = []
+        json_path = os.path.join(PERSIST_DIR, "passages.json")
+        if os.path.exists(json_path):
             try:
-                with open(qb_path, "r", encoding="utf-8") as f:
-                    text = f.read()
-                sections = re.split(r'\n(?=[0-9]+\.\s+)', text)
-                clean_sections = []
-                for s in sections:
-                    s_str = s.strip()
-                    if len(s_str) < 30:
-                        continue
-                    # Skip document title/header sections
-                    if any(h in s_str for h in ["QUESTION BANK WITH ANSWERS", "Evidence-Grounded Reference", "Guideline basis:"]):
-                        continue
-                    clean_sections.append(s_str)
-                self.passages.extend(clean_sections)
+                with open(json_path, "r", encoding="utf-8") as f:
+                    self.passages = json.load(f)
+                logger.info(f"Loaded {len(self.passages)} clinical guideline passages from {json_path}.")
             except Exception as e:
-                logger.warning(f"Error loading question bank text: {e}")
-
-        # 2. Load Guidelines
-        guidelines_path = os.path.join(DOCS_DIR, "wilson_disease_guidelines.txt")
-        if os.path.exists(guidelines_path):
-            try:
-                with open(guidelines_path, "r", encoding="utf-8") as f:
-                    text = f.read()
-                sections = re.split(r'\n(?=[0-9]+\.\s+[A-Z\s&]+)', text)
-                clean_gl = []
-                for s in sections:
-                    s_str = s.strip()
-                    if len(s_str) < 40:
-                        continue
-                    if any(h in s_str for h in ["QUESTION BANK WITH ANSWERS", "Evidence-Grounded Reference", "Guideline basis:"]):
-                        continue
-                    clean_gl.append(s_str)
-                self.passages.extend(clean_gl)
-            except Exception as e:
-                logger.warning(f"Error loading guidelines text: {e}")
-
-        # Fallback to json if needed
-        if not self.passages:
-            json_path = os.path.join(PERSIST_DIR, "passages.json")
-            if os.path.exists(json_path):
-                try:
-                    with open(json_path, "r", encoding="utf-8") as f:
-                        self.passages = json.load(f)
-                except Exception:
-                    pass
+                logger.warning(f"Error loading guideline passages from {json_path}: {e}")
 
     def _load_qa_bank(self):
-        """
-        Parses the official question bank into structured (question, answer) pairs.
-        Allows exact and semantic lookup so the chatbot returns pure answers
-        without repeating the question.
-        """
+        """Disabled: Question bank cannot supply medical answers."""
         self.qa_bank = []
-        qb_path = os.path.join(DOCS_DIR, "wilson_disease_question_bank.txt")
-        if not os.path.exists(qb_path):
-            return
-
-        try:
-            with open(qb_path, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            blocks = re.findall(
-                r'(\d+)\.\s+([^\n]+(?:\?|\.))\n([^\n]+(?:\n(?!\d+\.|\d+\s+[A-Z=])[^\n]+)*)',
-                content
-            )
-            for num, q_text, ans_text in blocks:
-                q_clean = q_text.strip()
-                q_norm = re.sub(r'[^\w\s]', ' ', q_clean.lower())
-                q_words = set(q_norm.split()) - {"what", "is", "are", "the", "a", "an", "in", "of", "for", "to", "can", "how", "does", "do", "it"}
-                self.qa_bank.append({
-                    "num": int(num) if num.isdigit() else 0,
-                    "question": q_clean,
-                    "q_norm": " ".join(q_norm.split()),
-                    "words": q_words,
-                    "answer": ans_text.strip()
-                })
-            logger.info(f"Loaded {len(self.qa_bank)} structured clinical Q&A items from Question Bank.")
-        except Exception as e:
-            logger.warning(f"Error loading structured QA bank: {e}")
 
     def search_qa_bank(self, user_question: str):
-        """
-        Finds the best matching clinical answer in the question bank.
-        Returns ONLY the authoritative answer(s), never echoing the question.
-        Enforces confidence thresholds and intent checks to prevent poor or spurious matches.
-        """
-        if not self.has_medical_documents() or not getattr(self, "qa_bank", None):
-            return None
-
-        clean_user_q = re.sub(r'^(?:\(?\d+[\.\)]|\d+\.)\s+', '', user_question).strip()
-        norm_user = " ".join(re.sub(r'[^\w\s]', ' ', clean_user_q.lower()).split())
-        if not norm_user or len(norm_user) < 3:
-            return None
-
-        stop_words = {
-            "what", "is", "are", "the", "a", "an", "in", "of", "for", "to", "can",
-            "how", "does", "do", "it", "based", "taken", "take", "done", "used",
-            "many", "much", "which", "get", "tell", "me", "about"
-        }
-        user_words = set(norm_user.split()) - stop_words
-        if not user_words:
-            return None
-
-        # Special handler for "what is wilson disease" / "explain wilson disease":
-        # Returns the 2-line definition, plus cause, plus treatment outlook
-        is_what_is_wd = (
-            norm_user in ["what is wilson disease", "what is wilsons disease", "explain wilson disease", "what is wilson s disease", "tell me about wilson disease", "wilson disease", "wilsons disease"]
-            or (user_words == {"wilson", "disease"})
-            or (clean_user_q.lower() in ["what is wilson disease", "what is wilson disease?"])
-        )
-        if is_what_is_wd:
-            ans1 = self.qa_bank[0]["answer"] if len(self.qa_bank) > 0 else ""
-            ans2 = self.qa_bank[1]["answer"] if len(self.qa_bank) > 1 else ""
-            ans_treat = ""
-            for item in self.qa_bank:
-                if "treated" in item["q_norm"]:
-                    ans_treat = item["answer"]
-                    break
-            parts = [ans1]
-            if ans2:
-                parts.append(ans2)
-            if ans_treat:
-                parts.append(ans_treat)
-            return "\n\n".join(parts)
-
-        # Canonicalize user stems
-        user_stems = {_canonical_token(w) for w in user_words}
-        is_user_test = any(w in user_stems for w in ["test", "lab", "measure", "biopsy", "screen", "diagnosis"])
-        is_user_diet = any(w in user_stems for w in ["food", "eat", "diet", "nutrition", "soy", "wheat", "meat", "shellfish", "nut", "chocolate", "mushroom"])
-
-        best_item = None
-        best_score = 0.0
-
-        for item in self.qa_bank:
-            item_q = item["q_norm"]
-            # 1. Exact normalized match
-            if norm_user == item_q:
-                best_item = item
-                best_score = 100.0
-                break
-
-            # 2. Whole-word substring match (require min 6 chars to avoid short noise)
-            if len(norm_user) >= 6 and (f" {norm_user} " in f" {item_q} " or f" {item_q} " in f" {norm_user} "):
-                score = 60.0 + len(user_words & item["words"]) * 5.0
-                if score > best_score:
-                    best_score = score
-                    best_item = item
-
-            # 3. Canonical stem overlap
-            item_stems = {_canonical_token(w) for w in item["words"]}
-            overlap = len(user_stems & item_stems)
-            if overlap > 0:
-                # Intent compatibility check: avoid returning diet info for testing queries and vice versa
-                is_item_diet = any(w in item_stems for w in ["food", "eat", "diet", "nutrition", "soy", "wheat", "meat", "shellfish", "nut", "chocolate", "mushroom"])
-                is_item_test = any(w in item_stems for w in ["test", "lab", "measure", "biopsy", "screen", "diagnosis"])
-
-                if is_user_test and not is_user_diet and is_item_diet:
-                    continue
-                if is_user_diet and not is_user_test and is_item_test:
-                    continue
-
-                user_cov = overlap / len(user_stems)
-                item_cov = overlap / len(item_stems)
-                f1 = 2 * (user_cov * item_cov) / (user_cov + item_cov + 1e-6)
-
-                # Confidence scoring formula
-                score = (50.0 * f1) + (30.0 * user_cov) + (overlap * 4.0)
-
-                # Require high coverage or multiple matching key terms
-                if (user_cov >= 0.6 or overlap >= 2) and score > best_score:
-                    best_score = score
-                    best_item = item
-
-        # Acceptance threshold: match must have high confidence (>= 35.0)
-        if best_item and best_score >= 35.0:
-            primary_ans = best_item["answer"]
-            if "cause" in norm_user or "causes" in norm_user:
-                extra_accum = ""
-                for it in self.qa_bank:
-                    if "copper accumulate" in it["q_norm"] or "why does copper accumulate" in it["q_norm"]:
-                        extra_accum = it["answer"]
-                        break
-                if extra_accum and extra_accum != primary_ans:
-                    return f"{primary_ans}\n\n{extra_accum}"
-            return primary_ans
-
+        """Disabled: All medical answers must be retrieved exclusively from approved PDF guidelines."""
         return None
 
     def _init_llm(self):
@@ -1178,7 +1012,8 @@ class MedicalRAGSystem:
             is_bibliography = (
                 body.count(" et al.") >= 2 or
                 bool(re.search(r'\[\d+\]\s+[A-Z][a-z]+ [A-Z]{1,2},', body)) or
-                bool(re.search(r'\b(?:J Pediatr|Hepatology|Lancet|Gastroenterology)\.\s*\d{4};', body))
+                bool(re.search(r'\b\d{2,4}\.\s+[A-Z][a-z]+', body)) or
+                bool(re.search(r'\b(?:J Pediatr|Hepatology|Lancet|Gastroenterology|Eur J Clin Nutr|Am J Clin Nutr|Clin Gastroenterol Hepatol)\b', body))
             )
             is_raw_table = len(re.findall(r'\b\d+[-–]\d+\b', body)) >= 4 or "score bilirubin" in body_lower or "table 10" in body_lower
 
@@ -1252,7 +1087,45 @@ class MedicalRAGSystem:
                 if any(w in body_lower for w in ["guidance statement", "recommendation", "recommendations", "surveillance:", "monitoring on treatment"]):
                     score += 8.0
 
-            min_cov = 0.20 if len(raw_query_words) >= 6 else 0.30
+            if "ceruloplasmin" in query_clean:
+                if "ceruloplasmin" in body_lower:
+                    score += 10.0
+                if any(w in body_lower for w in ["glycoprotein", "synthesized in hepatocytes", "acute‐phase", "acute-phase", "apoceruloplasmin", "ferroxidase", "oxidase"]):
+                    score += 12.0
+
+            if any(w in query_clean for w in ["kayser", "fleischer", "kf ring", "kf rings"]):
+                if any(w in body_lower for w in ["kayser", "fleischer", "descemet", "cornea", "slit-lamp"]):
+                    score += 15.0
+
+            if any(w in query_clean for w in ["atp7b", "gene", "mutation"]):
+                if "atp7b" in body_lower:
+                    score += 12.0
+                if any(w in body_lower for w in ["p-type atpase", "transmembrane", "biliary excretion", "chromosome 13"]):
+                    score += 10.0
+
+            if "leipzig" in query_clean:
+                if "leipzig" in body_lower:
+                    score += 15.0
+
+            if any(w in query_clean for w in ["diet", "food", "foods", "eat", "eating", "nutrition"]):
+                if any(k in body_lower for k in ["dietary copper", "copper in the diet", "copper intake", "dietary cu", "restrict dietary", "foods with high concentration", "copper-restricted"]):
+                    score += 16.0
+                if any(k in body_lower for k in ["nuts", "liver", "chocolate", "chocolates", "shellfish", "organ meats", "drinking water", "rda"]):
+                    score += 10.0
+
+            if any(w in query_clean for w in ["urinary", "urine", "24-h", "24-hour", "cupriuria"]):
+                if any(k in body_lower for k in ["urinary copper", "24-h urinary", "24-hour urinary", "urine collection", "cupriuria"]):
+                    score += 15.0
+
+            if any(phrase in query_clean for phrase in ["copper based test", "tests for copper", "test for copper", "copper test", "copper tests", "copper biomarkers", "laboratory test"]):
+                if any(k in body_lower for k in ["ceruloplasmin", "urinary copper", "free copper", "non-ceruloplasmin", "hepatic copper", "copper metabolism"]):
+                    score += 12.0
+
+            if any(w in query_clean for w in ["trientine", "penicillamine", "chelator", "chelation", "zinc"]):
+                if any(k in body_lower for k in ["d-penicillamine", "trientine", "zinc acetate", "adverse", "side effect", "tolerance profile", "toxicity", "proteinuria", "pyridoxine"]):
+                    score += 12.0
+
+            min_cov = 0.50 if len(raw_query_words) <= 2 else (0.20 if len(raw_query_words) >= 6 else 0.30)
             if score >= 8.0 and coverage >= min_cov:
                 scored.append((score, p))
 
@@ -1371,6 +1244,7 @@ class MedicalRAGSystem:
                 s_clean = re.sub(r'^\d+%\s*', '', s_clean) # remove voting percentages e.g. '100% ', '97% '
                 s_clean = re.sub(r'^(?:\(?\d+[\.\)]|\d+\.)\s+', '', s_clean) # remove leading list numbers e.g. '21. ', '1) ', '(2) '
                 s_clean = re.sub(r'^(?:\d+,\s*)+\d+[\s–\-]+', '', s_clean) # remove leading citation chains e.g. '200,456,457 '
+                s_clean = re.sub(r'^\d+[-–]\d+\s+', '', s_clean) # remove leading range citation numbers e.g. '17-19 ', '208-210 '
                 s_clean = re.sub(r',\d+\s+', ', ', s_clean) # comma citations e.g. ',200,456 '
                 s_clean = re.sub(r'^[,\s–\-:;]+', '', s_clean) # leading punctuation
                 # Remove stray leading reference numbers (e.g. '79 The best WD...') while preserving units ('24 h', '14 mg')
@@ -1408,9 +1282,18 @@ class MedicalRAGSystem:
 
                 s_words = set(re.findall(r'\b\w+\b', s_lower))
                 overlap = len(q_words.intersection(s_words))
-                s_score = overlap * 2.0
+                coverage = (overlap / len(q_words)) if q_words else 0
+                s_score = overlap * 2.0 + coverage * 4.0
 
-                if any(cop in s_lower for cop in ["is an autosomal recessive", "is an inborn error", "disorder of copper metabolism", "characterized by", "toxic hepatocellular copper accumulation", "biliary excretion"]):
+                if any(cop in s_lower for cop in [
+                    "is an autosomal recessive", "is an inborn error", "disorder of copper metabolism",
+                    "characterized by", "toxic hepatocellular copper accumulation", "biliary excretion",
+                    "glycoprotein", "synthesized in hepatocytes", "accounts for 90%", "descemet", "cornea",
+                    "kayser-fleischer", "atp7b", "transmembrane", "p-type", "leipzig", "urinary copper",
+                    "24-h urinary", "24-hour urinary", "cupriuria", "dietary copper", "copper intake",
+                    "nuts, soy, liver", "organ meats", "shellfish", "penicillamine", "trientine", "zinc acetate",
+                    "tolerance profile", "better tolerance"
+                ]):
                     s_score += 6.0
 
                 if is_pediatric_query:
@@ -1626,8 +1509,8 @@ Provide clear headings for:
 
     def ask_chatbot(self, user_question, patient_context=None, chat_history=None):
         """
-        Conversational Clinical RAG assistant grounded in the AASLD/EASL/INASL Question Bank
-        and aware of the active Patient Dashboard / Prediction Report.
+        Conversational Clinical RAG assistant grounded in the 4 approved PDF guidelines
+        (AASLD, EASL-ERN, NIH, INASL) and aware of the active Patient Dashboard / Prediction Report.
         All responses are cleanly sanitized to remove raw asterisks (**) and bullet hyphens (-).
         When medical_docs/ is empty, strictly returns NO_DOCS_MSG and disables all built-in answers.
         """
@@ -1727,39 +1610,17 @@ Provide clear headings for:
         if is_patient_leipzig:
             return calculate_patient_leipzig_score(p_data)
 
-        if is_leipzig_query and not has_possessive and any(w in words for w in ["what", "how", "explain", "describe", "tell", "overview"]):
-            return sanitize_bot_answer(
-                "📋 Leipzig Consensus Scoring System for Wilson's Disease (Question Bank Sec. 4.15–4.16)\n\n"
-                "The Leipzig score is a validated consensus system combining clinical, biochemical, and genetic findings:\n\n"
-                "• Kayser-Fleischer Rings (Slit-lamp exam):\n"
-                "  Present = +2 points | Absent = 0 points\n\n"
-                "• Neurological Symptoms / Characteristic Brain MRI:\n"
-                "  Severe = +2 points | Mild = +1 point | Absent = 0 points\n\n"
-                "• Serum Ceruloplasmin:\n"
-                "  < 10 mg/dL = +2 points | 10–20 mg/dL = +1 point | Normal (> 20 mg/dL) = 0 points\n\n"
-                "• 24-Hour Urinary Copper Excretion:\n"
-                "  > 100 µg/24h (>2× ULN) = +2 points | 40–100 µg/24h (1–2× ULN) = +1 point | Normal (< 40 µg/24h) = 0 points\n\n"
-                "• Hepatic Copper Content (Liver Biopsy):\n"
-                "  > 250 µg/g dry weight = +2 points | 50–250 µg/g = +1 point | Normal = -1 point\n\n"
-                "• Coombs-Negative Hemolytic Anemia:\n"
-                "  Present = +1 point | Absent = 0 points\n\n"
-                "• ATP7B Gene Mutation Analysis:\n"
-                "  Mutations detected on both chromosomes = +4 points | 1 chromosome = +1 point\n\n"
-                "🎯 Clinical Diagnostic Likelihood Thresholds:\n"
-                "• Score ≥ 4: Diagnosis Established (Definite Wilson's Disease)\n"
-                "• Score = 3: Diagnosis Probable (further confirmatory testing indicated)\n"
-                "• Score ≤ 2: Diagnosis Unlikely"
-            )
+
 
         # =============================================================
         # 3. PATIENT RISK & PREDICTION EXPLANATION (Actual Values & CDS Note)
         # =============================================================
         score_keywords = ["risk", "prediction", "probability", "score", "percent", "percentage", "result", "results", "model"]
         query_asks_score = any(k in words for k in ["why", "what", "explain", "interpret", "meaning", "mean", "how", "breakdown"]) and any(k in words for k in score_keywords)
-        is_risk_explanation = query_asks_score or any(phrase in clean_q for phrase in [
+        is_risk_explanation = (query_asks_score or any(phrase in clean_q for phrase in [
             "my risk", "my score", "my prediction", "my probability", "explain my result", "explain my score",
             "why is my risk", "why is risk", "why positive", "why negative", "why 33", "what does 33", "diagnose me"
-        ])
+        ])) and not is_leipzig_query
         if is_risk_explanation:
             if prob is not None:
                 return generate_patient_risk_explanation(prob, pred_text, p_data, model_breakdown)
@@ -1832,54 +1693,41 @@ Provide clear headings for:
                 )
 
         # =============================================================
-        # 5. DIETARY & NUTRITIONAL GUIDANCE
+        # 5. DIETARY & NUTRITIONAL GUIDANCE (Patient Assessment CDS)
         # =============================================================
         diet_terms = {"diet", "diets", "food", "foods", "eat", "eating", "nutrition"}
         is_diet_query = any(w in diet_terms for w in words) or any(phrase in clean_q for phrase in ["foods to avoid", "copper food", "what can i eat", "food to avoid", "can i eat chocolate", "can i eat shellfish", "can i eat nuts"])
-        if is_diet_query:
-            if prob is not None and prob < 40:
+        if is_diet_query and has_possessive and prob is not None:
+            if prob < 40:
                 return sanitize_bot_answer(
                     f"🥑 Dietary Guidance for Your Low-Risk Profile ({prob}%)\n\n"
-                    f"• Clinical Guideline Standard (AASLD / Question Bank Sec. 8.5–8.6):\n"
+                    f"• Clinical Guideline Standard (AASLD Guidelines):\n"
                     f"  For a low-risk profile ({prob}%), a strict medical copper-restricted diet is not clinically indicated without a confirmed diagnosis. General healthy eating is recommended.\n\n"
                     f"• Sensible Dietary Precautions:\n"
                     f"  • Foods to moderate: Avoid routine excess of extremely copper-dense foods like animal organ meats (liver) and large quantities of shellfish.\n"
                     f"  • Safe staples (naturally low in copper): Fresh chicken/poultry, milk, yogurt, eggs (especially egg whites), white rice, wheat bread, and citrus fruits (apples, oranges, berries).\n"
                     f"  • Water & Cookware Safety: Ensure tap water is tested if using older copper pipes, and avoid using unlined copper cookware."
                 )
-            else:
-                return sanitize_bot_answer(
-                    f"🥑 Strict Dietary Copper Restriction Protocol (AASLD / Question Bank Sec. 6)\n\n"
-                    f"• Daily Target: Limit dietary copper intake to < 0.9 mg/day, especially during the first year of de-coppering therapy.\n\n"
-                    f"🚫 Foods to Strictly Avoid:\n"
-                    f"• Organ Meats: Liver, kidney, heart, brain (highest dietary copper concentration)\n"
-                    f"• Shellfish: Oysters, crab, lobster, clams, shrimp\n"
-                    f"• Nuts & Seeds: Cashews, almonds, walnuts, sunflower seeds, sesame\n"
-                    f"• Chocolate & Cocoa: Dark chocolate, cocoa powder, chocolate-flavored drinks\n"
-                    f"• Mushrooms & Soy: All mushroom varieties, soybeans, tofu\n"
-                    f"• Dried Fruits: Raisins, prunes, dates\n\n"
-                    f"💧 Water Precaution: Test household drinking water; copper levels >0.1 ppm require certified filtration. Never use unlined copper pots or cookware."
-                )
 
         # =============================================================
-        # 6. CLINICAL PRECAUTIONS & HEALTHCARE PLAN
+        # 6. CLINICAL PRECAUTIONS & HEALTHCARE PLAN (Patient Assessment CDS)
         # =============================================================
         plan_terms = {"precaution", "precautions", "prevention", "treatment", "treatments", "plan", "plans", "medicine", "medication", "medications", "drug", "drugs"}
         is_plan_query = any(w in plan_terms for w in words) or any(phrase in clean_q for phrase in ["what should i do", "what to do", "next step", "next steps", "discuss with doctor", "what should i discuss with my doctor"])
-        if is_plan_query:
-            if prob is not None and prob < 40:
+        if is_plan_query and has_possessive and prob is not None:
+            if prob < 40:
                 return sanitize_bot_answer(
                     f"🛡️ Clinical Precautions & Health Plan for Low-Risk Assessment ({prob}%)\n\n"
-                    f"1. No Invasive Chelation Required: Copper chelating medications (like D-Penicillamine or Trientine) are prescribed only for confirmed clinical diagnoses, NOT for low-risk individuals (Question Bank Sec. 8.4).\n\n"
+                    f"1. No Invasive Chelation Required: Copper chelating medications (like D-Penicillamine or Trientine) are prescribed only for confirmed clinical diagnoses, NOT for low-risk individuals.\n\n"
                     f"2. Routine Health Vigilance: Maintain periodic general wellness and liver enzyme checks (ALT, AST), particularly if there is a family history of hepatic disease.\n\n"
                     f"3. When to Seek Medical Care: Promptly see a physician if you notice concerning red-flag symptoms: unexplained persistent fatigue, yellowing eyes or skin (jaundice), tremor, changes in speech, or abdominal swelling.\n\n"
                     f"4. Environmental Measures: Test domestic tap water if plumbing has older copper pipes and avoid unlined copper cooking vessels."
                 )
             else:
                 return sanitize_bot_answer(
-                    f"💊 Clinical Management & Treatment Plan (AASLD / EASL / WHO Guidelines)\n\n"
+                    f"💊 Clinical Management & Treatment Plan (AASLD / EASL Guidelines)\n\n"
                     f"1. Prompt Specialist Consultation: Evaluation by a hepatologist or gastroenterologist for confirmatory Leipzig scoring (≥ 4 confirms diagnosis).\n\n"
-                    f"2. First-Line Pharmacotherapy (WHO Essential Medicines / Question Bank Sec. 11):\n"
+                    f"2. First-Line Pharmacotherapy:\n"
                     f"   • D-Penicillamine: 750–1,500 mg daily in divided doses on an empty stomach. Must be co-prescribed with Pyridoxine (Vitamin B6, 25–50 mg/day) to prevent deficiency.\n"
                     f"   • Trientine Dihydrochloride: 900–1,500 mg daily; alternative chelator with milder side-effect profile, preferred in neurological cases or penicillamine intolerance.\n"
                     f"   • Zinc Salts (Maintenance): 50 mg elemental zinc 3 times daily to block intestinal copper absorption once copper levels normalize.\n\n"
@@ -1888,7 +1736,7 @@ Provide clear headings for:
                 )
 
         # =============================================================
-        # 7. TECHNICAL & EDUCATIONAL INQUIRIES (Question Bank Grounded)
+        # 7. TECHNICAL ARCHITECTURE & ML EXPLAINABILITY
         # =============================================================
 
         # --- WHAT IS RAG? ---
@@ -1896,105 +1744,22 @@ Provide clear headings for:
             return sanitize_bot_answer(
                 "🤖 What is RAG (Retrieval-Augmented Generation) in NeuroMed AI?\n\n"
                 "RAG is an advanced AI architecture that grounds the chatbot's answers in verified clinical medical literature:\n\n"
-                "1. Medical Knowledge Base: Curated guidelines from the AASLD 2022/2023, EASL-ERN 2024, INASL Indian Guidelines, and the WHO Essential Medicines List.\n"
-                "2. Vector Retrieval (ChromaDB): Converts authoritative clinical question banks into dense semantic embeddings.\n"
-                "3. Contextual Grounding: When you ask a question, the RAG engine retrieves the exact verified clinical passage and generates an accurate, hallucination-free answer tailored to the active patient's report!"
-            )
-
-        # --- WHAT IS CERULOPLASMIN? (Educational) ---
-        if ("ceruloplasmin" in clean_q and not has_possessive and not is_referential_followup) or (clean_q == "ceruloplasmin"):
-            return sanitize_bot_answer(
-                "🧪 Ceruloplasmin Overview (Question Bank Sec. 4.3–4.6)\n\n"
-                "• Definition: Ceruloplasmin is the primary copper-carrying glycoprotein synthesized by hepatocytes in the liver. Under normal physiology, over 90% of circulating blood copper is bound to it.\n\n"
-                "• Normal Reference Range: 20 – 40 mg/dL\n\n"
-                "• Role in Wilson's Disease:\n"
-                "  Mutations in the ATP7B gene impair the incorporation of copper into apoceruloplasmin, causing unstable molecules that are rapidly degraded. Consequently, serum ceruloplasmin is typically < 10 mg/dL in Wilson disease (+2 Leipzig points).\n\n"
-                "• Clinical Nuance: In ~5–15% of patients (especially during acute liver inflammation), ceruloplasmin can be within normal limits because it is an acute-phase reactant."
-            )
-
-        # --- WHAT ARE KAYSER-FLEISCHER RINGS? ---
-        if any(term in clean_q for term in ["kayser", "fleischer", "kf ring", "kf rings"]):
-            return sanitize_bot_answer(
-                "👁️ Kayser-Fleischer (KF) Rings (Question Bank Sec. 3.4–3.5)\n\n"
-                "• Definition: Golden-brown to greenish copper deposits in Descemet's membrane of the peripheral corneal limbus.\n"
-                "• Clinical Prevalence: Present in >90% of patients with neurological manifestations and ~50% of hepatic cases.\n"
-                "• Diagnosis: Requires dedicated slit-lamp ophthalmologic microscopy.\n"
-                "• Diagnostic Significance: Confirmed presence awards +2 points on the Leipzig scale. Rings gradually fade and resolve with sustained de-coppering chelation therapy."
-            )
-
-        # --- WHAT IS ATP7B? ---
-        if any(term in clean_q for term in ["atp7b", "gene", "mutation", "genetic"]):
-            return sanitize_bot_answer(
-                "🧬 ATP7B Genetic Profile in Wilson's Disease\n\n"
-                "• Gene Location: ATP7B gene is located on chromosome 13q14.3.\n"
-                "• Function: Encodes a P-type copper-transporting ATPase responsible for excreting excess copper into bile and incorporating copper into apoceruloplasmin.\n"
-                "• Inheritance: Autosomal recessive. Offspring must inherit two pathogenic variants (homozygous or compound heterozygous) to develop clinical disease.\n"
-                "• Diagnostic Value: Detection of two disease-causing mutations confirms diagnosis (+4 Leipzig points). First-degree relatives (siblings) should undergo genetic screening."
+                "1. Medical Knowledge Base: Curated clinical practice guidelines from AASLD, EASL-ERN, NIH, and INASL.\n"
+                "2. Vector Retrieval: Extracts and indexes clinical guideline passages directly from approved PDFs.\n"
+                "3. Contextual Grounding: When you ask a question, the RAG engine retrieves the exact verified clinical passage and generates an accurate, hallucination-free answer with exact guideline and page citations!"
             )
 
         # --- WHAT IS SHAP & HOW PREDICTION WORKS ---
         if any(term in clean_q for term in ["predict", "prediction", "model", "neuromed", "shap", "stacking", "algorithm", "svm", "machine learning"]):
             return sanitize_bot_answer(
-                "🔬 NeuroMed AI Multi-Model Stacking & SHAP Explainability (Question Bank Sec. 15)\n\n"
+                "🔬 NeuroMed AI Multi-Model Stacking & SHAP Explainability\n\n"
                 "• Stacking Ensemble: Combines an SVM (Support Vector Machine) classifier and a regularized Logistic Regression model, fed into a calibrated Meta-Classifier for consensus probability scoring.\n"
                 "• 23 Clinical Markers: Evaluates copper biochemistry (Ceruloplasmin, 24h Urine Copper, Free Copper), liver enzymes (ALT, AST, Bilirubin, Albumin, ALP, GGT), ophthalmic signs (KF rings), and ATP7B genetics.\n"
                 "• SHAP (SHapley Additive exPlanations): Explains the prediction by measuring exactly which patient lab markers pushed the risk score higher or lower from baseline, visualizing individual Feature Attribution via interactive Force and Beeswarm plots."
             )
 
-        # --- WHAT ARE THE COPPER BASED TESTS / TESTS FOR COPPER ---
-        is_copper_test_query = (
-            any(phrase in clean_q for phrase in [
-                "copper based test", "copper based tests", "tests for copper", "test for copper",
-                "tests measure copper", "test measures copper", "copper blood test", "copper test",
-                "copper tests", "copper laboratory test", "copper lab test", "copper biomarkers"
-            ])
-            or (("copper" in words or "cu" in words) and any(w in words for w in ["test", "tests", "testing", "taken", "measure", "measures", "measured"]) and not any(w in words for w in ["urine", "urinary", "diet", "food", "eat"]))
-        )
-        if is_copper_test_query:
-            return sanitize_bot_answer(
-                "🧪 Copper-Based Diagnostic Tests for Wilson's Disease (AASLD / EASL Guidelines)\n\n"
-                "Comprehensive evaluation of copper metabolism is essential for confirming Wilson's disease. Key copper-related tests include:\n\n"
-                "1. Serum Ceruloplasmin Test:\n"
-                "• Measures the primary copper-binding glycoprotein in blood. Levels < 10 mg/dL strongly support Wilson disease (+2 Leipzig points; normal range: 20–40 mg/dL).\n\n"
-                "2. 24-Hour Urinary Copper Excretion Test:\n"
-                "• Measures total copper eliminated in urine over 24 hours. A diagnostic value > 100 µg/24h (>1.6 µmol/d) confirms pathological copper overload (+2 Leipzig points; normal: < 40 µg/24h).\n\n"
-                "3. Free (Non-Ceruloplasmin-Bound) Serum Copper:\n"
-                "• Calculated as Total Serum Copper (µg/dL) - [3.15 × Ceruloplasmin (mg/dL)]. Levels > 15–25 µg/dL indicate elevated toxic copper circulating to vital organs.\n\n"
-                "4. Total Serum Copper Test:\n"
-                "• Measures total circulating copper (bound and unbound). Often reduced due to low ceruloplasmin, but rises acutely in fulminant hepatic necrosis.\n\n"
-                "5. Hepatic Copper Quantification (Liver Biopsy):\n"
-                "• Gold-standard tissue measurement. Parenchymal copper concentration > 250 µg/g dry weight establishes definitive tissue accumulation (+2 Leipzig points).\n\n"
-                "6. Slit-Lamp Ophthalmic Examination for Kayser-Fleischer (KF) Rings:\n"
-                "• Identifies golden-brown copper deposits in Descemet's membrane of the peripheral cornea (+2 Leipzig points)."
-            )
-
-        # --- 24-HOUR URINARY COPPER / URINE COPPER TEST ---
-        if any(phrase in clean_q for phrase in ["24 hour urine copper", "24 hour urinary copper", "24hr urine copper", "24 h urine copper", "urine copper test", "urinary copper test", "urine copper", "urinary copper"]):
-            return sanitize_bot_answer(
-                "🧪 24-Hour Urinary Copper Test (Question Bank Sec. 4.10–4.11 & AASLD Guidelines)\n\n"
-                "• Clinical Definition: Measures the total amount of copper excreted in urine over a full 24-hour collection period. It is one of the most reliable initial screening, diagnostic, and therapy-monitoring tests in Wilson disease.\n\n"
-                "• Diagnostic Reference Ranges:\n"
-                "  • Normal Baseline: < 40 µg/24 hours (< 0.6 µmol/day)\n"
-                "  • Symptomatic Wilson Disease: > 100 µg/24 hours (> 1.6 µmol/day) — provides +2 points on the Leipzig diagnostic scale\n"
-                "  • Intermediate / Asymptomatic: 40–100 µg/24 hours (warrants further clinical evaluation or penicillamine challenge test)\n\n"
-                "• Treatment Monitoring Targets:\n"
-                "  • Chelation Therapy (D-Penicillamine / Trientine): Target excretion is 200–500 µg/24h during stable maintenance therapy.\n"
-                "  • Zinc Maintenance Therapy: Target excretion decreases to < 75 µg/24h, confirming effective blockade of intestinal copper absorption."
-            )
-
-        # --- STANDALONE COPPER TERM ---
-        if clean_q == "copper" or clean_q in ["what is copper", "explain copper", "about copper", "copper role"]:
-            return sanitize_bot_answer(
-                "🧪 Copper Metabolism & Pathology in Wilson's Disease (Question Bank Sec. 2.1–2.8)\n\n"
-                "• Normal Physiological Role: Copper is an essential trace element required as an enzymatic cofactor for mitochondrial energy production (cytochrome c oxidase), iron metabolism (ceruloplasmin), and neurotransmitter synthesis.\n\n"
-                "• Pathophysiology in Wilson's Disease:\n"
-                "  • In healthy individuals, the ATP7B transporter in the liver pumps surplus copper into bile for excretion in stool.\n"
-                "  • In Wilson disease, mutations in ATP7B impair biliary copper excretion and ceruloplasmin incorporation. Excess copper progressively accumulates in hepatocytes, spills into the circulation as toxic free copper, and deposits in the brain, corneas, and kidneys.\n\n"
-                "• Clinical Diagnostic Markers: Low serum ceruloplasmin (<10 mg/dL), elevated 24-hour urine copper (>100 µg/day), elevated non-ceruloplasmin-bound copper (>15 µg/dL), and Kayser-Fleischer rings."
-            )
-
         # =============================================================
-        # 3.5 CONVERSATIONAL FOLLOW-UP & PRONOUN RESOLUTION
+        # 8. CONVERSATIONAL FOLLOW-UP & PRONOUN RESOLUTION
         # =============================================================
         has_pronoun = bool(re.search(r'\b(it|its|this|that|they|them|the drug|the medication|the test|the treatment)\b', q))
         is_followup_phrase = any(term in clean_q for term in [
@@ -2009,112 +1774,7 @@ Provide clear headings for:
             "leipzig", "atp7b", "urinary", "urine", "free copper", "transplant"
         ])
 
-        if (has_pronoun or is_followup_phrase) and not has_explicit_entity and chat_history:
-            recent_topic = self._extract_recent_topic(chat_history)
-            if recent_topic:
-                # 1. Follow-up: Side effects & adverse events
-                if any(term in clean_q for term in ["side effect", "side effects", "adverse", "risk", "risks", "reaction", "reactions"]):
-                    if recent_topic == "trientine":
-                        return sanitize_bot_answer(
-                            "💊 Trientine Adverse Effects & Safety Profile (AASLD / EASL Guidelines)\n\n"
-                            "• General Tolerability: Trientine has a significantly milder side-effect profile than D-penicillamine and is better tolerated by most patients.\n\n"
-                            "• Documented Side Effects (Question Bank Sec. 11.9 / AASLD 2023):\n"
-                            "  • Dysgeusia (loss or disturbance of taste sensation)\n"
-                            "  • Mild proteinuria or renal changes\n"
-                            "  • Early neurological worsening: Paradoxical neurological decline upon starting therapy (less frequent than with D-penicillamine)\n"
-                            "  • Sideroblastic anemia or bone marrow changes (rare, secondary to induced copper deficiency)\n"
-                            "  • Gastrointestinal upset or nausea\n\n"
-                            "• Clinical Monitoring: Routine CBC, urinalysis, 24-hour urinary copper, and neurological exams should be monitored regularly during therapy."
-                        )
-                    elif recent_topic == "d-penicillamine":
-                        return sanitize_bot_answer(
-                            "💊 D-Penicillamine Adverse Effects & Safety Profile (AASLD / EASL Guidelines)\n\n"
-                            "• Documented Adverse Effects (Question Bank Sec. 11.9 / AASLD 2023):\n"
-                            "  • Hypersensitivity: Early skin rash, fever, lymphadenopathy\n"
-                            "  • Renal Toxicity: Proteinuria, membranous nephropathy, nephrotic syndrome\n"
-                            "  • Hematologic Toxicity: Bone marrow suppression (leukopenia, thrombocytopenia, rare aplastic anemia)\n"
-                            "  • Autoimmune Syndromes: Drug-induced lupus, myasthenia gravis, Goodpasture syndrome\n"
-                            "  • Neurological Worsening: Paradoxical worsening of tremors/dysarthria in 10–20% of patients upon initiating therapy\n\n"
-                            "• Essential Co-Medication: Pyridoxine (Vitamin B6, 25–50 mg/day) must always be co-prescribed to prevent drug-induced deficiency."
-                        )
-                    elif recent_topic == "zinc":
-                        return sanitize_bot_answer(
-                            "💊 Zinc Therapy Adverse Effects (AASLD / EASL Guidelines)\n\n"
-                            "• Primary Side Effect: Gastrointestinal irritation (dyspepsia, gastric pain, nausea) in up to 10–20% of patients.\n"
-                            "• Other Considerations: Headaches or microcytic anemia if copper levels drop excessively.\n"
-                            "• Administration Tip: Zinc must be taken separately from food and chelators (at least 1 hour before or 2 hours after meals) for optimal absorption."
-                        )
 
-                # 2. Follow-up: Alternatives & substitutions
-                if any(term in clean_q for term in ["alternative", "alternatives", "substitute", "other option", "other drug"]):
-                    if recent_topic in ["d-penicillamine", "trientine"]:
-                        return sanitize_bot_answer(
-                            "💊 Treatment Alternatives for Wilson's Disease (AASLD / EASL / WHO Guidelines)\n\n"
-                            "• 1. Trientine Dihydrochloride (Primary First-Line Chelator Alternative):\n"
-                            "  If D-penicillamine is contraindicated or causes intolerance (severe rash, nephrotoxicity, cytopenias), Trientine is the recommended first-line alternative with fewer immunological side effects.\n\n"
-                            "• 2. Zinc Salts (Maintenance or Presymptomatic Alternative):\n"
-                            "  Zinc acetate or gluconate blocks intestinal copper absorption by inducing intestinal metallothionein. Used for maintenance after de-coppering or first-line in presymptomatic/neurological patients.\n\n"
-                            "• 3. Liver Transplantation:\n"
-                            "  Reserved for acute fulminant liver failure or decompensated cirrhosis unresponsive to chelation (corrects metabolic defect)."
-                        )
-                    elif recent_topic == "zinc":
-                        return sanitize_bot_answer(
-                            "💊 Alternatives to Zinc Therapy in Wilson's Disease\n\n"
-                            "• Active Chelating Agents: D-Penicillamine or Trientine Dihydrochloride are the primary systemic chelators when active de-coppering (rather than intestinal absorption blockade) is required."
-                        )
-
-                # 3. Follow-up: Clinical Importance / Why is it important
-                if any(w in clean_q for w in ["why", "importance", "important", "role", "significance"]):
-                    if recent_topic == "ceruloplasmin":
-                        return sanitize_bot_answer(
-                            "🧪 Why Ceruloplasmin is Important in Wilson's Disease (Question Bank Sec. 4.3–4.6)\n\n"
-                            "• 1. Primary Copper Carrier in Blood:\n"
-                            "  Ceruloplasmin binds over 90% of circulating copper under normal physiology.\n\n"
-                            "• 2. Cardinal Diagnostic Biomarker:\n"
-                            "  ATP7B gene mutations prevent copper incorporation into apoceruloplasmin, causing rapid degradation. Consequently, serum ceruloplasmin is typically < 10 mg/dL in Wilson disease.\n\n"
-                            "• 3. Leipzig Score Pillar:\n"
-                            "  A level < 10 mg/dL awards +2 points toward the Leipzig diagnostic consensus score, making it a critical screening and diagnostic pillar.\n\n"
-                            "• 4. Guiding Free Copper Calculation:\n"
-                            "  Serum ceruloplasmin is used to calculate non-ceruloplasmin-bound (free) copper, which correlates with tissue toxicity."
-                        )
-                    elif recent_topic == "kayser-fleischer rings":
-                        return sanitize_bot_answer(
-                            "👁️ Clinical Importance of Kayser-Fleischer (KF) Rings\n\n"
-                            "• Direct Ophthalmic Sign: Formed by copper deposition in Descemet's membrane of the cornea.\n"
-                            "• High Diagnostic Value: Confirmed presence awards +2 Leipzig points. Present in >90% of neurological Wilson disease cases.\n"
-                            "• Monitoring Response: Rings gradually fade and disappear with successful long-term de-coppering therapy."
-                        )
-                    elif recent_topic == "atp7b gene":
-                        return sanitize_bot_answer(
-                            "🧬 Clinical Importance of the ATP7B Gene\n\n"
-                            "• Definitive Genetic Etiology: Pathogenic mutations on both chromosome 13 alleles confirm Wilson's disease (+4 Leipzig points).\n"
-                            "• Family Screening: Identifies asymptomatic siblings early, enabling preventative therapy before irreversible organ damage occurs."
-                        )
-
-                # General follow-up lookup against Question Bank with enriched subject
-                enriched_msg = f"{raw_msg} {recent_topic}"
-                enriched_ans = self.search_qa_bank(enriched_msg)
-                if enriched_ans:
-                    return sanitize_bot_answer(enriched_ans)
-
-        # =============================================================
-        # 4. CUSTOM USER-DEFINED Q&A LIST
-        # =============================================================
-        custom_qa_list = [
-            # Add any other specific questions and answers here!
-        ]
-
-        for qa in custom_qa_list:
-            if any(trigger in clean_q for trigger in qa.get("triggers", [])):
-                return sanitize_bot_answer(qa["answer"])
-
-        # =============================================================
-        # 4.5 OFFICIAL QUESTION BANK DIRECT LOOKUP (EXACT & SEMANTIC)
-        # Returns ONLY authoritative clinical answers without mentioning the question
-        # =============================================================
-        qb_answer = self.search_qa_bank(raw_msg)
-        if qb_answer:
-            return sanitize_bot_answer(qb_answer)
 
         # =============================================================
         # 5. GENERAL RETRIEVAL-AUGMENTED ANSWER (VECTORSTORE FALLBACK)

@@ -25,6 +25,8 @@ APPROVED_PDFS = [
     "clinical practice guidelines in WD.pdf"
 ]
 
+DEFAULT_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+
 NO_DOCS_MSG = "I do not have access to any medical documents and cannot answer."
 
 CLARIFICATION_MSG = (
@@ -824,6 +826,8 @@ class MedicalRAGSystem:
         self.use_langchain = False
         self.retriever = None
         self.llm = None
+        self.gemini_client = None
+        self.gemini_model = DEFAULT_GEMINI_MODEL
         self.passages = []
         self.qa_bank = []
 
@@ -905,18 +909,27 @@ class MedicalRAGSystem:
         return None
 
     def _init_llm(self):
-        # Check Gemini
+        # 1. Load environment variables from .env if present
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass
+
+        # 2. Check Gemini via official google-genai SDK
         gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if gemini_key:
             try:
-                from langchain_google_genai import ChatGoogleGenerativeAI
-                self.llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key, temperature=0.2)
-                logger.info("RAG LLM initialized with Google Gemini 1.5 Flash.")
+                from google import genai
+                self.gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+                self.gemini_client = genai.Client(api_key=gemini_key)
+                logger.info(f"RAG LLM initialized with Google GenAI SDK (model: {self.gemini_model}).")
                 return
             except Exception as e:
-                logger.warning(f"Gemini LLM init error: {e}")
+                logger.warning(f"Google GenAI SDK init error: {e}")
+                self.gemini_client = None
 
-        # Check OpenAI
+        # 3. Check OpenAI (fallback)
         openai_key = os.environ.get("OPENAI_API_KEY")
         if openai_key:
             try:
@@ -927,7 +940,7 @@ class MedicalRAGSystem:
             except Exception as e:
                 logger.warning(f"OpenAI LLM init error: {e}")
 
-        logger.info("No external LLM API key detected. Running grounded clinical RAG engine.")
+        logger.info("No external LLM API key detected or client init failed. Running grounded clinical RAG engine.")
 
     @staticmethod
     def _normalize_passage_text(text: str) -> str:
@@ -960,6 +973,63 @@ class MedicalRAGSystem:
         elif "nih" in s or "gene" in s:
             return "NIH / GeneReviews"
         return "Clinical Practice Guidelines"
+
+    @classmethod
+    def _extract_citations(cls, text: str) -> list:
+        citations = []
+        for pdf in APPROVED_PDFS:
+            pdf_stem = pdf[:-4] if pdf.lower().endswith(".pdf") else pdf
+            pattern = re.compile(
+                re.escape(pdf_stem) + r'(?:\.pdf)?(?:[,\s\|:\-\(\]\*]+)*(?:pp?\.?|pages?|page)\s*:?\s*([0-9\s,\-–and&]+)',
+                re.IGNORECASE
+            )
+            for m in pattern.finditer(text):
+                clause = m.group(1)
+                page_nums = [int(n) for n in re.findall(r'\b\d+\b', clause)]
+                for p in page_nums:
+                    citations.append((pdf.lower(), p))
+        return citations
+
+    @classmethod
+    def _validate_citations(cls, llm_reply: str, top_passages: list) -> bool:
+        """
+        Validates that all source citations in the LLM reply match actual (source, page) pairs
+        present in the retrieved top passages. Rejects fabricated page numbers, unretrieved sources,
+        and bare PDF mentions without verified page citations.
+        """
+        if not llm_reply or not llm_reply.strip() or not top_passages:
+            return False
+
+        # 1. Extract valid (source_filename, page_number) pairs from retrieved top_passages
+        valid_pairs = set()
+        for p in top_passages:
+            header = p.split("\n", 1)[0] if "\n" in p else p
+            m = re.search(r'\[Source:\s*([^|]+?)\s*\|\s*Page:\s*(\d+)\s*\]', header)
+            if m:
+                valid_pairs.add((m.group(1).strip().lower(), int(m.group(2).strip())))
+
+        if not valid_pairs:
+            return False
+
+        # 2. Extract citations from llm_reply
+        extracted_citations = cls._extract_citations(llm_reply)
+        if not extracted_citations:
+            return False
+
+        # 3. Ensure any mentioned approved PDF has an extracted citation
+        for pdf in APPROVED_PDFS:
+            pdf_stem = pdf[:-4] if pdf.lower().endswith(".pdf") else pdf
+            if pdf.lower() in llm_reply.lower() or pdf_stem.lower() in llm_reply.lower():
+                pdf_cites = [c for c in extracted_citations if c[0] == pdf.lower()]
+                if not pdf_cites:
+                    return False
+
+        # 4. Ensure every extracted citation matches a valid (source, page) pair from retrieved passages
+        for c in extracted_citations:
+            if c not in valid_pairs:
+                return False
+
+        return True
 
     def _rank_passages_internal(self, query: str, top_n: int = 4) -> list:
         """
@@ -1788,7 +1858,55 @@ Provide clear headings for:
         top_passages = self._rank_passages_internal(retrieval_query)
         context = "\n\n".join(top_passages) if top_passages else ""
 
-        if self.llm and context:
+        if self.gemini_client and context:
+            try:
+                history_str = ""
+                if chat_history:
+                    h_lines = []
+                    for h in chat_history[-6:]:
+                        r = "User" if h.get("role") == "user" else "Assistant"
+                        c = (h.get("content") or "").replace("\n", " ").strip()
+                        if c:
+                            h_lines.append(f"{r}: {c}")
+                    if h_lines:
+                        history_str = "RECENT CONVERSATION HISTORY:\n" + "\n".join(h_lines) + "\n\n"
+
+                prompt = f"""You are a clinical decision-support AI assistant specialized in Wilson's Disease.
+{history_str}Answer the user's clinical question strictly using only the retrieved medical guideline context below.
+
+INSTRUCTIONS:
+1. Base your answer strictly and exclusively on the provided CONTEXT passages. Do NOT extrapolate, speculate, or invent facts or references.
+2. If the retrieved context does not contain sufficient clinical evidence to answer the question, respond with:
+"The available clinical practice guidelines do not contain sufficient evidence to answer this specific question. Please consult a qualified gastroenterologist, hepatologist, or neurologist for individualized clinical guidance."
+3. At the end of your answer, include the supporting source and page citations taken directly from the [Source: <filename> | Page: <page>] headers of the passages used, formatted as:
+Source: <exact_pdf_filename>, p. <page_number>
+(or "Sources: <pdf_1>, p. <page>; <pdf_2>, p. <page>" for multiple sources).
+4. Do NOT use markdown asterisks (**) or bullet hyphens (-). Use clear sentences or clean bullet points (•).
+5. Do NOT repeat or echo the question in your output. Provide only the concise clinical answer and citation.
+
+CONTEXT PASSAGES:
+{context}
+
+USER QUESTION:
+{user_question}
+
+CLINICAL ANSWER:"""
+                model_to_use = getattr(self, "gemini_model", DEFAULT_GEMINI_MODEL)
+                response = self.gemini_client.models.generate_content(
+                    model=model_to_use,
+                    contents=prompt
+                )
+                llm_reply = response.text if response and response.text else ""
+                if llm_reply and llm_reply.strip():
+                    if self._validate_citations(llm_reply, top_passages):
+                        return sanitize_bot_answer(llm_reply)
+                    logger.warning("Gemini response missing or contains unverified citation; falling back to extractive synthesis.")
+                else:
+                    logger.warning("Gemini returned empty response; falling back to extractive synthesis.")
+            except Exception as e:
+                logger.warning(f"Gemini chat generation failed: {e}; falling back to extractive synthesis.")
+
+        elif self.llm and context:
             try:
                 history_str = ""
                 if chat_history:

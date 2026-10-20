@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Longitudinal Comparison Matrix — {{ patient.patient_name }} ({{ patient.patient_id }})</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <style>
+    .compare-container {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .compare-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: white;
+      padding: 28px 32px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .period-cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 768px) {
+      .period-cards-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .period-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .period-card.baseline {
+      border-top: 4px solid #6366f1;
+    }
+    .period-card.followup {
+      border-top: 4px solid #10b981;
+    }
+
+    /* SYNTHESIS TRAJECTORY CARD */
+    .synthesis-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius-md);
+      padding: 22px 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* BADGES */
+    .badge-improved {
+      background: #dcfce7;
+      color: #15803d;
+      font-weight: 800;
+      font-size: 11.5px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-worsened {
+      background: #fee2e2;
+      color: #b91c1c;
+      font-weight: 800;
+      font-size: 11.5px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-neutral {
+      background: #f1f5f9;
+      color: #64748b;
+      font-weight: 700;
+      font-size: 11.5px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* MATRIX TABLE */
+    .matrix-table-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    .matrix-table th {
+      background: #f8fafc;
+      color: #1e293b;
+      font-weight: 800;
+      text-align: left;
+      padding: 14px 16px;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .matrix-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #334155;
+    }
+    .matrix-table tr:hover {
+      background: #f8fafc;
+    }
+
+    .val-cell {
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    @media print {
+      .navbar-custom, .filter-toolbar, .btn-action, .footer-custom {
+        display: none !important;
+      }
+      .compare-container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .matrix-table-card {
+        border: none !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body style="background: #f8fafc;">
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_history_view', patient_id=patient.patient_id) }}">Patient Timeline</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Assessment</a></li>
+        <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }}</span></li>
+      </ul>
+    </div>
+  </header>
+
+  <main class="compare-container">
+
+    <!-- BREADCRUMB / ACTION BAR -->
+    <div class="filter-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+      <a href="{{ url_for('patient_history_view', patient_id=patient.patient_id) }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
+        ⬅ Back to Patient Timeline
+      </a>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn-prime" onclick="window.print()" style="padding: 8px 18px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+          🖨️ Print Comparison Matrix
+        </button>
+      </div>
+    </div>
+
+    <!-- COMPARISON HEADER BANNER -->
+    <div class="compare-header">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <span style="background: rgba(255, 255, 255, 0.2); color: white; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-family: monospace; font-size: 13px;">
+            {{ patient.patient_id }}
+          </span>
+          <h1 style="font-size: 24px; font-weight: 900; margin: 0;">
+            {{ patient.patient_name }}
+          </h1>
+        </div>
+        <p style="color: #cbd5e1; font-size: 13.5px; margin: 0;">
+          Longitudinal Side-by-Side Comparison Matrix • Monitoring Decoppering & Therapeutic Response
+        </p>
+      </div>
+
+      <div style="text-align: right; background: rgba(255, 255, 255, 0.1); padding: 10px 18px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15);">
+        <span style="font-size: 11px; text-transform: uppercase; color: #a5b4fc; font-weight: 700; display: block;">Trajectory Overview</span>
+        <span class="{{ comparison.overall_badge }}" style="margin-top: 4px;">
+          {{ comparison.overall_trend }}
+        </span>
+      </div>
+    </div>
+
+    <!-- REPORT SELECTOR DROPDOWNS -->
+    <div class="panel-card filter-toolbar" style="padding: 16px 20px; margin-bottom: 20px;">
+      <form method="GET" action="{{ url_for('patient_compare_view', patient_id=patient.patient_id) }}" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <input type="hidden" name="type" value="{{ comp_type }}">
+        
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 700; color: #475569;">Comparison Mode:</span>
+          <select name="type" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-weight: 600;">
+            <option value="assessment" {% if comp_type == 'assessment' %}selected{% endif %}>Clinical Assessments</option>
+            <option value="lab" {% if comp_type == 'lab' %}selected{% endif %}>Certified Laboratory Reports</option>
+          </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 700; color: #6366f1;">Period 1 (Baseline):</span>
+          <select name="id1" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+            {% if comp_type == 'lab' %}
+              {% for lr in all_lab_reports %}
+              <option value="{{ lr.report_id }}" {% if lr.report_id|string == comparison.baseline.id|string %}selected{% endif %}>
+                #{{ lr.report_number }} ({{ lr.collection_date[:10] }})
+              </option>
+              {% endfor %}
+            {% else %}
+              {% for a in all_assessments %}
+              <option value="{{ a.assessment_id }}" {% if a.assessment_id|string == comparison.baseline.id|string %}selected{% endif %}>
+                Assessment #{{ a.assessment_id }} ({{ a.created_at[:10] }})
+              </option>
+              {% endfor %}
+            {% endif %}
+          </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 700; color: #10b981;">Period 2 (Follow-up):</span>
+          <select name="id2" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+            {% if comp_type == 'lab' %}
+              {% for lr in all_lab_reports %}
+              <option value="{{ lr.report_id }}" {% if lr.report_id|string == comparison.followup.id|string %}selected{% endif %}>
+                #{{ lr.report_number }} ({{ lr.collection_date[:10] }})
+              </option>
+              {% endfor %}
+            {% else %}
+              {% for a in all_assessments %}
+              <option value="{{ a.assessment_id }}" {% if a.assessment_id|string == comparison.followup.id|string %}selected{% endif %}>
+                Assessment #{{ a.assessment_id }} ({{ a.created_at[:10] }})
+              </option>
+              {% endfor %}
+            {% endif %}
+          </select>
+        </div>
+      </form>
+    </div>
+
+    <!-- EVALUATION PERIODS SUMMARY CARDS -->
+    <div class="period-cards-grid">
+      <!-- BASELINE CARD -->
+      <div class="period-card baseline">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <span style="font-size: 11px; font-weight: 800; color: #6366f1; text-transform: uppercase; letter-spacing: 0.5px;">
+              Evaluation Period 1 (Baseline)
+            </span>
+            <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 0 0; color: #0f172a;">
+              {{ comparison.baseline.date }}
+            </h3>
+          </div>
+          {% if comparison.baseline.report_number %}
+          <span style="font-family: monospace; font-size: 12px; font-weight: 800; background: #ede9fe; color: #5b21b6; padding: 3px 8px; border-radius: 4px;">
+            {{ comparison.baseline.report_number }}
+          </span>
+          {% else %}
+          <span style="font-family: monospace; font-size: 12px; font-weight: 800; background: #ede9fe; color: #5b21b6; padding: 3px 8px; border-radius: 4px;">
+            ID #{{ comparison.baseline.id }}
+          </span>
+          {% endif %}
+        </div>
+
+        {% if comparison.baseline.prediction_text %}
+        <div style="display: flex; gap: 14px; font-size: 13px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
+          <div>Risk: <strong>{{ comparison.baseline.prediction_text }}</strong></div>
+          <div>Prob: <strong>{{ (comparison.baseline.probability * 100)|round(1) }}%</strong></div>
+          <div>Leipzig: <strong>{{ comparison.baseline.leipzig_score }} pts</strong></div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- FOLLOW-UP CARD -->
+      <div class="period-card followup">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div>
+            <span style="font-size: 11px; font-weight: 800; color: #10b981; text-transform: uppercase; letter-spacing: 0.5px;">
+              Evaluation Period 2 (Follow-up)
+            </span>
+            <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 0 0; color: #0f172a;">
+              {{ comparison.followup.date }}
+            </h3>
+          </div>
+          {% if comparison.followup.report_number %}
+          <span style="font-family: monospace; font-size: 12px; font-weight: 800; background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 4px;">
+            {{ comparison.followup.report_number }}
+          </span>
+          {% else %}
+          <span style="font-family: monospace; font-size: 12px; font-weight: 800; background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 4px;">
+            ID #{{ comparison.followup.id }}
+          </span>
+          {% endif %}
+        </div>
+
+        {% if comparison.followup.prediction_text %}
+        <div style="display: flex; gap: 14px; font-size: 13px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
+          <div>Risk: <strong>{{ comparison.followup.prediction_text }}</strong></div>
+          <div>Prob: <strong>{{ (comparison.followup.probability * 100)|round(1) }}%</strong></div>
+          <div>Leipzig: <strong>{{ comparison.followup.leipzig_score }} pts</strong></div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- CLINICAL SYNTHESIS NARRATIVE CARD -->
+    <div class="synthesis-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+        <div style="font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          🩺 Physician Longitudinal Assessment & Therapeutic Synthesis
+        </div>
+        <div style="font-size: 12px; color: #64748b;">
+          Improved Biomarkers: <strong style="color: #15803d;">{{ comparison.improved_count }}</strong> • Elevated: <strong style="color: #b91c1c;">{{ comparison.worsened_count }}</strong>
+        </div>
+      </div>
+      <p style="font-size: 13.5px; color: #334155; line-height: 1.6; margin: 0;">
+        {{ comparison.clinical_synthesis }}
+      </p>
+    </div>
+
+    <!-- SIDE-BY-SIDE MATRIX TABLE -->
+    <div class="matrix-table-card">
+      <div style="padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 16px; font-weight: 800; color: var(--dark); margin: 0;">
+          📊 Parameter Trajectory & Delta (Δ) Comparison Table
+        </h2>
+        <span style="font-size: 12px; color: #64748b;">
+          Δ = Follow-up (Period 2) − Baseline (Period 1)
+        </span>
+      </div>
+
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>Clinical Parameter / Biomarker</th>
+            <th>Standard Reference</th>
+            <th style="color: #4338ca;">Baseline (Period 1)</th>
+            <th style="color: #047857;">Follow-up (Period 2)</th>
+            <th>Delta (Δ)</th>
+            <th>% Change</th>
+            <th>Longitudinal Trajectory</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in comparison.matrix %}
+          <tr>
+            <td>
+              <strong>{{ row.label }}</strong>
+              <div style="font-size: 11px; color: #94a3b8;">{{ row.unit }}</div>
+            </td>
+            <td style="font-size: 12.5px; color: #64748b;">
+              {{ row.reference_range }}
+            </td>
+            <td class="val-cell" style="color: #4338ca;">
+              {{ row.baseline_val if row.baseline_val is not none else '—' }}
+            </td>
+            <td class="val-cell" style="color: #047857;">
+              {{ row.followup_val if row.followup_val is not none else '—' }}
+            </td>
+            <td class="val-cell">
+              {% if row.delta is not none %}
+                {% if row.delta > 0 %}+{{ row.delta }}{% else %}{{ row.delta }}{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="val-cell">
+              {% if row.pct_change is not none %}
+                {% if row.pct_change > 0 %}+{{ row.pct_change }}%{% else %}{{ row.pct_change }}%{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              <span class="{{ row.status_badge }}">
+                {{ row.icon }} {{ row.status_label }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Longitudinal Comparison Subsystem</p>
+  </footer>
+
+</body>
+</html>

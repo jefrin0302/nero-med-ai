@@ -454,6 +454,19 @@
               <small class="form-text" style="color: var(--text-muted); font-size: 11px; margin-top: 3px; display: block;">Select to load recorded demographics for reassessment.</small>
             </div>
           </div>
+
+          <!-- VERIFIED LAB REPORT IMPORT BANNER -->
+          <div id="labReportImportBanner" style="display: none; margin-top: 16px; padding: 14px 18px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="font-size: 13.5px; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+                🔬 Certified Pathology Lab Report Available
+              </div>
+              <div id="labReportBannerText" style="font-size: 12.5px; color: #3b82f6; margin-top: 2px;"></div>
+            </div>
+            <button type="button" class="btn-action-small btn-action-primary" onclick="autoFillFromLatestLabReport()" style="background: #2563eb; color: white; padding: 8px 16px; font-weight: 700;">
+              ⚡ 1-Click Import Biomarkers from Lab Report
+            </button>
+          </div>
         </div>
         
         <div class="form-grid">
@@ -767,10 +780,82 @@
     }
 
     // --- PATIENT MANAGEMENT ACTIONS ---
+    let latestLabReportData = null;
+
+    async function checkForLatestLabReport(patientId) {
+      const banner = document.getElementById('labReportImportBanner');
+      const bannerText = document.getElementById('labReportBannerText');
+      if (!patientId) {
+        if (banner) banner.style.display = 'none';
+        latestLabReportData = null;
+        return;
+      }
+      try {
+        const resp = await fetch(`/api/lab/patient/${encodeURIComponent(patientId)}/latest_report`);
+        const data = await resp.json();
+        if (data.success && data.report) {
+          latestLabReportData = data.report;
+          const rep = data.report;
+          if (banner && bannerText) {
+            banner.style.display = 'flex';
+            bannerText.textContent = `Report #${rep.report_number} validated by ${rep.technician_name || 'Lab Staff'} on ${rep.collection_date ? rep.collection_date.substring(0, 16) : 'Recent'}.`;
+          }
+        } else {
+          if (banner) banner.style.display = 'none';
+          latestLabReportData = null;
+        }
+      } catch (e) {
+        if (banner) banner.style.display = 'none';
+        latestLabReportData = null;
+      }
+    }
+
+    function autoFillFromLatestLabReport() {
+      if (!latestLabReportData) {
+        showAlert('No verified lab report available to auto-fill.', 'error');
+        return;
+      }
+      const r = latestLabReportData;
+
+      if (r.age !== null && r.age !== undefined) document.getElementById('inputAge').value = r.age;
+      if (r.sex) document.getElementById('inputGender').value = r.sex;
+      if (r.bmi !== null && r.bmi !== undefined) document.getElementById('inputBMI').value = r.bmi;
+      if (r.region) document.getElementById('inputRegion').value = r.region;
+      if (r.socioeconomic_status) document.getElementById('inputSocioeconomicStatus').value = r.socioeconomic_status;
+      if (r.alcohol_use !== null && r.alcohol_use !== undefined) {
+        const alcStr = String(r.alcohol_use).toLowerCase();
+        document.getElementById('inputAlcoholUse').value = (alcStr === 'true' || alcStr === '1' || alcStr === 'yes') ? 'True' : 'False';
+      }
+
+      if (r.ceruloplasmin_level !== null && r.ceruloplasmin_level !== undefined) document.getElementById('inputCeruloplasmin').value = r.ceruloplasmin_level;
+      if (r.copper_blood_serum !== null && r.copper_blood_serum !== undefined) document.getElementById('inputCopperBlood').value = r.copper_blood_serum;
+      if (r.free_copper_blood_serum !== null && r.free_copper_blood_serum !== undefined) document.getElementById('inputFreeCopperBlood').value = r.free_copper_blood_serum;
+      if (r.copper_urine !== null && r.copper_urine !== undefined) document.getElementById('inputCopperUrine').value = r.copper_urine;
+
+      if (r.alt !== null && r.alt !== undefined) document.getElementById('inputALT').value = r.alt;
+      if (r.ast !== null && r.ast !== undefined) document.getElementById('inputAST').value = r.ast;
+      if (r.total_bilirubin !== null && r.total_bilirubin !== undefined) document.getElementById('inputTotalBilirubin').value = r.total_bilirubin;
+      if (r.albumin !== null && r.albumin !== undefined) document.getElementById('inputAlbumin').value = r.albumin;
+      if (r.alkaline_phosphatase_alp !== null && r.alkaline_phosphatase_alp !== undefined) document.getElementById('inputALP').value = r.alkaline_phosphatase_alp;
+      if (r.prothrombin_time_inr !== null && r.prothrombin_time_inr !== undefined) document.getElementById('inputProthrombin').value = r.prothrombin_time_inr;
+      if (r.gamma_glutamyl_transferase_ggt !== null && r.gamma_glutamyl_transferase_ggt !== undefined) document.getElementById('inputGGT').value = r.gamma_glutamyl_transferase_ggt;
+
+      if (r.kayser_fleischer_rings !== null && r.kayser_fleischer_rings !== undefined) document.getElementById('inputKFR').value = (r.kayser_fleischer_rings == 1 ? 'Yes' : 'No');
+      if (r.neurological_symptoms_score !== null && r.neurological_symptoms_score !== undefined) document.getElementById('inputNeurological').value = r.neurological_symptoms_score;
+      if (r.psychiatric_symptoms !== null && r.psychiatric_symptoms !== undefined) document.getElementById('inputPsychiatric').value = (r.psychiatric_symptoms == 1 ? 'Yes' : 'No');
+      if (r.cognitive_function_score !== null && r.cognitive_function_score !== undefined) document.getElementById('inputCognitive').value = r.cognitive_function_score;
+      if (r.family_history !== null && r.family_history !== undefined) document.getElementById('inputFamilyHistory').value = (r.family_history == 1 ? 'Yes' : 'No');
+      if (r.atb7b_gene_mutation !== null && r.atb7b_gene_mutation !== undefined) document.getElementById('inputGeneMutation').value = (r.atb7b_gene_mutation == 1 ? 'Yes' : 'No');
+
+      showAlert(`✅ Successfully imported clinical biomarkers from Certified Laboratory Report #${r.report_number}. Review values and click Run Clinical Diagnostic Assessment.`, 'success');
+    }
+
     function onExistingPatientDropdownChange() {
       const sel = document.getElementById('selectExistingPatient');
       if (sel && sel.value) {
-        // Optional quick prompt
+        checkForLatestLabReport(sel.value.trim());
+      } else {
+        checkForLatestLabReport(null);
       }
     }
 
@@ -814,6 +899,8 @@
           document.getElementById('inputAlcoholUse').value = (alcStr === 'true' || alcStr === '1' || alcStr === 'yes') ? 'True' : 'False';
         }
 
+        await checkForLatestLabReport(p.patient_id);
+
         showAlert(`Successfully loaded patient profile: ${p.patient_name} (${p.patient_id}). Baseline demographics populated.`, 'success');
       } catch (err) {
         showAlert(`Error loading patient: ${err.message}`, 'error');
@@ -847,6 +934,7 @@
         document.getElementById('patientName').value = '';
         const sel = document.getElementById('selectExistingPatient');
         if (sel) sel.value = '';
+        checkForLatestLabReport(null);
 
         showAlert(`Started new patient assessment with ID: ${data.next_patient_id}. Please enter patient name and clinical indicators.`, 'info');
         const nameField = document.getElementById('patientName');

@@ -3,42 +3,162 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Laboratory Data Import & Validation — NeuroMed AI</title>
+  <title>Laboratory Workstation & Certified Report Generation — NeuroMed AI</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
   <style>
     .lab-header {
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: white;
-      padding: 32px;
+      padding: 28px 32px;
       border-radius: var(--radius-lg);
       margin-bottom: 24px;
       box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
     }
-    .grid-2col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
+    .lab-header::after {
+      content: "";
+      position: absolute;
+      right: -30px;
+      top: -30px;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* WORKSTATION TABS */
+    .tab-bar {
+      display: flex;
+      gap: 10px;
+      border-bottom: 2px solid var(--border);
       margin-bottom: 24px;
+      padding-bottom: 2px;
+      overflow-x: auto;
     }
-    @media (max-width: 768px) {
-      .grid-2col {
-        grid-template-columns: 1fr;
-      }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #64748b;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
     }
+    .tab-btn:hover {
+      color: var(--primary);
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: rgba(79, 70, 229, 0.04);
+      border-radius: 6px 6px 0 0;
+    }
+
+    .tab-pane {
+      display: none;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    .tab-pane.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* CARDS & PANELS */
     .panel-card {
       background: white;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
       border: 1px solid var(--border);
       padding: 24px;
       box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
     }
-    .panel-card h2 {
-      font-size: 18px;
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .panel-title {
+      font-size: 17px;
       font-weight: 800;
       color: var(--dark);
-      margin-top: 0;
-      margin-bottom: 8px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
+
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+    .form-group-lab {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label-lab {
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      display: flex;
+      justify-content: space-between;
+    }
+    .form-label-lab small {
+      font-weight: 600;
+      color: #64748b;
+    }
+    .form-control-lab {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      color: #0f172a;
+      background: white;
+      transition: all 0.2s ease;
+    }
+    .form-control-lab:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+    .form-control-lab[readonly] {
+      background: #f8fafc;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+
+    .biomarker-section {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      margin-bottom: 20px;
+    }
+    .biomarker-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .drop-zone {
       border: 2px dashed #cbd5e1;
       border-radius: var(--radius-md);
@@ -47,12 +167,13 @@
       background: #f8fafc;
       cursor: pointer;
       transition: all 0.2s ease;
-      margin-top: 16px;
+      margin-top: 14px;
     }
     .drop-zone:hover, .drop-zone.dragover {
       border-color: var(--primary);
       background: #eff6ff;
     }
+
     .preview-table {
       width: 100%;
       border-collapse: collapse;
@@ -60,7 +181,7 @@
       font-size: 13px;
     }
     .preview-table th, .preview-table td {
-      padding: 10px 12px;
+      padding: 12px 14px;
       border-bottom: 1px solid #e2e8f0;
       text-align: left;
     }
@@ -71,29 +192,26 @@
       text-transform: uppercase;
       font-size: 11px;
     }
-    .badge-present {
+
+    .badge-certified {
       background: #dcfce7;
       color: #15803d;
-      padding: 3px 8px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 9999px;
       font-weight: 700;
       font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
-    .badge-missing {
-      background: #fef3c7;
-      color: #b45309;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-weight: 700;
-      font-size: 11px;
-    }
-    .badge-invalid {
-      background: #fee2e2;
-      color: #b91c1c;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-weight: 700;
-      font-size: 11px;
+    .badge-report-no {
+      background: #ede9fe;
+      color: #5b21b6;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 6px;
     }
   </style>
 </head>
@@ -107,10 +225,13 @@
       </a>
       <ul class="nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
-        <li><a class="nav-link-item active" href="{{ url_for('lab_import_page') }}">Lab Ingestion</a></li>
-        {% if current_user.role == 'clinician' %}
+        <li><a class="nav-link-item active" href="{{ url_for('lab_import_page') }}">Lab Workstation</a></li>
+        {% if current_user.role in ('admin', 'clinician') %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
         <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+        {% endif %}
+        {% if current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">Admin / RAG</a></li>
         {% endif %}
         <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
         <li>
@@ -128,95 +249,679 @@
 
     <!-- HEADER BANNER -->
     <div class="lab-header">
-      <span style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; text-transform: uppercase;">
-        Laboratory Services Subsystem
-      </span>
-      <h1 style="font-size: 26px; font-weight: 800; margin: 12px 0 6px;">
-        Laboratory Data Ingestion & Schema Validation
-      </h1>
-      <p style="font-size: 14px; color: #94a3b8; margin: 0; max-width: 720px; line-height: 1.5;">
-        Upload laboratory reports in CSV, JSON, PDF, or Word (.docx / .doc) format for clinical biomarker extraction, type coercion, and range checks.
-        Model inference and clinical diagnosis reports are restricted to authorized clinicians.
-      </p>
-    </div>
-
-    <!-- 2 COLUMN GRID -->
-    <div class="grid-2col">
-      <!-- PANEL 1: DOWNLOAD TEMPLATES -->
-      <div class="panel-card">
-        <h2>📥 1. Standard Laboratory Templates</h2>
-        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
-          Download approved schema templates matching the 23 clinical parameters evaluated for Wilson’s Disease.
-        </p>
-        <div style="display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap;">
-          <a href="{{ url_for('api_sample_template', format='csv') }}" class="btn-prime" style="text-decoration: none; padding: 10px 18px; font-size: 13px;">
-            📄 Download CSV Template
-          </a>
-          <a href="{{ url_for('api_sample_template', format='json') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 18px; font-size: 13px;">
-            📋 Download JSON Template
-          </a>
-          <a href="{{ url_for('api_sample_template', format='docx') }}" class="btn-prime" style="text-decoration: none; padding: 10px 18px; font-size: 13px; background: #4f46e5;">
-            📝 Download Word Template
-          </a>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <span style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; text-transform: uppercase;">
+            Laboratory Medicine Subsystem
+          </span>
+          <h1 style="font-size: 26px; font-weight: 800; margin: 10px 0 6px;">
+            Laboratory Data Ingestion & Clinical Pathology Workstation
+          </h1>
+          <p style="font-size: 14px; color: #cbd5e1; margin: 0; max-width: 760px; line-height: 1.5;">
+            Collect patient demographics, measure 23 Wilson’s Disease biomarkers, record specimen QC notes, and issue official Certified Laboratory Reports. 
+            ML diagnostic inference remains strictly segregated to authorized clinicians.
+          </p>
+        </div>
+        <div style="text-align: right; background: rgba(255, 255, 255, 0.08); padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12);">
+          <span style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; display: block;">Authorized Technician</span>
+          <strong style="font-size: 16px; color: white;">{{ current_user.full_name or current_user.username }}</strong>
+          <span style="display: block; font-size: 11px; color: #10b981; font-weight: 700; margin-top: 2px;">● Specimen QC Active</span>
         </div>
       </div>
+    </div>
 
-      <!-- PANEL 2: UPLOAD & VALIDATE -->
+    <!-- NOTIFICATION ALERT BOX -->
+    <div id="labAlertBox" style="display: none; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: 600;"></div>
+
+    <!-- WORKSTATION NAVIGATION TABS -->
+    <div class="tab-bar">
+      <button type="button" class="tab-btn active" onclick="switchLabTab('intake')">
+        📝 1. Patient Intake & Biomarkers Entry
+      </button>
+      <button type="button" class="tab-btn" onclick="switchLabTab('file')">
+        📁 2. File Ingestion & Parser
+      </button>
+      <button type="button" class="tab-btn" onclick="switchLabTab('reports')">
+        📋 3. Certified Laboratory Reports Registry ({{ recent_reports|length }})
+      </button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: PATIENT INTAKE & 23 BIOMARKERS ENTRY FORM                          -->
+    <!-- ========================================================================= -->
+    <div id="tab-intake" class="tab-pane active">
       <div class="panel-card">
-        <h2>🔬 2. Upload Lab Report</h2>
-        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
-          Select or drag a laboratory file (<span style="font-weight: 600;">.csv</span>, <span style="font-weight: 600;">.json</span>, <span style="font-weight: 600;">.pdf</span>, or <span style="font-weight: 600;">Word .docx/.doc</span>, max 2 MB) for automated parameter verification.
-        </p>
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">👤 Patient Identification & Specimen Metadata</h2>
+            <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">
+              Lookup an existing patient or register a new record to allocate a sequential Patient ID.
+            </p>
+          </div>
+          <!-- PRESET CONTROLS -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn-secondary" onclick="fillTestSample('normal')" style="font-size: 12px; padding: 6px 12px;">
+              🟢 Normal Baseline
+            </button>
+            <button type="button" class="btn-secondary" onclick="fillTestSample('baseline_wilson')" style="font-size: 12px; padding: 6px 12px;">
+              🔴 Baseline Wilson (Jan)
+            </button>
+            <button type="button" class="btn-secondary" onclick="fillTestSample('followup_wilson')" style="font-size: 12px; padding: 6px 12px;">
+              🟡 Follow-Up Decoppering (June)
+            </button>
+            <button type="button" class="btn-secondary" onclick="resetIntakeForm()" style="font-size: 12px; padding: 6px 12px; color: #ef4444;">
+              🔄 Clear
+            </button>
+          </div>
+        </div>
 
-        <form id="labUploadForm">
-          <input type="hidden" name="csrf_token" id="csrfToken" value="{{ csrf_token() }}">
-          <input type="file" id="labFileInput" accept=".csv,.json,.pdf,.docx,.doc" style="display: none;" onchange="handleFileSelect(this.files[0])" />
+        <form id="labIntakeForm" onsubmit="saveCertifiedLabReport(event)">
+          <input type="hidden" name="csrf_token" id="csrfTokenIntake" value="{{ csrf_token() }}">
 
-          <div class="drop-zone" id="dropZone" onclick="document.getElementById('labFileInput').click()">
-            <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
-            <div style="font-weight: 700; color: var(--dark); font-size: 14px;">Click to select file or drag here</div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Supports CSV, JSON, PDF, or Word DOCX/DOC (up to 2 MB)</div>
+          <!-- SECTION 1: DEMOGRAPHICS -->
+          <div class="form-grid-3" style="margin-bottom: 20px;">
+            <!-- Patient Selector Dropdown -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Existing Patient Lookup <small>(Optional)</small></label>
+              <select id="patientSelect" class="form-control-lab" onchange="onPatientSelectChange()">
+                <option value="">-- Register New Patient --</option>
+                {% for p in patients %}
+                <option value="{{ p.patient_id }}" data-name="{{ p.patient_name }}" data-age="{{ p.age or '' }}" data-sex="{{ p.sex or '' }}" data-region="{{ p.region or '' }}" data-ses="{{ p.ses or '' }}" data-bmi="{{ p.bmi or '' }}" data-alcohol="{{ p.alcohol_use or '' }}">
+                  {{ p.patient_id }} — {{ p.patient_name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Patient ID -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Patient ID <small>(Sequential)</small></label>
+              <input type="text" id="patientId" name="patient_id" class="form-control-lab" value="{{ next_patient_id }}" readonly style="font-weight: 700; color: var(--primary);">
+            </div>
+
+            <!-- Patient Name -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Patient Full Name <span style="color: #ef4444;">*</span></label>
+              <input type="text" id="patientName" name="patient_name" class="form-control-lab" placeholder="e.g. John Doe" required>
+            </div>
+
+            <!-- Age -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Age <small>(Years)</small></label>
+              <input type="number" id="inputAge" name="age" step="1" min="1" max="110" class="form-control-lab" placeholder="e.g. 28">
+            </div>
+
+            <!-- Sex -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Biological Sex</label>
+              <select id="inputSex" name="sex" class="form-control-lab">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+
+            <!-- BMI -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">BMI <small>(kg/m²)</small></label>
+              <input type="number" id="inputBMI" name="bmi" step="0.1" min="10" max="60" class="form-control-lab" placeholder="e.g. 23.4">
+            </div>
+
+            <!-- Region -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Geographic Region</label>
+              <select id="inputRegion" name="region" class="form-control-lab">
+                <option value="East">East</option>
+                <option value="North">North</option>
+                <option value="South">South</option>
+                <option value="West">West</option>
+              </select>
+            </div>
+
+            <!-- Socioeconomic Status -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Socioeconomic Status</label>
+              <select id="inputSES" name="socioeconomic_status" class="form-control-lab">
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+                <option value="High">High</option>
+              </select>
+            </div>
+
+            <!-- Alcohol Use -->
+            <div class="form-group-lab">
+              <label class="form-label-lab">Alcohol Use History</label>
+              <select id="inputAlcohol" name="alcohol_use" class="form-control-lab">
+                <option value="No">No / Non-drinker</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- SECTION 2: SPECIMEN INTEGRITY -->
+          <div class="biomarker-section">
+            <div class="biomarker-title">🧪 Specimen QC & Collection Parameters</div>
+            <div class="form-grid-3">
+              <div class="form-group-lab">
+                <label class="form-label-lab">Sample Type</label>
+                <input type="text" id="sampleType" name="sample_type" class="form-control-lab" value="Venous Blood & 24h Urine">
+              </div>
+              <div class="form-group-lab" style="grid-column: span 2;">
+                <label class="form-label-lab">Specimen QC Notes <small>(Hemolysis, 24h Urine Volume, Fasting Status)</small></label>
+                <input type="text" id="specimenNotes" name="specimen_notes" class="form-control-lab" placeholder="e.g. 12-hour fasting sample; 24h urine volume 1,850 mL; No visible hemolysis.">
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: 23 CLINICAL BIOMARKERS -->
+          <!-- PANEL A: COPPER METABOLISM -->
+          <div class="biomarker-section" style="border-left: 4px solid #f59e0b;">
+            <div class="biomarker-title" style="color: #b45309;">
+              🔬 Panel A: Copper Metabolism Profile (Diagnostic Hallmarks)
+            </div>
+            <div class="form-grid-3">
+              <div class="form-group-lab">
+                <label class="form-label-lab">Serum Ceruloplasmin <small>(Ref: 20 - 40 mg/dL)</small></label>
+                <input type="number" id="inputCeruloplasmin" name="ceruloplasmin_level" step="0.01" class="form-control-lab" placeholder="mg/dL">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Total Serum Copper <small>(Ref: 70 - 140 μg/dL)</small></label>
+                <input type="number" id="inputCopperBlood" name="copper_blood_serum" step="0.01" class="form-control-lab" placeholder="μg/dL">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Free Non-Ceruloplasmin Copper <small>(Ref: 5 - 15 μg/dL)</small></label>
+                <input type="number" id="inputFreeCopperBlood" name="free_copper_blood_serum" step="0.01" class="form-control-lab" placeholder="μg/dL">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">24-Hour Urine Copper Excretion <small>(Ref: &lt; 40 μg/24h)</small></label>
+                <input type="number" id="inputCopperUrine" name="copper_urine" step="0.01" class="form-control-lab" placeholder="μg/24h">
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL B: HEPATIC FUNCTION PANEL -->
+          <div class="biomarker-section" style="border-left: 4px solid #10b981;">
+            <div class="biomarker-title" style="color: #047857;">
+              🩺 Panel B: Liver Function Panel (Transaminases & Synthesis)
+            </div>
+            <div class="form-grid-3">
+              <div class="form-group-lab">
+                <label class="form-label-lab">ALT (Alanine Aminotransferase) <small>(Ref: 7 - 56 U/L)</small></label>
+                <input type="number" id="inputALT" name="alt" step="0.1" class="form-control-lab" placeholder="U/L">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">AST (Aspartate Aminotransferase) <small>(Ref: 10 - 40 U/L)</small></label>
+                <input type="number" id="inputAST" name="ast" step="0.1" class="form-control-lab" placeholder="U/L">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Total Bilirubin <small>(Ref: 0.2 - 1.2 mg/dL)</small></label>
+                <input type="number" id="inputTotalBilirubin" name="total_bilirubin" step="0.01" class="form-control-lab" placeholder="mg/dL">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Serum Albumin <small>(Ref: 3.5 - 5.5 g/dL)</small></label>
+                <input type="number" id="inputAlbumin" name="albumin" step="0.01" class="form-control-lab" placeholder="g/dL">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Alkaline Phosphatase (ALP) <small>(Ref: 44 - 147 U/L)</small></label>
+                <input type="number" id="inputALP" name="alkaline_phosphatase_alp" step="0.1" class="form-control-lab" placeholder="U/L">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Prothrombin Time / INR <small>(Ref: 0.8 - 1.2)</small></label>
+                <input type="number" id="inputProthrombin" name="prothrombin_time_inr" step="0.01" class="form-control-lab" placeholder="INR">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">GGT (Gamma-Glutamyl Transferase) <small>(Ref: 9 - 48 U/L)</small></label>
+                <input type="number" id="inputGGT" name="gamma_glutamyl_transferase_ggt" step="0.1" class="form-control-lab" placeholder="U/L">
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL C: CLINICAL SIGNS & GENETICS -->
+          <div class="biomarker-section" style="border-left: 4px solid #6366f1;">
+            <div class="biomarker-title" style="color: #4338ca;">
+              👁️ Panel C: Clinical Manifestations, Neuro-Cognitive & Genetics
+            </div>
+            <div class="form-grid-3">
+              <div class="form-group-lab">
+                <label class="form-label-lab">Kayser-Fleischer (KF) Rings</label>
+                <select id="inputKFR" name="kayser_fleischer_rings" class="form-control-lab">
+                  <option value="0">Absent (0)</option>
+                  <option value="1">Present (1)</option>
+                </select>
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Neurological Symptoms Score <small>(0.0 - 10.0)</small></label>
+                <input type="number" id="inputNeurological" name="neurological_symptoms_score" step="0.1" min="0" max="10" class="form-control-lab" placeholder="0.0 - 10.0">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Psychiatric Symptoms</label>
+                <select id="inputPsychiatric" name="psychiatric_symptoms" class="form-control-lab">
+                  <option value="0">Absent (0)</option>
+                  <option value="1">Present (1)</option>
+                </select>
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Cognitive Function Score <small>(30.0 - 100.0)</small></label>
+                <input type="number" id="inputCognitive" name="cognitive_function_score" step="0.1" min="30" max="100" class="form-control-lab" placeholder="30.0 - 100.0">
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">Family History of Wilson's Disease</label>
+                <select id="inputFamilyHistory" name="family_history" class="form-control-lab">
+                  <option value="0">No (0)</option>
+                  <option value="1">Yes (1)</option>
+                </select>
+              </div>
+              <div class="form-group-lab">
+                <label class="form-label-lab">ATP7B Gene Mutation</label>
+                <select id="inputGeneMutation" name="atb7b_gene_mutation" class="form-control-lab">
+                  <option value="0">Not Detected (0)</option>
+                  <option value="1">Detected / Confirmed (1)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBMIT ACTION -->
+          <div style="display: flex; justify-content: flex-end; gap: 14px; margin-top: 24px; align-items: center;">
+            <button type="submit" id="btnSaveReport" class="btn-prime" style="padding: 12px 28px; font-size: 14px; display: inline-flex; align-items: center; gap: 8px;">
+              💾 Save & Generate Certified Lab Report
+            </button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- VALIDATION RESULT PANEL -->
-    <div class="panel-card" id="validationResultCard" style="display: none;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
-        <div>
-          <h2 style="margin: 0;" id="resultFilename">Validation Summary</h2>
-          <span id="patientMeta" style="font-size: 13px; color: var(--text-muted);"></span>
+    <!-- ========================================================================= -->
+    <!-- TAB 2: FILE INGESTION & PARSER                                            -->
+    <!-- ========================================================================= -->
+    <div id="tab-file" class="tab-pane">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px;">
+        <!-- PANEL 1: DOWNLOAD TEMPLATES -->
+        <div class="panel-card">
+          <h2 class="panel-title">📥 Approved Laboratory Templates</h2>
+          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-top: 6px;">
+            Download standardized schemas matching the 23 Wilson’s Disease biomarker variables.
+          </p>
+          <div style="display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap;">
+            <a href="{{ url_for('api_sample_template', format='csv') }}" class="btn-prime" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px;">
+              📄 CSV Template
+            </a>
+            <a href="{{ url_for('api_sample_template', format='json') }}" class="btn-secondary" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px;">
+              📋 JSON Template
+            </a>
+            <a href="{{ url_for('api_sample_template', format='docx') }}" class="btn-prime" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px; background: #4f46e5;">
+              📝 Word (.docx) Template
+            </a>
+          </div>
         </div>
-        <div id="statusBadgeContainer"></div>
+
+        <!-- PANEL 2: UPLOAD DROPZONE -->
+        <div class="panel-card">
+          <h2 class="panel-title">🔬 Upload Lab Report File</h2>
+          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-top: 6px;">
+            Drop or browse a CSV, JSON, PDF, or Word DOCX/DOC file (max 2 MB) for automated parameter extraction.
+          </p>
+
+          <form id="labUploadForm">
+            <input type="hidden" name="csrf_token" id="csrfTokenFile" value="{{ csrf_token() }}">
+            <input type="file" id="labFileInput" accept=".csv,.json,.pdf,.docx,.doc" style="display: none;" onchange="handleFileSelect(this.files[0])" />
+
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('labFileInput').click()">
+              <div style="font-size: 32px; margin-bottom: 6px;">📊</div>
+              <div style="font-weight: 700; color: var(--dark); font-size: 14px;">Click to select file or drag here</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Supports CSV, JSON, PDF, or Word DOCX/DOC (up to 2 MB)</div>
+            </div>
+          </form>
+        </div>
       </div>
 
-      <div id="validationNotes" style="margin-bottom: 16px; font-size: 13px;"></div>
+      <!-- VALIDATION RESULT PANEL -->
+      <div class="panel-card" id="validationResultCard" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="margin: 0;" id="resultFilename">Validation Summary</h2>
+            <span id="patientMeta" style="font-size: 13px; color: var(--text-muted);"></span>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div id="statusBadgeContainer"></div>
+            <button type="button" id="btnTransferToIntake" class="btn-prime" onclick="transferParsedValuesToIntake()" style="font-size: 12.5px; padding: 8px 16px;">
+              📥 Transfer Values to Intake Form (Tab 1)
+            </button>
+          </div>
+        </div>
 
-      <div style="overflow-x: auto;">
-        <table class="preview-table">
-          <thead>
-            <tr>
-              <th>Biomarker / Clinical Feature</th>
-              <th>Parsed Value</th>
-              <th>Standard Unit / Range</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="previewTableBody"></tbody>
-        </table>
+        <div id="validationNotes" style="margin-bottom: 16px; font-size: 13px;"></div>
+
+        <div style="overflow-x: auto;">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>Biomarker / Clinical Feature</th>
+                <th>Parsed Value</th>
+                <th>Standard Unit / Range</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="previewTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: CERTIFIED LABORATORY REPORTS REGISTRY                              -->
+    <!-- ========================================================================= -->
+    <div id="tab-reports" class="tab-pane">
+      <div class="panel-card">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">📋 Certified Laboratory Reports Registry</h2>
+            <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">
+              Archived pathology reports issued by laboratory personnel. Click View / Print to open the official clinical certificate.
+            </p>
+          </div>
+          <button type="button" class="btn-secondary" onclick="refreshReportsTable()" style="font-size: 12.5px; padding: 7px 14px;">
+            🔄 Refresh Registry
+          </button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="styled-table" id="reportsRegistryTable">
+            <thead>
+              <tr>
+                <th>Report #</th>
+                <th>Patient ID & Name</th>
+                <th>Collection Date</th>
+                <th>Sample Type</th>
+                <th>Reporting Tech</th>
+                <th>Status</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTableBody">
+              {% if recent_reports|length == 0 %}
+              <tr>
+                <td colspan="7" style="text-align: center; color: #94a3b8; padding: 36px;">
+                  🧪 No certified laboratory reports generated yet. Complete the Intake Form in Tab 1 to generate the first official laboratory certificate.
+                </td>
+              </tr>
+              {% else %}
+              {% for rep in recent_reports %}
+              <tr>
+                <td>
+                  <span class="badge-report-no">{{ rep.report_number }}</span>
+                </td>
+                <td>
+                  <div style="font-weight: 700; color: #0f172a;">{{ rep.patient_name }}</div>
+                  <span style="font-size: 11px; color: #64748b;">ID: {{ rep.patient_id }}</span>
+                </td>
+                <td style="font-size: 12.5px; color: #475569;">
+                  {{ rep.collection_date[:16] if rep.collection_date else 'Recent' }}
+                </td>
+                <td style="font-size: 12.5px; color: #334155;">
+                  {{ rep.sample_type or 'Venous Blood & 24h Urine' }}
+                </td>
+                <td style="font-size: 12.5px; color: #334155;">
+                  👤 {{ rep.technician_name or 'Lab Staff' }}
+                </td>
+                <td>
+                  <span class="badge-certified">✓ Certified</span>
+                </td>
+                <td style="text-align: right;">
+                  <a href="{{ url_for('lab_report_view', report_id=rep.report_id) }}" class="btn-prime" style="padding: 6px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                    📄 View / Print Official Report
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
   </main>
 
   <footer class="footer-custom">
-    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence System</p>
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & Laboratory Subsystem</p>
   </footer>
 
   <script>
+    // Tab switching logic
+    function switchLabTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+
+      if (tabName === 'intake') {
+        document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+        document.getElementById('tab-intake').classList.add('active');
+      } else if (tabName === 'file') {
+        document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+        document.getElementById('tab-file').classList.add('active');
+      } else if (tabName === 'reports') {
+        document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+        document.getElementById('tab-reports').classList.add('active');
+      }
+    }
+
+    // Existing patient selection
+    function onPatientSelectChange() {
+      const select = document.getElementById('patientSelect');
+      const opt = select.options[select.selectedIndex];
+      if (!opt || !opt.value) {
+        document.getElementById('patientId').value = "{{ next_patient_id }}";
+        document.getElementById('patientName').value = "";
+        return;
+      }
+
+      document.getElementById('patientId').value = opt.value;
+      document.getElementById('patientName').value = opt.getAttribute('data-name') || '';
+      if (opt.getAttribute('data-age')) document.getElementById('inputAge').value = opt.getAttribute('data-age');
+      if (opt.getAttribute('data-sex')) document.getElementById('inputSex').value = opt.getAttribute('data-sex');
+      if (opt.getAttribute('data-bmi')) document.getElementById('inputBMI').value = opt.getAttribute('data-bmi');
+      if (opt.getAttribute('data-region')) document.getElementById('inputRegion').value = opt.getAttribute('data-region');
+      if (opt.getAttribute('data-ses')) document.getElementById('inputSES').value = opt.getAttribute('data-ses');
+      if (opt.getAttribute('data-alcohol')) {
+        const alc = opt.getAttribute('data-alcohol');
+        document.getElementById('inputAlcohol').value = (alc === '1' || alc.toLowerCase() === 'yes' || alc.toLowerCase() === 'true') ? 'Yes' : 'No';
+      }
+    }
+
+    // Presets for quick lab staff testing
+    function fillTestSample(type) {
+      if (type === 'normal') {
+        document.getElementById('patientName').value = "Eleanor Vance";
+        document.getElementById('inputAge').value = "32";
+        document.getElementById('inputSex').value = "Female";
+        document.getElementById('inputBMI').value = "22.4";
+        document.getElementById('inputRegion').value = "North";
+        document.getElementById('inputSES').value = "Medium";
+        document.getElementById('inputAlcohol').value = "No";
+        document.getElementById('specimenNotes').value = "Routine screening panel. 12-hour fast. Urine clear, 1,750 mL.";
+
+        document.getElementById('inputCeruloplasmin').value = "28.5";
+        document.getElementById('inputCopperBlood').value = "98.0";
+        document.getElementById('inputFreeCopperBlood').value = "8.2";
+        document.getElementById('inputCopperUrine').value = "24.0";
+
+        document.getElementById('inputALT').value = "22.0";
+        document.getElementById('inputAST').value = "19.0";
+        document.getElementById('inputTotalBilirubin').value = "0.7";
+        document.getElementById('inputAlbumin').value = "4.4";
+        document.getElementById('inputALP').value = "72.0";
+        document.getElementById('inputProthrombin').value = "1.0";
+        document.getElementById('inputGGT').value = "20.0";
+
+        document.getElementById('inputKFR').value = "0";
+        document.getElementById('inputNeurological').value = "0.0";
+        document.getElementById('inputPsychiatric').value = "0";
+        document.getElementById('inputCognitive').value = "95.0";
+        document.getElementById('inputFamilyHistory').value = "0";
+        document.getElementById('inputGeneMutation').value = "0";
+      } else if (type === 'baseline_wilson') {
+        // Test 1: Jan - High copper accumulation
+        document.getElementById('patientName').value = "Marcus Sterling";
+        document.getElementById('inputAge').value = "26";
+        document.getElementById('inputSex').value = "Male";
+        document.getElementById('inputBMI').value = "24.1";
+        document.getElementById('inputRegion').value = "East";
+        document.getElementById('inputSES').value = "Low";
+        document.getElementById('inputAlcohol').value = "No";
+        document.getElementById('specimenNotes').value = "Initial diagnostic workup. Kayser-Fleischer ring confirmed on slit lamp.";
+
+        document.getElementById('inputCeruloplasmin').value = "8.4";
+        document.getElementById('inputCopperBlood').value = "48.0";
+        document.getElementById('inputFreeCopperBlood').value = "28.5";
+        document.getElementById('inputCopperUrine').value = "185.0";
+
+        document.getElementById('inputALT').value = "142.0";
+        document.getElementById('inputAST').value = "118.0";
+        document.getElementById('inputTotalBilirubin').value = "2.8";
+        document.getElementById('inputAlbumin').value = "3.1";
+        document.getElementById('inputALP').value = "42.0";
+        document.getElementById('inputProthrombin').value = "1.55";
+        document.getElementById('inputGGT').value = "88.0";
+
+        document.getElementById('inputKFR').value = "1";
+        document.getElementById('inputNeurological').value = "4.5";
+        document.getElementById('inputPsychiatric').value = "1";
+        document.getElementById('inputCognitive').value = "68.0";
+        document.getElementById('inputFamilyHistory').value = "1";
+        document.getElementById('inputGeneMutation').value = "1";
+      } else if (type === 'followup_wilson') {
+        // Test 2: June - Improved post-chelation
+        document.getElementById('patientName').value = "Marcus Sterling";
+        document.getElementById('inputAge').value = "26";
+        document.getElementById('inputSex').value = "Male";
+        document.getElementById('inputBMI').value = "24.5";
+        document.getElementById('inputRegion').value = "East";
+        document.getElementById('inputSES').value = "Low";
+        document.getElementById('inputAlcohol').value = "No";
+        document.getElementById('specimenNotes').value = "6-month follow-up on D-penicillamine & zinc acetate maintenance therapy.";
+
+        document.getElementById('inputCeruloplasmin').value = "14.2";
+        document.getElementById('inputCopperBlood').value = "68.0";
+        document.getElementById('inputFreeCopperBlood').value = "16.0";
+        document.getElementById('inputCopperUrine').value = "74.0"; // Significant reduction in urinary copper
+
+        document.getElementById('inputALT').value = "52.0";
+        document.getElementById('inputAST').value = "44.0";
+        document.getElementById('inputTotalBilirubin').value = "1.2";
+        document.getElementById('inputAlbumin').value = "3.8";
+        document.getElementById('inputALP').value = "65.0";
+        document.getElementById('inputProthrombin').value = "1.15";
+        document.getElementById('inputGGT').value = "36.0";
+
+        document.getElementById('inputKFR').value = "1";
+        document.getElementById('inputNeurological').value = "2.0";
+        document.getElementById('inputPsychiatric').value = "0";
+        document.getElementById('inputCognitive').value = "82.0";
+        document.getElementById('inputFamilyHistory').value = "1";
+        document.getElementById('inputGeneMutation').value = "1";
+      }
+    }
+
+    function resetIntakeForm() {
+      document.getElementById('labIntakeForm').reset();
+      document.getElementById('patientId').value = "{{ next_patient_id }}";
+    }
+
+    // Save certified lab report
+    function saveCertifiedLabReport(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveReport');
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Certifying & Storing Report...';
+
+      const payload = {
+        patient_id: document.getElementById('patientId').value,
+        patient_name: document.getElementById('patientName').value,
+        age: document.getElementById('inputAge').value ? parseFloat(document.getElementById('inputAge').value) : null,
+        sex: document.getElementById('inputSex').value,
+        bmi: document.getElementById('inputBMI').value ? parseFloat(document.getElementById('inputBMI').value) : null,
+        region: document.getElementById('inputRegion').value,
+        socioeconomic_status: document.getElementById('inputSES').value,
+        alcohol_use: document.getElementById('inputAlcohol').value,
+        sample_type: document.getElementById('sampleType').value,
+        specimen_notes: document.getElementById('specimenNotes').value,
+
+        ceruloplasmin_level: document.getElementById('inputCeruloplasmin').value ? parseFloat(document.getElementById('inputCeruloplasmin').value) : null,
+        copper_blood_serum: document.getElementById('inputCopperBlood').value ? parseFloat(document.getElementById('inputCopperBlood').value) : null,
+        free_copper_blood_serum: document.getElementById('inputFreeCopperBlood').value ? parseFloat(document.getElementById('inputFreeCopperBlood').value) : null,
+        copper_urine: document.getElementById('inputCopperUrine').value ? parseFloat(document.getElementById('inputCopperUrine').value) : null,
+
+        alt: document.getElementById('inputALT').value ? parseFloat(document.getElementById('inputALT').value) : null,
+        ast: document.getElementById('inputAST').value ? parseFloat(document.getElementById('inputAST').value) : null,
+        total_bilirubin: document.getElementById('inputTotalBilirubin').value ? parseFloat(document.getElementById('inputTotalBilirubin').value) : null,
+        albumin: document.getElementById('inputAlbumin').value ? parseFloat(document.getElementById('inputAlbumin').value) : null,
+        alkaline_phosphatase_alp: document.getElementById('inputALP').value ? parseFloat(document.getElementById('inputALP').value) : null,
+        prothrombin_time_inr: document.getElementById('inputProthrombin').value ? parseFloat(document.getElementById('inputProthrombin').value) : null,
+        gamma_glutamyl_transferase_ggt: document.getElementById('inputGGT').value ? parseFloat(document.getElementById('inputGGT').value) : null,
+
+        kayser_fleischer_rings: parseInt(document.getElementById('inputKFR').value),
+        neurological_symptoms_score: document.getElementById('inputNeurological').value ? parseFloat(document.getElementById('inputNeurological').value) : null,
+        psychiatric_symptoms: parseInt(document.getElementById('inputPsychiatric').value),
+        cognitive_function_score: document.getElementById('inputCognitive').value ? parseFloat(document.getElementById('inputCognitive').value) : null,
+        family_history: parseInt(document.getElementById('inputFamilyHistory').value),
+        atb7b_gene_mutation: parseInt(document.getElementById('inputGeneMutation').value)
+      };
+
+      const csrfToken = document.getElementById('csrfTokenIntake').value;
+
+      fetch('/api/lab/save_report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '💾 Save & Generate Certified Lab Report';
+
+        const alertBox = document.getElementById('labAlertBox');
+        alertBox.style.display = 'block';
+
+        if (data.success) {
+          alertBox.style.background = '#dcfce7';
+          alertBox.style.color = '#15803d';
+          alertBox.style.border = '1px solid #bbf7d0';
+          alertBox.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <strong>✅ Laboratory Report Issued:</strong> ${data.message}
+              </div>
+              <a href="${data.report_url}" target="_blank" class="btn-prime" style="padding: 7px 16px; font-size: 13px; text-decoration: none; background: #059669;">
+                🖨️ View & Print Certified Report
+              </a>
+            </div>
+          `;
+          refreshReportsTable();
+        } else {
+          alertBox.style.background = '#fee2e2';
+          alertBox.style.color = '#991b1b';
+          alertBox.style.border = '1px solid #fecaca';
+          alertBox.innerHTML = `<strong>⚠️ Error:</strong> ${data.error || 'Failed to save report.'}`;
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '💾 Save & Generate Certified Lab Report';
+        const alertBox = document.getElementById('labAlertBox');
+        alertBox.style.display = 'block';
+        alertBox.style.background = '#fee2e2';
+        alertBox.style.color = '#991b1b';
+        alertBox.innerHTML = `<strong>⚠️ Network Error:</strong> Could not save report. Please try again.`;
+      });
+    }
+
+    // File Ingestion Logic
+    let lastParsedData = null;
     const dropZone = document.getElementById('dropZone');
-    const csrfToken = document.getElementById('csrfToken').value;
+    const csrfTokenFile = document.getElementById('csrfTokenFile').value;
 
     ['dragenter', 'dragover'].forEach(name => {
       dropZone.addEventListener(name, (e) => {
@@ -241,7 +946,7 @@
       if (!file) return;
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('csrf_token', csrfToken);
+      formData.append('csrf_token', csrfTokenFile);
 
       const resCard = document.getElementById('validationResultCard');
       resCard.style.display = 'block';
@@ -251,22 +956,22 @@
 
       fetch('/api/upload_lab_file', {
         method: 'POST',
-        headers: {
-          'X-CSRFToken': csrfToken
-        },
+        headers: { 'X-CSRFToken': csrfTokenFile },
         body: formData
       })
       .then(res => res.json())
       .then(data => {
         if (!data.success) {
           document.getElementById('resultFilename').textContent = file.name + ' — Validation Failed';
-          document.getElementById('statusBadgeContainer').innerHTML = '<span class="badge-invalid">Validation Error</span>';
+          document.getElementById('statusBadgeContainer').innerHTML = '<span class="status-badge rejected">Validation Error</span>';
           document.getElementById('validationNotes').innerHTML = '<div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px;">⚠️ ' + (data.error || 'Parsing error') + '</div>';
+          lastParsedData = null;
           return;
         }
 
+        lastParsedData = data;
         document.getElementById('resultFilename').textContent = file.name;
-        document.getElementById('statusBadgeContainer').innerHTML = '<span class="badge-present">Validated Successfully</span>';
+        document.getElementById('statusBadgeContainer').innerHTML = '<span class="status-badge approved">Validated Successfully</span>';
         
         let metaTxt = '';
         if (data.patient_id) metaTxt += 'Patient ID: ' + data.patient_id + ' | ';
@@ -282,7 +987,6 @@
         }
         document.getElementById('validationNotes').innerHTML = notesHtml;
 
-        // Populate table
         const tbody = document.getElementById('previewTableBody');
         tbody.innerHTML = '';
         const params = data.extracted_parameters || {};
@@ -293,16 +997,105 @@
             <td><strong>${key}</strong></td>
             <td>${isMissing ? '<em>Missing / Unspecified</em>' : val}</td>
             <td>Standard Medical Unit</td>
-            <td>${isMissing ? '<span class="badge-missing">Missing</span>' : '<span class="badge-present">Valid</span>'}</td>
+            <td>${isMissing ? '<span style="color: #b45309; font-weight:700;">Missing</span>' : '<span style="color: #15803d; font-weight:700;">Valid</span>'}</td>
           `;
           tbody.appendChild(row);
         }
       })
       .catch(err => {
         document.getElementById('resultFilename').textContent = 'Upload Failed';
-        document.getElementById('statusBadgeContainer').innerHTML = '<span class="badge-invalid">Network Error</span>';
+        document.getElementById('statusBadgeContainer').innerHTML = '<span class="status-badge rejected">Network Error</span>';
         document.getElementById('validationNotes').innerHTML = '<div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px;">Network or server error validating file.</div>';
       });
+    }
+
+    // Transfer parsed file values into Tab 1 intake form
+    function transferParsedValuesToIntake() {
+      if (!lastParsedData || !lastParsedData.extracted_parameters) {
+        alert("No parsed parameters available to transfer.");
+        return;
+      }
+
+      const p = lastParsedData.extracted_parameters;
+      if (lastParsedData.patient_id) document.getElementById('patientId').value = lastParsedData.patient_id;
+      if (lastParsedData.patient_name) document.getElementById('patientName').value = lastParsedData.patient_name;
+
+      if (p['Age'] !== null && p['Age'] !== undefined) document.getElementById('inputAge').value = p['Age'];
+      if (p['Sex']) document.getElementById('inputSex').value = p['Sex'];
+      if (p['BMI'] !== null && p['BMI'] !== undefined) document.getElementById('inputBMI').value = p['BMI'];
+      if (p['Region']) document.getElementById('inputRegion').value = p['Region'];
+      if (p['Socioeconomic Status']) document.getElementById('inputSES').value = p['Socioeconomic Status'];
+      if (p['Alcohol Use'] !== null && p['Alcohol Use'] !== undefined) {
+        const alc = String(p['Alcohol Use']);
+        document.getElementById('inputAlcohol').value = (alc === '1' || alc.toLowerCase() === 'yes' || alc.toLowerCase() === 'true') ? 'Yes' : 'No';
+      }
+
+      if (p['Ceruloplasmin Level'] !== null && p['Ceruloplasmin Level'] !== undefined) document.getElementById('inputCeruloplasmin').value = p['Ceruloplasmin Level'];
+      if (p['Copper in Blood Serum'] !== null && p['Copper in Blood Serum'] !== undefined) document.getElementById('inputCopperBlood').value = p['Copper in Blood Serum'];
+      if (p['Free Copper in Blood Serum'] !== null && p['Free Copper in Blood Serum'] !== undefined) document.getElementById('inputFreeCopperBlood').value = p['Free Copper in Blood Serum'];
+      if (p['Copper in Urine'] !== null && p['Copper in Urine'] !== undefined) document.getElementById('inputCopperUrine').value = p['Copper in Urine'];
+
+      if (p['ALT'] !== null && p['ALT'] !== undefined) document.getElementById('inputALT').value = p['ALT'];
+      if (p['AST'] !== null && p['AST'] !== undefined) document.getElementById('inputAST').value = p['AST'];
+      if (p['Total Bilirubin'] !== null && p['Total Bilirubin'] !== undefined) document.getElementById('inputTotalBilirubin').value = p['Total Bilirubin'];
+      if (p['Albumin'] !== null && p['Albumin'] !== undefined) document.getElementById('inputAlbumin').value = p['Albumin'];
+      if (p['Alkaline Phosphatase (ALP)'] !== null && p['Alkaline Phosphatase (ALP)'] !== undefined) document.getElementById('inputALP').value = p['Alkaline Phosphatase (ALP)'];
+      if (p['Prothrombin Time / INR'] !== null && p['Prothrombin Time / INR'] !== undefined) document.getElementById('inputProthrombin').value = p['Prothrombin Time / INR'];
+      if (p['Gamma-Glutamyl Transferase (GGT)'] !== null && p['Gamma-Glutamyl Transferase (GGT)'] !== undefined) document.getElementById('inputGGT').value = p['Gamma-Glutamyl Transferase (GGT)'];
+
+      if (p['Kayser-Fleischer Rings'] !== null && p['Kayser-Fleischer Rings'] !== undefined) document.getElementById('inputKFR').value = p['Kayser-Fleischer Rings'];
+      if (p['Neurological Symptoms Score'] !== null && p['Neurological Symptoms Score'] !== undefined) document.getElementById('inputNeurological').value = p['Neurological Symptoms Score'];
+      if (p['Psychiatric Symptoms'] !== null && p['Psychiatric Symptoms'] !== undefined) document.getElementById('inputPsychiatric').value = p['Psychiatric Symptoms'];
+      if (p['Cognitive Function Score'] !== null && p['Cognitive Function Score'] !== undefined) document.getElementById('inputCognitive').value = p['Cognitive Function Score'];
+      if (p['Family History'] !== null && p['Family History'] !== undefined) document.getElementById('inputFamilyHistory').value = p['Family History'];
+      if (p['ATB7B Gene Mutation'] !== null && p['ATB7B Gene Mutation'] !== undefined) document.getElementById('inputGeneMutation').value = p['ATB7B Gene Mutation'];
+
+      switchLabTab('intake');
+
+      const alertBox = document.getElementById('labAlertBox');
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#dbeafe';
+      alertBox.style.color = '#1e40af';
+      alertBox.style.border = '1px solid #bfdbfe';
+      alertBox.innerHTML = `📥 Successfully transferred parsed values from <strong>${lastParsedData.filename || 'uploaded file'}</strong> into Patient Intake Form. Review values and click Save to issue Certified Report.`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Refresh reports registry table
+    function refreshReportsTable() {
+      fetch('/api/lab/reports')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) return;
+        const tbody = document.getElementById('reportsTableBody');
+        if (!data.reports || data.reports.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 36px;">No certified reports found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = '';
+        data.reports.forEach(rep => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="badge-report-no">${rep.report_number}</span></td>
+            <td>
+              <div style="font-weight: 700; color: #0f172a;">${rep.patient_name}</div>
+              <span style="font-size: 11px; color: #64748b;">ID: ${rep.patient_id}</span>
+            </td>
+            <td style="font-size: 12.5px; color: #475569;">${(rep.collection_date || '').substring(0, 16)}</td>
+            <td style="font-size: 12.5px; color: #334155;">${rep.sample_type || 'Venous Blood & 24h Urine'}</td>
+            <td style="font-size: 12.5px; color: #334155;">👤 ${rep.technician_name || 'Lab Staff'}</td>
+            <td><span class="badge-certified">✓ Certified</span></td>
+            <td style="text-align: right;">
+              <a href="/lab/report/${rep.report_id}" class="btn-prime" style="padding: 6px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                📄 View / Print Official Report
+              </a>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      })
+      .catch(err => console.error("Error refreshing reports:", err));
     }
   </script>
 

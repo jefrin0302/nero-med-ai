@@ -24,6 +24,9 @@ from database import (
     create_or_update_patient,
     save_assessment,
     get_patient_by_id,
+    delete_patient,
+    create_lab_report,
+    get_recent_audit_logs,
     open_db
 )
 
@@ -286,6 +289,139 @@ class TestPatientDirectoryAndHistory(unittest.TestCase):
         # 3. Report
         res3 = self.client.get(f"/assessment/{a_id}/report")
         self.assertNotIn("<script>alert('xss')</script>", res3.get_data(as_text=True))
+
+    def test_delete_patient_database_cascade(self):
+        """Verifies database-level delete_patient deletes patient and all cascaded clinical records."""
+        create_or_update_patient({"patient_id": "NEUROMED001", "patient_name": "Delete Target"}, db_path=self.test_db)
+        a_id = save_assessment(
+            patient_id="NEUROMED001",
+            clinical_inputs=self._create_sample_clinical_inputs(),
+            prediction_results={"prediction_text": "Low Risk", "probability": 0.1},
+            db_path=self.test_db
+        )
+        report = create_lab_report({
+            "patient_id": "NEUROMED001",
+            "patient_name": "Delete Target",
+            "ceruloplasmin_level": 15.0
+        }, db_path=self.test_db)
+
+        # Confirm patient and dependent records exist
+        self.assertIsNotNone(get_patient_by_id("NEUROMED001", db_path=self.test_db))
+
+        # Perform deletion
+        success = delete_patient("NEUROMED001", db_path=self.test_db)
+        self.assertTrue(success)
+
+        # Confirm patient and dependent records are deleted
+        self.assertIsNone(get_patient_by_id("NEUROMED001", db_path=self.test_db))
+        with open_db(self.test_db) as conn:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) FROM assessments WHERE patient_id = 'NEUROMED001';")
+            self.assertEqual(c.fetchone()[0], 0)
+            c.execute("SELECT COUNT(*) FROM lab_reports WHERE patient_id = 'NEUROMED001';")
+            self.assertEqual(c.fetchone()[0], 0)
+
+        # Deleting non-existent patient returns False
+        self.assertFalse(delete_patient("NEUROMED001", db_path=self.test_db))
+        self.assertFalse(delete_patient("", db_path=self.test_db))
+
+    def test_admin_can_delete_patient_via_api(self):
+        """Verifies admin role can delete patient record via API and event is logged."""
+        create_or_update_patient({"patient_id": "NEUROMED001", "patient_name": "Target Patient"}, db_path=self.test_db)
+        save_assessment(
+            patient_id="NEUROMED001",
+            clinical_inputs=self._create_sample_clinical_inputs(),
+            prediction_results={"prediction_text": "Low Risk", "probability": 0.1},
+            db_path=self.test_db
+        )
+
+        # Switch session to admin
+        with self.client.session_transaction() as sess:
+            sess["role"] = "admin"
+            sess["username"] = "admin_doctor"
+
+        res = self.client.post("/api/patient/NEUROMED001/delete")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertIn("permanently deleted", data["message"])
+
+        # Verify patient no longer exists
+        self.assertIsNone(get_patient_by_id("NEUROMED001", db_path=self.test_db))
+
+        # Verify audit log recorded PATIENT_DELETED
+        audit_logs = get_recent_audit_logs(limit=10, db_path=self.test_db)
+        deleted_events = [l for l in audit_logs if l["action"] == "PATIENT_DELETED"]
+        self.assertTrue(len(deleted_events) >= 1)
+        self.assertEqual(deleted_events[0]["resource_id"], "NEUROMED001")
+        self.assertEqual(deleted_events[0]["status"], "SUCCESS")
+
+    def test_clinician_forbidden_from_deleting_patient(self):
+        """Verifies clinician role receives 403 Forbidden when attempting to delete a patient."""
+        create_or_update_patient({"patient_id": "NEUROMED001", "patient_name": "Protected Patient"}, db_path=self.test_db)
+
+        # Session is currently clinician
+        res = self.client.post("/api/patient/NEUROMED001/delete")
+        self.assertEqual(res.status_code, 403)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+
+        # Verify patient was NOT deleted
+        self.assertIsNotNone(get_patient_by_id("NEUROMED001", db_path=self.test_db))
+
+    def test_lab_staff_forbidden_from_deleting_patient(self):
+        """Verifies lab_staff role receives 403 Forbidden when attempting to delete a patient."""
+        create_or_update_patient({"patient_id": "NEUROMED001", "patient_name": "Protected Patient"}, db_path=self.test_db)
+
+        # Switch session to lab_staff
+        with self.client.session_transaction() as sess:
+            sess["role"] = "lab_staff"
+            sess["username"] = "tech_mary"
+
+        res = self.client.post("/api/patient/NEUROMED001/delete")
+        self.assertEqual(res.status_code, 403)
+
+        # Verify patient was NOT deleted
+        self.assertIsNotNone(get_patient_by_id("NEUROMED001", db_path=self.test_db))
+
+    def test_delete_nonexistent_patient_returns_404(self):
+        """Verifies deleting a non-existent patient returns 404."""
+        with self.client.session_transaction() as sess:
+            sess["role"] = "admin"
+            sess["username"] = "admin_doctor"
+
+        res = self.client.post("/api/patient/NONEXISTENT999/delete")
+        self.assertEqual(res.status_code, 404)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+
+    def test_admin_ui_shows_delete_button_and_modal(self):
+        """Verifies delete button and confirmation modal are present for admin and hidden for clinician."""
+        create_or_update_patient({"patient_id": "NEUROMED001", "patient_name": "UI Check Patient"}, db_path=self.test_db)
+
+        # 1. As clinician: delete button should NOT be rendered
+        with self.client.session_transaction() as sess:
+            sess["role"] = "clinician"
+
+        res_dir = self.client.get("/patients")
+        self.assertNotIn("openDeleteModal", res_dir.get_data(as_text=True))
+        self.assertNotIn("deletePatientModal", res_dir.get_data(as_text=True))
+
+        res_hist = self.client.get("/patient/NEUROMED001/history")
+        self.assertNotIn("openDeleteModal", res_hist.get_data(as_text=True))
+        self.assertNotIn("deletePatientModal", res_hist.get_data(as_text=True))
+
+        # 2. As admin: delete button and modal MUST be rendered
+        with self.client.session_transaction() as sess:
+            sess["role"] = "admin"
+
+        res_dir_admin = self.client.get("/patients")
+        self.assertIn("openDeleteModal", res_dir_admin.get_data(as_text=True))
+        self.assertIn("deletePatientModal", res_dir_admin.get_data(as_text=True))
+
+        res_hist_admin = self.client.get("/patient/NEUROMED001/history")
+        self.assertIn("openDeleteModal", res_hist_admin.get_data(as_text=True))
+        self.assertIn("deletePatientModal", res_hist_admin.get_data(as_text=True))
 
 
 if __name__ == "__main__":

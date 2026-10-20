@@ -366,12 +366,13 @@ class TestAuthAndRBACSuite(unittest.TestCase):
         self.assertEqual(res_submit.status_code, 403)
         app.config["WTF_CSRF_ENABLED"] = True
 
-    def test_admin_least_privilege_cannot_access_clinical_records(self):
+    def test_chief_doctor_admin_has_full_clinical_and_governance_access(self):
         """
-        Verifies admin CANNOT access patient records or clinical tests without clinical role.
-        Enforces separation of duties between IT administrators and healthcare clinicians.
+        Verifies admin (Chief Doctor / Department Head) has full clinical access
+        to patient records, diagnostic testing, and RAG governance, while maintaining
+        strict quarantine approval authority.
         """
-        admin = create_user("sysadmin", "SysAdminPass123!", "System Admin", "admin", db_path=self.test_db)
+        admin = create_user("chief_doc", "ChiefDoctorPass123!", "Dr. Robert House", "admin", db_path=self.test_db)
         with self.client.session_transaction() as sess:
             sess["user_id"] = admin["user_id"]
             sess["username"] = admin["username"]
@@ -379,10 +380,13 @@ class TestAuthAndRBACSuite(unittest.TestCase):
             sess["last_active"] = time.time()
 
         res_patients = self.client.get("/patients")
-        self.assertEqual(res_patients.status_code, 403)
+        self.assertEqual(res_patients.status_code, 200)
 
         res_about = self.client.get("/about")
-        self.assertEqual(res_about.status_code, 403)
+        self.assertEqual(res_about.status_code, 200)
+
+        res_api = self.client.get("/api/next_patient_id")
+        self.assertEqual(res_api.status_code, 200)
 
     def test_clinician_has_full_clinical_access(self):
         """Verifies authenticated clinician can access patient directory, about, and APIs."""

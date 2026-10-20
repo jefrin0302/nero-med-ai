@@ -1232,6 +1232,90 @@ def ingest_document(file_path: str, filename: str) -> list:
 ingest_pdf_document = ingest_document
 
 
+def extract_document_preview(file_path: str, filename: str) -> dict:
+    """
+    Extracts structured preview metadata and page text from a guideline document
+    (PDF, DOCX, TXT) for pre-approval inspection by Chief Doctor (Admin).
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    pages_data = []
+    total_chars = 0
+    page_count = 0
+
+    if ext == ".pdf":
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(file_path)
+            page_count = len(reader.pages)
+            for page_idx, page in enumerate(reader.pages):
+                txt = page.extract_text() or ""
+                txt_clean = txt.strip()
+                if txt_clean:
+                    total_chars += len(txt_clean)
+                    pages_data.append({
+                        "page": page_idx + 1,
+                        "text": txt_clean,
+                        "char_count": len(txt_clean)
+                    })
+        except Exception as e:
+            logger.error(f"Error previewing PDF {file_path}: {e}")
+    elif ext == ".docx":
+        try:
+            import docx
+            doc = docx.Document(file_path)
+            paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+            for table in doc.tables:
+                for row in table.rows:
+                    row_txt = " | ".join(c.text.strip() for c in row.cells if c.text.strip())
+                    if row_txt:
+                        paras.append(row_txt)
+            full_text = "\n\n".join(paras)
+            page_count = max(1, math.ceil(len(full_text) / 2500))
+            total_chars = len(full_text)
+            pages_data.append({
+                "page": 1,
+                "text": full_text,
+                "char_count": total_chars
+            })
+        except Exception as e:
+            logger.error(f"Error previewing DOCX {file_path}: {e}")
+    elif ext in [".txt", ".md"]:
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read().strip()
+            total_chars = len(content)
+            page_count = max(1, math.ceil(total_chars / 2500))
+            pages_data.append({
+                "page": 1,
+                "text": content,
+                "char_count": total_chars
+            })
+        except Exception as e:
+            logger.error(f"Error previewing text file {file_path}: {e}")
+
+    # Passages estimation via shared chunking engine
+    chunks = chunk_clinical_text(
+        text="",
+        filename=filename,
+        target_chunk_size=750,
+        min_chunk_size=80,
+        overlap=150,
+        page_metadata=[(p["page"], p["text"]) for p in pages_data]
+    ) if pages_data else []
+
+    # Detect terms across first few pages
+    combined_sample = " ".join(p["text"] for p in pages_data[:5]) if pages_data else ""
+    detected = detect_clinical_terms(combined_sample)
+
+    return {
+        "page_count": page_count,
+        "total_characters": total_chars,
+        "estimated_passages": len(chunks),
+        "pages": pages_data,
+        "detected_terms": detected
+    }
+
+
 class MedicalRAGSystem:
     def __init__(self):
         self.use_langchain = False
@@ -1452,14 +1536,15 @@ class MedicalRAGSystem:
             except ImportError:
                 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+            model_name = os.environ.get("RAG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+            embeddings = HuggingFaceEmbeddings(model_name=model_name)
             vectorstore = Chroma(
                 persist_directory=PERSIST_DIR,
                 embedding_function=embeddings
             )
             self.retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
             self.use_langchain = True
-            logger.info("RAG Initialized with ChromaDB VectorStore & HuggingFace Embeddings.")
+            logger.info(f"RAG Initialized with ChromaDB VectorStore & HuggingFace Embeddings ({model_name}).")
         except Exception as e:
             logger.info("Running standalone high-performance clinical RAG engine.")
 
@@ -1484,9 +1569,48 @@ class MedicalRAGSystem:
                     norm_body = self._normalize_passage_text(body)
                     parsed.append((p, header, norm_body, norm_body.lower()))
                 self._parsed_passages = parsed
+                self._build_bm25_index()
                 logger.info(f"Loaded {len(self.passages)} clinical guideline passages from {json_path} (pre-indexed).")
             except Exception as e:
                 logger.warning(f"Error loading guideline passages from {json_path}: {e}")
+
+    def _build_bm25_index(self):
+        """Precomputes BM25 corpus statistics for fast, dependency-free hybrid lexical retrieval."""
+        import collections
+        self._bm25_doc_len = []
+        self._bm25_df = collections.Counter()
+        self._bm25_doc_tokens = []
+        total_len = 0
+        for _, _, _, body_lower in getattr(self, "_parsed_passages", []):
+            tokens = re.findall(r'[a-z0-9]+', body_lower)
+            doc_len = len(tokens)
+            self._bm25_doc_len.append(doc_len)
+            total_len += doc_len
+            for t in set(tokens):
+                self._bm25_df[t] += 1
+            self._bm25_doc_tokens.append(collections.Counter(tokens))
+        self._bm25_num_docs = len(self._bm25_doc_len)
+        self._bm25_avg_doc_len = (total_len / max(1, self._bm25_num_docs))
+
+    def _compute_bm25_score(self, doc_idx: int, query_words: list, k1: float = 1.5, b: float = 0.75) -> float:
+        """Computes pure Okapi BM25 score with Robertson-Spärck Jones IDF and document length normalization."""
+        if not hasattr(self, "_bm25_num_docs") or self._bm25_num_docs == 0 or doc_idx >= len(self._bm25_doc_len):
+            return 0.0
+        doc_len = self._bm25_doc_len[doc_idx]
+        tf_map = self._bm25_doc_tokens[doc_idx]
+        score = 0.0
+        len_norm = 1.0 - b + b * (doc_len / max(1.0, self._bm25_avg_doc_len))
+        for q in query_words:
+            df = self._bm25_df.get(q, 0)
+            if df == 0:
+                continue
+            tf = tf_map.get(q, 0)
+            if tf == 0:
+                continue
+            idf = math.log(1.0 + (self._bm25_num_docs - df + 0.5) / (df + 0.5))
+            term_score = idf * ((tf * (k1 + 1.0)) / (tf + k1 * len_norm))
+            score += term_score
+        return score
 
     def _load_qa_bank(self):
         """Disabled: Question bank cannot supply medical answers."""
@@ -1684,9 +1808,18 @@ class MedicalRAGSystem:
                 norm_body = self._normalize_passage_text(body)
                 parsed.append((p, header, norm_body, norm_body.lower()))
             self._parsed_passages = parsed
+            self._build_bm25_index()
+        elif not hasattr(self, "_bm25_num_docs"):
+            self._build_bm25_index()
+
+        # Guard: Reject out-of-domain queries where core substantive terms are absent from the clinical guideline corpus
+        if hasattr(self, "_bm25_df") and self._bm25_df:
+            missing_terms = [w for w in raw_query_words if self._bm25_df.get(w, 0) == 0]
+            if len(missing_terms) >= 2 or (len(raw_query_words) >= 3 and (len(missing_terms) / len(raw_query_words)) >= 0.25):
+                return []
 
         scored = []
-        for p, header, body, body_lower in self._parsed_passages:
+        for doc_idx, (p, header, body, body_lower) in enumerate(self._parsed_passages):
 
             # 1. Front-matter / glossary / bibliography detection
             is_acronym_glossary = body.count(";") >= 4 and any(w in body for w in ["FDA", "INR", "MELD", "UWDRS", "co-first authors", "HCC"])
@@ -1728,6 +1861,10 @@ class MedicalRAGSystem:
 
             coverage = matched_distinct / len(raw_query_words)
             score *= (0.5 + 1.5 * coverage)
+
+            # Okapi BM25 contribution (hybrid lexical-semantic scoring)
+            bm25_val = self._compute_bm25_score(doc_idx, raw_query_words)
+            score += 2.0 * bm25_val
 
             # 3. Penalize boilerplate, glossary, and bibliography
             if is_acronym_glossary:
@@ -1812,13 +1949,41 @@ class MedicalRAGSystem:
                 if any(k in body_lower for k in ["d-penicillamine", "trientine", "zinc acetate", "adverse", "side effect", "tolerance profile", "toxicity", "proteinuria", "pyridoxine"]):
                     score += 12.0
 
-            min_cov = 0.50 if len(raw_query_words) <= 2 else (0.20 if len(raw_query_words) >= 6 else 0.30)
+            min_cov = 0.50 if len(raw_query_words) <= 2 else (0.40 if len(raw_query_words) >= 6 else 0.30)
             if score >= 8.0 and coverage >= min_cov:
-                scored.append((score, p))
+                scored.append((score, p, body, body_lower))
 
-        scored.sort(key=lambda x: x[0], reverse=True)
         if not scored:
             return []
+
+        # Stage 2: Cross-scoring candidate re-ranking (Phrase proximity & Quantitative Diagnostic Density)
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top_candidates = scored[:15]
+        remaining_candidates = scored[15:]
+
+        reranked_top = []
+        for s, p, body, body_lower in top_candidates:
+            rerank_bonus = 0.0
+
+            # 1. Exact query n-gram / bigram proximity bonus
+            for i in range(len(raw_query_words) - 1):
+                bigram = f"{raw_query_words[i]} {raw_query_words[i+1]}"
+                if bigram in body_lower:
+                    rerank_bonus += 4.0
+
+            # 2. Quantitative diagnostic density bonus (Wilson disease thresholds)
+            unit_matches = len(re.findall(r'\b\d+(?:\.\d+)?\s*(?:mg/d[lL]|µg/24\s*h|ug/24\s*h|µmol/24\s*h|umol/24\s*h|µg/g|ug/g|U/[lL]|%|points?|score|mg/day)\b', body))
+            if unit_matches > 0:
+                rerank_bonus += min(unit_matches * 1.5, 6.0)
+
+            # 3. Clinical guideline recommendation statement marker
+            if any(rec in body_lower for rec in ["we recommend", "guidance statement", "class i", "level a", "level b", "diagnostic criteria", "first-line"]):
+                rerank_bonus += 3.0
+
+            reranked_top.append((s + rerank_bonus, p))
+
+        reranked_top.sort(key=lambda x: x[0], reverse=True)
+        scored = reranked_top + [(s, p) for s, p, _, _ in remaining_candidates]
 
         best_score = scored[0][0]
 

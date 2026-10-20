@@ -1,5 +1,5 @@
 # app.py — Advanced SHAP UI dashboard + prediction endpoints (FINAL FIXED VERSION)
-from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, Response, session, redirect
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, Response, session, redirect, send_file
 import os
 import sys
 import time
@@ -71,7 +71,8 @@ from rag_system import (
     ingest_document,
     simulate_chunk_division,
     chunk_clinical_text,
-    detect_clinical_terms
+    detect_clinical_terms,
+    extract_document_preview
 )
 from clinical_evaluation import (
     evaluate_clinical_parameters,
@@ -83,6 +84,7 @@ from database import (
     get_next_patient_id,
     create_or_update_patient,
     get_patient_by_id,
+    delete_patient,
     get_all_patients,
     save_assessment,
     get_assessment_by_id,
@@ -105,6 +107,11 @@ from database import (
     log_rag_query,
     get_rag_metrics_summary,
     get_recent_rag_queries,
+    create_lab_report,
+    get_lab_reports,
+    get_lab_report_by_id,
+    get_latest_lab_report_for_patient,
+    get_patient_comparison_data,
     DEFAULT_DB_PATH
 )
 from lab_import import (
@@ -680,14 +687,29 @@ def change_password():
 
 
 @app.route("/lab/import", methods=["GET"])
-@roles_required("lab_staff", "clinician")
+@roles_required("admin", "lab_staff", "clinician")
 def lab_import_page():
     """Laboratory test file import and schema validation portal for laboratory personnel."""
-    return render_template("lab_import.html")
+    db_path = get_active_db_path()
+    try:
+        next_id = get_next_patient_id(db_path)
+        all_patients = get_all_patients(db_path)
+        recent_reports = get_lab_reports(limit=25, db_path=db_path)
+    except Exception as e:
+        logger.warning("Error fetching initial data for /lab/import: %s", e)
+        next_id = "NEUROMED001"
+        all_patients = []
+        recent_reports = []
+    return render_template(
+        "lab_import.html",
+        next_patient_id=next_id,
+        patients=all_patients,
+        recent_reports=recent_reports
+    )
 
 
 @app.route("/about")
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def about():
     try:
         next_id = get_next_patient_id(get_active_db_path())
@@ -700,7 +722,7 @@ def about():
 
 
 @app.route("/api/next_patient_id", methods=["GET"])
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def api_next_patient_id():
     """Returns the next sequential Patient ID preview (e.g. NEUROMED001)."""
     try:
@@ -712,7 +734,7 @@ def api_next_patient_id():
 
 
 @app.route("/api/patient/<patient_id>", methods=["GET"])
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def api_get_patient(patient_id):
     """Retrieves patient demographic profile by ID without exposing sensitive internal data."""
     try:
@@ -738,7 +760,7 @@ def api_get_patient(patient_id):
 
 
 @app.route("/api/upload_lab_file", methods=["POST"])
-@roles_required("lab_staff", "clinician")
+@roles_required("admin", "lab_staff", "clinician")
 def api_upload_lab_file():
     """
     Parses and validates uploaded CSV or JSON laboratory data files.
@@ -778,7 +800,7 @@ def api_upload_lab_file():
 
 
 @app.route("/api/sample_template", methods=["GET"])
-@roles_required("lab_staff", "clinician")
+@roles_required("admin", "lab_staff", "clinician")
 def api_sample_template():
     """Returns downloadable sample CSV, JSON, or Word DOCX laboratory data template."""
     fmt = request.args.get("format", "csv").lower().strip()
@@ -804,6 +826,177 @@ def api_sample_template():
     )
 
 
+# ==============================================================================
+# CERTIFIED LABORATORY REPORT & LONGITUDINAL COMPARISON PORTAL
+# ==============================================================================
+
+@app.route("/api/lab/save_report", methods=["POST"])
+@roles_required("admin", "lab_staff", "clinician")
+def api_lab_save_report():
+    """
+    Saves a certified laboratory report entered by lab staff into SQLite.
+    Automatically assigns sequential LAB-YYYY-#### report number,
+    registers or updates the patient record, and creates an audit trail entry.
+    """
+    try:
+        req_data = request.get_json(silent=True)
+        if not req_data:
+            return jsonify({"success": False, "error": "Invalid or missing JSON payload."}), 400
+
+        patient_name = (req_data.get("patient_name") or req_data.get("patientName") or "").strip()
+        if not patient_name:
+            return jsonify({"success": False, "error": "Patient name is required."}), 400
+
+        db_path = get_active_db_path()
+        user_id = session.get("user_id")
+        user_name = session.get("full_name") or session.get("username") or "Lab Technician"
+
+        req_data["technician_id"] = user_id
+        req_data["technician_name"] = user_name
+
+        report = create_lab_report(req_data, db_path=db_path)
+        return jsonify({
+            "success": True,
+            "message": f"Certified Laboratory Report #{report['report_number']} saved successfully.",
+            "report_id": report["report_id"],
+            "report_number": report["report_number"],
+            "patient_id": report["patient_id"],
+            "report_url": url_for("lab_report_view", report_id=report["report_id"])
+        }), 201
+    except ValueError as ve:
+        logger.warning("Validation error saving lab report: %s", ve)
+        return jsonify({"success": False, "error": str(ve)}), 400
+    except Exception as e:
+        logger.exception("Failed to save lab report: %s", e)
+        return jsonify({"success": False, "error": f"Failed to save lab report: {str(e)}"}), 500
+
+
+@app.route("/lab/report/<int:report_id>", methods=["GET"])
+@roles_required("admin", "lab_staff", "clinician")
+def lab_report_view(report_id):
+    """
+    Renders an official Certified Laboratory Report for viewing and printing.
+    """
+    try:
+        db_path = get_active_db_path()
+        report = get_lab_report_by_id(report_id, db_path=db_path)
+        if not report:
+            return render_template(
+                "404.html",
+                message=f"Laboratory report #{report_id} was not found."
+            ), 404
+
+        patient = get_patient_by_id(report["patient_id"], db_path=db_path)
+        return render_template("lab_report_view.html", report=report, patient=patient)
+    except Exception as e:
+        logger.exception("Error rendering lab report #%s: %s", report_id, e)
+        return "Failed to load laboratory report", 500
+
+
+@app.route("/api/lab/reports", methods=["GET"])
+@roles_required("admin", "lab_staff", "clinician")
+def api_lab_reports():
+    """Returns recent certified lab reports, optionally filtered by patient_id."""
+    try:
+        db_path = get_active_db_path()
+        patient_id = request.args.get("patient_id")
+        limit = int(request.args.get("limit", 50))
+        reports = get_lab_reports(patient_id=patient_id, limit=limit, db_path=db_path)
+        return jsonify({"success": True, "reports": reports})
+    except Exception as e:
+        logger.exception("Error fetching lab reports: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/lab/patient/<patient_id>/latest_report", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_patient_latest_lab_report(patient_id):
+    """
+    Returns the latest verified lab report for a patient to allow
+    1-click auto-fill into the clinician diagnostic assessment form.
+    """
+    try:
+        db_path = get_active_db_path()
+        report = get_latest_lab_report_for_patient(patient_id, db_path=db_path)
+        if not report:
+            return jsonify({"success": False, "error": f"No certified lab reports found for patient {patient_id}."}), 404
+        return jsonify({"success": True, "report": report})
+    except Exception as e:
+        logger.exception("Error fetching latest lab report for %s: %s", patient_id, e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/patient/<patient_id>/compare", methods=["GET"])
+@roles_required("admin", "clinician")
+def patient_compare_view(patient_id):
+    """
+    Renders an interactive Side-by-Side Comparison Matrix for a patient
+    tested across multiple periods (e.g. Test 1 in Jan vs Test 2 in June).
+    Displays biomarker deltas, percentage changes, directional trajectory badges,
+    and clinical response synthesis.
+    """
+    try:
+        db_path = get_active_db_path()
+        patient = get_patient_by_id(patient_id, db_path=db_path)
+        if not patient:
+            return render_template(
+                "404.html",
+                message=f"Patient record '{patient_id}' not found."
+            ), 404
+
+        id1 = request.args.get("id1")
+        id2 = request.args.get("id2")
+        comp_type = request.args.get("type", "assessment")
+
+        comparison = get_patient_comparison_data(
+            patient_id=patient_id,
+            id1=id1,
+            id2=id2,
+            comparison_type=comp_type,
+            db_path=db_path
+        )
+
+        all_assessments = get_patient_history(patient_id, db_path=db_path)
+        all_lab_reports = get_lab_reports(patient_id=patient_id, db_path=db_path)
+
+        return render_template(
+            "patient_compare.html",
+            patient=patient,
+            comparison=comparison,
+            comp_type=comp_type,
+            id1=id1,
+            id2=id2,
+            all_assessments=all_assessments,
+            all_lab_reports=all_lab_reports
+        )
+    except Exception as e:
+        logger.exception("Error comparing reports for patient %s: %s", patient_id, e)
+        return f"Failed to generate patient comparison: {str(e)}", 500
+
+
+@app.route("/api/patient/<patient_id>/compare", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_patient_compare(patient_id):
+    """API endpoint returning JSON longitudinal comparison data."""
+    try:
+        db_path = get_active_db_path()
+        id1 = request.args.get("id1")
+        id2 = request.args.get("id2")
+        comp_type = request.args.get("type", "assessment")
+
+        data = get_patient_comparison_data(
+            patient_id=patient_id,
+            id1=id1,
+            id2=id2,
+            comparison_type=comp_type,
+            db_path=db_path
+        )
+        return jsonify({"success": True, "comparison": data})
+    except Exception as e:
+        logger.exception("API compare error for %s: %s", patient_id, e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 
 def safe_shap_path(rel_path: Optional[str]) -> Optional[str]:
     """
@@ -824,7 +1017,7 @@ def safe_shap_path(rel_path: Optional[str]) -> Optional[str]:
 
 
 @app.route("/patients", methods=["GET"])
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def patient_dashboard():
     """Displays patient directory dashboard with search, risk filters, sorting, and pagination."""
     try:
@@ -867,7 +1060,7 @@ def patient_dashboard():
 
 
 @app.route("/patient/<patient_id>/history", methods=["GET"])
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def patient_history_view(patient_id):
     """
     Displays full chronological assessment history for an individual patient.
@@ -883,14 +1076,109 @@ def patient_history_view(patient_id):
             ), 404
         
         history = get_patient_history(patient_id, db_path)
-        return render_template("patient_history.html", patient=patient, history=history)
+        lab_reports = get_lab_reports(patient_id=patient_id, db_path=db_path)
+        return render_template(
+            "patient_history.html",
+            patient=patient,
+            history=history,
+            lab_reports=lab_reports
+        )
     except Exception as e:
         logger.exception("Error retrieving patient history for %s: %s", patient_id, e)
         return "Failed to load patient history", 500
 
 
+@app.route("/api/patient/<patient_id>/delete", methods=["POST", "DELETE"])
+@roles_required("admin")
+def api_delete_patient(patient_id):
+    """
+    Chief Doctor (Admin) exclusive endpoint:
+    Permanently deletes a patient record, cascaded diagnostic assessments,
+    and certified laboratory reports from SQLite.
+    Emits a PATIENT_DELETED audit log event.
+    """
+    try:
+        db_path = get_active_db_path()
+        patient = get_patient_by_id(patient_id, db_path)
+        if not patient:
+            return jsonify({
+                "success": False,
+                "error": f"Patient record '{patient_id}' was not found in the database."
+            }), 404
+
+        patient_name = patient.get("patient_name", "Unknown")
+        deleted = delete_patient(patient_id, db_path)
+        if not deleted:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to delete patient record '{patient_id}'."
+            }), 500
+
+        user_id = session.get("user_id")
+        username = session.get("username", "admin")
+
+        log_audit_event(
+            action="PATIENT_DELETED",
+            status="SUCCESS",
+            user_id=user_id,
+            username=username,
+            resource_id=patient_id,
+            details=f"Admin '{username}' permanently deleted patient {patient_name} ({patient_id}) and all associated assessments and lab reports.",
+            ip_address=get_client_ip(),
+            db_path=db_path
+        )
+
+        return jsonify({
+            "success": True,
+            "message": f"Patient record '{patient_id}' ({patient_name}) and all associated clinical history have been permanently deleted.",
+            "patient_id": patient_id
+        }), 200
+
+    except Exception as e:
+        logger.exception("Error deleting patient record %s: %s", patient_id, e)
+        return jsonify({
+            "success": False,
+            "error": "An internal server error occurred while deleting the patient record."
+        }), 500
+
+
+@app.route("/patient/<patient_id>/delete", methods=["POST"])
+@roles_required("admin")
+def patient_delete_form(patient_id):
+    """Fallback standard POST handler for patient deletion with redirect."""
+    try:
+        db_path = get_active_db_path()
+        patient = get_patient_by_id(patient_id, db_path)
+        if not patient:
+            return render_template(
+                "404.html",
+                message=f"Patient record '{patient_id}' was not found in the database."
+            ), 404
+
+        patient_name = patient.get("patient_name", "Unknown")
+        delete_patient(patient_id, db_path)
+
+        user_id = session.get("user_id")
+        username = session.get("username", "admin")
+
+        log_audit_event(
+            action="PATIENT_DELETED",
+            status="SUCCESS",
+            user_id=user_id,
+            username=username,
+            resource_id=patient_id,
+            details=f"Admin '{username}' permanently deleted patient {patient_name} ({patient_id}).",
+            ip_address=get_client_ip(),
+            db_path=db_path
+        )
+        return redirect(url_for("patient_dashboard"))
+    except Exception as e:
+        logger.exception("Error deleting patient record %s via form: %s", patient_id, e)
+        return "Failed to delete patient record", 500
+
+
 @app.route("/assessment/<int:assessment_id>/report", methods=["GET"])
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def historical_assessment_report(assessment_id):
     """
     Renders an archival clinical decision-support report for a specific historical assessment.
@@ -963,7 +1251,7 @@ def historical_assessment_report(assessment_id):
 
 
 @app.route("/do")
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def do():
     return render_template("do.html")
 
@@ -1042,7 +1330,7 @@ def parse_cognitive(val):
 # PREDICT ROUTE
 # ============================
 @app.route("/submit", methods=["POST"])
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def submit():
     if not models_ready():
         return "Models not loaded", 500
@@ -1189,6 +1477,7 @@ def rag_monitor():
     pending_docs = get_rag_documents(status="pending_approval", db_path=db_path)
     approved_docs = get_rag_documents(status="approved", db_path=db_path)
     rejected_docs = get_rag_documents(status="rejected", db_path=db_path)
+    all_governance_docs = get_rag_documents(db_path=db_path)
     recent_queries = get_recent_rag_queries(limit=40, db_path=db_path)
 
     langsmith_active = bool(
@@ -1214,6 +1503,7 @@ def rag_monitor():
         pending_docs=pending_docs,
         approved_docs=approved_docs,
         rejected_docs=rejected_docs,
+        all_governance_docs=all_governance_docs,
         recent_queries=recent_queries,
         rag_status=rag_status,
         chunk_data=initial_chunk_data
@@ -1575,6 +1865,136 @@ def api_rag_reject_document(doc_id):
     })
 
 
+@app.route("/api/rag/document/<int:doc_id>/preview", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_rag_document_preview(doc_id):
+    """
+    Returns structured page text, word counts, and metadata for document pre-approval inspection.
+    Supports pending uploads as well as core active guidelines.
+    """
+    db_path = app.config.get("DB_PATH")
+    doc = get_rag_document_by_id(doc_id, db_path=db_path)
+    filename = None
+    resolved_path = None
+
+    if doc:
+        filename = doc["filename"]
+        candidate_paths = [
+            doc.get("file_path", ""),
+            os.path.join("medical_docs", "pending", filename),
+            os.path.join("medical_docs", filename)
+        ]
+        for cp in candidate_paths:
+            if cp and os.path.exists(cp):
+                resolved_path = cp
+                break
+    else:
+        # Fallback for foundation guidelines referenced by name/query
+        fn_param = request.args.get("filename", "").strip()
+        if fn_param:
+            base_fn = os.path.basename(fn_param.replace("\\", "/"))
+            candidates = [
+                os.path.join("medical_docs", base_fn),
+                os.path.join("medical_docs", secure_filename(base_fn)),
+                os.path.join("medical_docs", "pending", base_fn),
+                os.path.join("medical_docs", "pending", secure_filename(base_fn))
+            ]
+            for cand in candidates:
+                if cand and os.path.isfile(cand):
+                    resolved_path = cand
+                    filename = os.path.basename(cand)
+                    break
+
+    if not resolved_path or not os.path.isfile(resolved_path):
+        return jsonify({"success": False, "error": f"Guideline document #{doc_id} not found on server disk."}), 404
+
+    try:
+        preview_info = extract_document_preview(resolved_path, filename)
+        file_size = os.path.getsize(resolved_path)
+        title = (doc.get("title") if doc else None) or os.path.splitext(filename)[0]
+
+        return jsonify({
+            "success": True,
+            "doc_id": doc_id,
+            "title": title,
+            "filename": filename,
+            "original_filename": (doc.get("original_filename") if doc else filename) or filename,
+            "file_size_bytes": file_size,
+            "file_size_kb": round(file_size / 1024, 1),
+            "review_status": (doc.get("review_status") if doc else "approved"),
+            "uploaded_by_name": (doc.get("uploaded_by_name") if doc else "American Association for the Study of Liver Diseases / EASL"),
+            "created_at": str(doc.get("created_at") if doc else "Core Foundation Guideline")[:16],
+            "page_count": preview_info["page_count"],
+            "char_count": preview_info["total_characters"],
+            "total_characters": preview_info["total_characters"],
+            "estimated_passages": preview_info["estimated_passages"],
+            "pages": preview_info["pages"],
+            "extracted_text": "\n\n".join(p["text"] for p in preview_info.get("pages", [])) if preview_info.get("pages") else "",
+            "detected_terms": preview_info["detected_terms"],
+            "file_url": f"/api/rag/document/{doc_id}/file" + (f"?filename={filename}" if not doc else "")
+        })
+    except Exception as e:
+        logger.exception("Error generating document preview: %s", e)
+        return jsonify({"success": False, "error": f"Failed to extract document preview: {str(e)}"}), 500
+
+
+@app.route("/api/rag/document/<int:doc_id>/file", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_rag_document_file(doc_id):
+    """Serves the raw PDF/DOCX file inline for browser preview."""
+    db_path = app.config.get("DB_PATH")
+    doc = get_rag_document_by_id(doc_id, db_path=db_path)
+    filename = None
+    resolved_path = None
+
+    if doc:
+        filename = doc["filename"]
+        candidate_paths = [
+            doc.get("file_path", ""),
+            os.path.join("medical_docs", "pending", filename),
+            os.path.join("medical_docs", filename)
+        ]
+        for cp in candidate_paths:
+            if cp and os.path.exists(cp):
+                resolved_path = cp
+                break
+    else:
+        fn_param = request.args.get("filename", "").strip()
+        if fn_param:
+            base_fn = os.path.basename(fn_param.replace("\\", "/"))
+            candidates = [
+                os.path.join("medical_docs", base_fn),
+                os.path.join("medical_docs", secure_filename(base_fn)),
+                os.path.join("medical_docs", "pending", base_fn),
+                os.path.join("medical_docs", "pending", secure_filename(base_fn))
+            ]
+            for cand in candidates:
+                if cand and os.path.isfile(cand):
+                    resolved_path = cand
+                    filename = os.path.basename(cand)
+                    break
+
+    if not resolved_path or not os.path.isfile(resolved_path):
+        return jsonify({"success": False, "error": f"Guideline file not found on disk."}), 404
+
+    ext = os.path.splitext(filename)[1].lower()
+    mimetypes = {
+        ".pdf": "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".doc": "application/msword",
+        ".txt": "text/plain; charset=utf-8",
+        ".md": "text/markdown; charset=utf-8"
+    }
+    mimetype = mimetypes.get(ext, "application/octet-stream")
+
+    return send_file(
+        os.path.abspath(resolved_path),
+        mimetype=mimetype,
+        as_attachment=False,
+        download_name=filename
+    )
+
+
 # ==============================================================================
 # MULTI-SESSION PERSISTENT CHAT & TELEMETRY APIS
 # ==============================================================================
@@ -1744,7 +2164,7 @@ def api_chat():
 
 
 @app.route("/uploads/<path:filename>")
-@roles_required("clinician")
+@roles_required("admin", "clinician")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 

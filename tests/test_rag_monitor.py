@@ -669,6 +669,66 @@ class TestRAGMonitorAndGovernance(unittest.TestCase):
         self.assertIn('id="sim-input-text"', html)
         self.assertIn('runChunkSimulation()', html)
 
+        # Document Preview Modal & Inspect Buttons
+        self.assertIn('id="document-preview-modal"', html)
+        self.assertIn('inspectDocument', html)
+        self.assertIn('modal-pdf-iframe', html)
+
+    def test_document_preview_and_file_streaming_endpoints(self):
+        """Verifies GET /api/rag/document/<id>/preview and /file for active guidelines and pending uploads."""
+        self._login_as(self.chief_doctor)
+
+        # 1. Active foundation guideline preview via filename query param
+        resp = self.client.get("/api/rag/document/0/preview?filename=NIH%20Wilson%20Disease.pdf")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data.get("success"))
+        self.assertIn("NIH Wilson Disease.pdf", data.get("filename"))
+        self.assertGreater(data.get("page_count", 0), 0)
+        self.assertGreater(data.get("char_count", 0), 0)
+        self.assertGreater(data.get("estimated_passages", 0), 0)
+        self.assertIsInstance(data.get("detected_terms"), list)
+
+        # 2. Active foundation guideline file stream
+        file_resp = self.client.get("/api/rag/document/0/file?filename=NIH%20Wilson%20Disease.pdf")
+        self.assertEqual(file_resp.status_code, 200)
+        self.assertEqual(file_resp.content_type, "application/pdf")
+        self.assertGreater(len(file_resp.data), 1000)
+
+        # 3. Quarantined uploaded document preview and file stream
+        upload_resp = self.client.post(
+            "/api/rag/upload_document",
+            data={
+                "title": "Protocol for Trientine and Zinc Therapy",
+                "document": (io.BytesIO(b"Wilson Disease initial chelation protocol with Trientine and Zinc therapy."), "Trientine_Protocol.txt")
+            },
+            content_type="multipart/form-data"
+        )
+        self.assertIn(upload_resp.status_code, (200, 201))
+        doc_id = upload_resp.get_json().get("doc_id")
+        self.assertIsNotNone(doc_id)
+
+        # Preview uploaded doc by doc_id
+        doc_prev_resp = self.client.get(f"/api/rag/document/{doc_id}/preview")
+        self.assertEqual(doc_prev_resp.status_code, 200)
+        prev_data = doc_prev_resp.get_json()
+        self.assertTrue(prev_data.get("success"))
+        self.assertIn("Trientine", prev_data.get("extracted_text", ""))
+
+        # Stream uploaded doc file by doc_id
+        stream_resp = self.client.get(f"/api/rag/document/{doc_id}/file")
+        self.assertEqual(stream_resp.status_code, 200)
+        self.assertIn(b"Wilson Disease initial chelation protocol", stream_resp.data)
+
+    def test_document_preview_nonexistent_returns_404(self):
+        """Verifies accessing nonexistent document preview or file returns 404."""
+        self._login_as(self.chief_doctor)
+        resp_prev = self.client.get("/api/rag/document/99999/preview")
+        self.assertEqual(resp_prev.status_code, 404)
+
+        resp_file = self.client.get("/api/rag/document/99999/file")
+        self.assertEqual(resp_file.status_code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()

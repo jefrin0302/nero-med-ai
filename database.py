@@ -281,6 +281,55 @@ def init_db(db_path: Optional[str] = None) -> None:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_query_logs_created_at ON rag_query_logs(created_at);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_query_logs_engine ON rag_query_logs(synthesis_engine);")
 
+        # 9. Certified Patient Laboratory Reports Table (Lab Staff Workstation)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS lab_reports (
+                report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_number TEXT NOT NULL UNIQUE,
+                patient_id TEXT NOT NULL,
+                patient_name TEXT NOT NULL,
+                technician_id INTEGER,
+                technician_name TEXT,
+                sample_type TEXT DEFAULT 'Venous Blood & 24h Urine',
+                collection_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                reporting_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                validation_status TEXT DEFAULT 'Certified',
+                
+                -- Clinical Biomarkers
+                age REAL,
+                sex TEXT,
+                ceruloplasmin_level REAL,
+                copper_blood_serum REAL,
+                free_copper_blood_serum REAL,
+                copper_urine REAL,
+                alt REAL,
+                ast REAL,
+                total_bilirubin REAL,
+                albumin REAL,
+                alkaline_phosphatase_alp REAL,
+                prothrombin_time_inr REAL,
+                gamma_glutamyl_transferase_ggt REAL,
+                kayser_fleischer_rings INTEGER,
+                neurological_symptoms_score REAL,
+                psychiatric_symptoms INTEGER,
+                cognitive_function_score REAL,
+                family_history INTEGER,
+                atb7b_gene_mutation INTEGER,
+                region TEXT,
+                socioeconomic_status TEXT,
+                alcohol_use TEXT,
+                bmi REAL,
+                
+                specimen_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE,
+                FOREIGN KEY (technician_id) REFERENCES users(user_id) ON DELETE SET NULL
+            );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_lab_reports_patient ON lab_reports(patient_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_lab_reports_number ON lab_reports(report_number);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_lab_reports_created ON lab_reports(created_at);")
+
         conn.commit()
     logger.info("Database initialized successfully at: %s", target_path)
 
@@ -401,6 +450,42 @@ def get_patient_by_id(patient_id: str, db_path: Optional[str] = None) -> Optiona
         if not row:
             return None
         return dict(row)
+
+
+def delete_patient(patient_id: str, db_path: Optional[str] = None) -> bool:
+    """
+    Permanently deletes a patient record from SQLite along with all cascaded entities:
+    - Certified lab reports in lab_reports
+    - Historical diagnostic assessments in assessments
+    - Cleans up patient association in chat_sessions (sets patient_id = NULL)
+    - Deletes baseline patient profile in patients
+    
+    Returns True if the patient existed and was successfully deleted, False otherwise.
+    All operations are executed within a single transaction with rollback on failure.
+    """
+    if not patient_id or not patient_id.strip():
+        return False
+        
+    pid = patient_id.strip()
+    target_path = db_path or DEFAULT_DB_PATH
+    
+    with open_db(target_path) as conn:
+        cursor = conn.cursor()
+        
+        # Check patient existence
+        cursor.execute("SELECT patient_id, patient_name FROM patients WHERE patient_id = ?;", (pid,))
+        patient = cursor.fetchone()
+        if not patient:
+            return False
+            
+        # Clean up cascaded entities explicitly to guarantee integrity regardless of PRAGMA foreign_keys state
+        cursor.execute("DELETE FROM lab_reports WHERE patient_id = ?;", (pid,))
+        cursor.execute("DELETE FROM assessments WHERE patient_id = ?;", (pid,))
+        cursor.execute("UPDATE chat_sessions SET patient_id = NULL WHERE patient_id = ?;", (pid,))
+        cursor.execute("DELETE FROM patients WHERE patient_id = ?;", (pid,))
+        
+        conn.commit()
+        return True
 
 
 def get_all_patients(
@@ -1274,5 +1359,404 @@ def get_recent_rag_queries(
             SELECT * FROM rag_query_logs ORDER BY created_at DESC, log_id DESC LIMIT ? OFFSET ?;
         """, (limit, offset))
         return [dict(r) for r in cursor.fetchall()]
+
+
+# ==============================================================================
+# LABORATORY WORKSTATION & LONGITUDINAL PATIENT COMPARISON
+# ==============================================================================
+
+def _generate_next_lab_report_number(cursor: sqlite3.Cursor) -> str:
+    """Helper to compute sequential lab report accession numbers (e.g., LAB-2026-0001)."""
+    current_year = datetime.now().year
+    prefix = f"LAB-{current_year}-"
+    cursor.execute("SELECT report_number FROM lab_reports WHERE report_number LIKE ? ORDER BY report_id DESC LIMIT 1;", (f"{prefix}%",))
+    row = cursor.fetchone()
+    if row and row["report_number"]:
+        try:
+            last_seq = int(row["report_number"].split("-")[-1])
+            next_seq = last_seq + 1
+        except Exception:
+            next_seq = 1
+    else:
+        next_seq = 1
+    return f"{prefix}{next_seq:04d}"
+
+
+def create_lab_report(
+    data: Dict[str, Any],
+    db_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Creates and persists a certified patient laboratory report.
+    Guarantees patient registration / update in patients table.
+    Enforces HIPAA audit trail logging.
+    """
+    patient_id = (data.get("patient_id") or "").strip()
+    patient_name = (data.get("patient_name") or "").strip() or "Anonymous Patient"
+
+    target_path = db_path or DEFAULT_DB_PATH
+    conn = get_db_connection(target_path)
+
+    try:
+        cursor = conn.cursor()
+
+        # If patient_id was not explicitly passed, generate next sequential ID
+        if not patient_id:
+            patient_id = _compute_next_id_from_cursor(cursor)
+
+        # 1. Ensure patient exists in patients table
+        cursor.execute("SELECT patient_id FROM patients WHERE patient_id = ?;", (patient_id,))
+        existing_patient = cursor.fetchone()
+        if not existing_patient:
+            cursor.execute("""
+                INSERT INTO patients (patient_id, patient_name, age, sex, region, ses, bmi, alcohol_use)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """, (
+                patient_id,
+                patient_name,
+                data.get("age"),
+                data.get("sex"),
+                data.get("region"),
+                data.get("ses") or data.get("socioeconomic_status"),
+                data.get("bmi"),
+                str(data.get("alcohol_use")) if data.get("alcohol_use") is not None else None
+            ))
+        else:
+            # Update baseline demographics if provided
+            cursor.execute("""
+                UPDATE patients SET
+                    patient_name = COALESCE(?, patient_name),
+                    age = COALESCE(?, age),
+                    sex = COALESCE(?, sex),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE patient_id = ?;
+            """, (patient_name, data.get("age"), data.get("sex"), patient_id))
+
+        # 2. Generate unique report accession number
+        report_num = _generate_next_lab_report_number(cursor)
+
+        # 3. Insert lab report
+        cursor.execute("""
+            INSERT INTO lab_reports (
+                report_number, patient_id, patient_name, technician_id, technician_name,
+                sample_type, validation_status,
+                age, sex, ceruloplasmin_level, copper_blood_serum, free_copper_blood_serum,
+                copper_urine, alt, ast, total_bilirubin, albumin, alkaline_phosphatase_alp,
+                prothrombin_time_inr, gamma_glutamyl_transferase_ggt, kayser_fleischer_rings,
+                neurological_symptoms_score, psychiatric_symptoms, cognitive_function_score,
+                family_history, atb7b_gene_mutation, region, socioeconomic_status,
+                alcohol_use, bmi, specimen_notes
+            ) VALUES (
+                ?, ?, ?, ?, ?,
+                ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?, ?,
+                ?, ?, ?
+            );
+        """, (
+            report_num,
+            patient_id,
+            patient_name,
+            data.get("technician_id"),
+            data.get("technician_name") or "Lab Technician",
+            data.get("sample_type", "Venous Blood & 24h Urine"),
+            data.get("validation_status", "Certified"),
+            data.get("age"),
+            data.get("sex"),
+            data.get("ceruloplasmin_level"),
+            data.get("copper_blood_serum"),
+            data.get("free_copper_blood_serum"),
+            data.get("copper_urine"),
+            data.get("alt"),
+            data.get("ast"),
+            data.get("total_bilirubin"),
+            data.get("albumin"),
+            data.get("alkaline_phosphatase_alp"),
+            data.get("prothrombin_time_inr"),
+            data.get("gamma_glutamyl_transferase_ggt"),
+            data.get("kayser_fleischer_rings"),
+            data.get("neurological_symptoms_score"),
+            data.get("psychiatric_symptoms"),
+            data.get("cognitive_function_score"),
+            data.get("family_history"),
+            data.get("atb7b_gene_mutation"),
+            data.get("region"),
+            data.get("socioeconomic_status") or data.get("ses"),
+            str(data.get("alcohol_use")) if data.get("alcohol_use") is not None else None,
+            data.get("bmi"),
+            data.get("specimen_notes")
+        ))
+
+        report_id = cursor.lastrowid
+        conn.commit()
+
+        # Audit event
+        log_audit_event(
+            action="LAB_REPORT_CREATED",
+            status="SUCCESS",
+            user_id=data.get("technician_id"),
+            username=data.get("technician_name") or "lab_staff",
+            details=f"Generated certified laboratory report #{report_num} for patient {patient_id} ({patient_name})",
+            db_path=target_path
+        )
+
+        return get_lab_report_by_id(report_id, db_path=target_path)
+    except Exception as e:
+        conn.rollback()
+        logger.exception("Failed to create lab report for patient %s: %s", patient_id, e)
+        raise
+    finally:
+        conn.close()
+
+
+def get_lab_reports(
+    patient_id: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Retrieves list of lab reports, optionally filtered by patient_id."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        if patient_id and patient_id.strip():
+            cursor.execute("""
+                SELECT * FROM lab_reports 
+                WHERE patient_id = ? 
+                ORDER BY collection_date DESC, report_id DESC 
+                LIMIT ? OFFSET ?;
+            """, (patient_id.strip(), limit, offset))
+        else:
+            cursor.execute("""
+                SELECT * FROM lab_reports 
+                ORDER BY collection_date DESC, report_id DESC 
+                LIMIT ? OFFSET ?;
+            """, (limit, offset))
+        return [dict(r) for r in cursor.fetchall()]
+
+
+def get_lab_report_by_id(report_id: int, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieves an individual certified laboratory report by report_id."""
+    if not report_id:
+        return None
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM lab_reports WHERE report_id = ?;", (report_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def get_latest_lab_report_for_patient(patient_id: str, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieves the most recent verified lab report for 1-click clinical assessment pre-fill."""
+    if not patient_id:
+        return None
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM lab_reports 
+            WHERE patient_id = ? 
+            ORDER BY collection_date DESC, report_id DESC 
+            LIMIT 1;
+        """, (patient_id.strip(),))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def get_patient_comparison_data(
+    patient_id: str,
+    id1: int,
+    id2: int,
+    comparison_type: str = "assessments",
+    db_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Computes side-by-side longitudinal parameter deltas, percentage changes,
+    and therapeutic trajectory between two assessment or lab records for the same patient.
+    """
+    if not patient_id:
+        raise ValueError("Missing patient_id for longitudinal comparison.")
+
+    target_path = db_path or DEFAULT_DB_PATH
+    patient = get_patient_by_id(patient_id, db_path=target_path)
+    if not patient:
+        raise ValueError(f"Patient {patient_id} not found.")
+
+    is_assessment = comparison_type in ("assessment", "assessments")
+
+    # Safe integer parsing
+    int_id1 = None
+    int_id2 = None
+    try:
+        if id1 is not None:
+            int_id1 = int(id1)
+    except (ValueError, TypeError):
+        pass
+    try:
+        if id2 is not None:
+            int_id2 = int(id2)
+    except (ValueError, TypeError):
+        pass
+
+    if is_assessment:
+        history = get_patient_history(patient_id, db_path=target_path)
+        if (not int_id1 or not int_id2) and len(history) >= 2:
+            # history is sorted newest first
+            int_id1 = history[-1]["assessment_id"]
+            int_id2 = history[0]["assessment_id"]
+        rec1 = get_assessment_by_id(int_id1, db_path=target_path) if int_id1 else None
+        rec2 = get_assessment_by_id(int_id2, db_path=target_path) if int_id2 else None
+    else:
+        reports = get_lab_reports(patient_id=patient_id, db_path=target_path)
+        if (not int_id1 or not int_id2) and len(reports) >= 2:
+            int_id1 = reports[-1]["report_id"]
+            int_id2 = reports[0]["report_id"]
+        rec1 = get_lab_report_by_id(int_id1, db_path=target_path) if int_id1 else None
+        rec2 = get_lab_report_by_id(int_id2, db_path=target_path) if int_id2 else None
+
+    if not rec1 or not rec2:
+        raise ValueError("Both comparison records must exist in the database.")
+
+    # Chronological sort: earlier record is baseline (t1), later is follow-up (t2)
+    date_key = "created_at" if is_assessment else "collection_date"
+    date1 = str(rec1.get(date_key) or "")
+    date2 = str(rec2.get(date_key) or "")
+
+    if date1 > date2:
+        baseline, followup = rec2, rec1
+        base_id, follow_id = int_id2, int_id1
+        base_date, follow_date = date2, date1
+    else:
+        baseline, followup = rec1, rec2
+        base_id, follow_id = int_id1, int_id2
+        base_date, follow_date = date1, date2
+
+    # Track biological biomarkers with clinical units and interpretation direction
+    BIOMARKER_SPECS = [
+        ("Ceruloplasmin Level", "ceruloplasmin_level", "mg/dL", "20.0 – 40.0", False),
+        ("Copper in Urine (24h)", "copper_urine", "µg/24h", "< 40.0", True),
+        ("Free Copper in Serum", "free_copper_blood_serum", "µg/dL", "5.0 – 15.0", True),
+        ("Copper in Blood Serum", "copper_blood_serum", "µg/dL", "70.0 – 140.0", True),
+        ("ALT (SGPT)", "alt", "U/L", "7.0 – 56.0", True),
+        ("AST (SGOT)", "ast", "U/L", "10.0 – 40.0", True),
+        ("Total Bilirubin", "total_bilirubin", "mg/dL", "0.1 – 1.2", True),
+        ("Serum Albumin", "albumin", "g/dL", "3.5 – 5.0", False),
+        ("Alkaline Phosphatase (ALP)", "alkaline_phosphatase_alp", "U/L", "44.0 – 147.0", True),
+        ("Prothrombin Time (INR)", "prothrombin_time_inr", "Ratio", "0.8 – 1.1", True),
+        ("GGT", "gamma_glutamyl_transferase_ggt", "U/L", "9.0 – 48.0", True),
+        ("Neurological Score", "neurological_symptoms_score", "Score (0-10)", "0 (Normal)", True),
+        ("Cognitive Score", "cognitive_function_score", "Score (0-10)", "0 (Normal)", True)
+    ]
+
+    matrix = []
+    improved_count = 0
+    worsened_count = 0
+
+    for label, col, unit, ref_range, lower_is_better in BIOMARKER_SPECS:
+        v1 = baseline.get(col)
+        v2 = followup.get(col)
+
+        if v1 is None and v2 is None:
+            continue
+
+        try:
+            f1 = float(v1) if v1 is not None else None
+            f2 = float(v2) if v2 is not None else None
+        except (ValueError, TypeError):
+            f1, f2 = None, None
+
+        if f1 is not None and f2 is not None:
+            delta = round(f2 - f1, 2)
+            pct = round(((f2 - f1) / abs(f1)) * 100, 1) if f1 != 0 else 0.0
+
+            if abs(delta) < 0.01:
+                status = "stable"
+                status_label = "Stable"
+                status_badge = "badge-neutral"
+                icon = "▬"
+            elif (delta < 0 and lower_is_better) or (delta > 0 and not lower_is_better):
+                status = "improved"
+                status_label = "Improving"
+                status_badge = "badge-improved"
+                icon = "▼" if lower_is_better else "▲"
+                improved_count += 1
+            else:
+                status = "worsened"
+                status_label = "Elevated"
+                status_badge = "badge-worsened"
+                icon = "▲" if lower_is_better else "▼"
+                worsened_count += 1
+        else:
+            delta, pct = None, None
+            status, status_label, status_badge, icon = "unknown", "N/A", "badge-neutral", "—"
+
+        matrix.append({
+            "label": label,
+            "unit": unit,
+            "reference_range": ref_range,
+            "baseline_val": v1,
+            "followup_val": v2,
+            "delta": delta,
+            "pct_change": pct,
+            "status": status,
+            "status_label": status_label,
+            "status_badge": status_badge,
+            "icon": icon
+        })
+
+    # Summary Trajectory Text
+    u_copper_drop = False
+    for m in matrix:
+        if "Urine" in m["label"] and m["status"] == "improved":
+            u_copper_drop = True
+
+    if improved_count > worsened_count and u_copper_drop:
+        overall_trend = "Therapeutic Response Confirmed"
+        overall_badge = "badge-improved"
+        clinical_synthesis = (
+            "Marked therapeutic response: Reduction in 24-hour urinary copper excretion and normalization of hepatic enzymes "
+            "indicates effective decoppering and clinical response to prescribed chelation / zinc maintenance therapy."
+        )
+    elif worsened_count > improved_count:
+        overall_trend = "Elevated Biomarkers / Disease Activity"
+        overall_badge = "badge-worsened"
+        clinical_synthesis = (
+            "Caution: Biomarker trajectories demonstrate increased copper accumulation or hepatic enzyme elevation. "
+            "Review patient medication compliance, dosage adequacy, or intercurrent hepatic stress."
+        )
+    else:
+        overall_trend = "Stable Longitudinal Baseline"
+        overall_badge = "badge-neutral"
+        clinical_synthesis = (
+            "Longitudinal parameters demonstrate stable clinical baseline between the two evaluation periods."
+        )
+
+    return {
+        "patient": patient,
+        "comparison_type": comparison_type,
+        "baseline": {
+            "id": base_id,
+            "date": base_date[:16] if base_date else "Baseline",
+            "prediction_text": baseline.get("prediction_text"),
+            "probability": baseline.get("probability"),
+            "leipzig_score": baseline.get("leipzig_score"),
+            "report_number": baseline.get("report_number")
+        },
+        "followup": {
+            "id": follow_id,
+            "date": follow_date[:16] if follow_date else "Follow-up",
+            "prediction_text": followup.get("prediction_text"),
+            "probability": followup.get("probability"),
+            "leipzig_score": followup.get("leipzig_score"),
+            "report_number": followup.get("report_number")
+        },
+        "matrix": matrix,
+        "improved_count": improved_count,
+        "worsened_count": worsened_count,
+        "overall_trend": overall_trend,
+        "overall_badge": overall_badge,
+        "clinical_synthesis": clinical_synthesis
+    }
 
 

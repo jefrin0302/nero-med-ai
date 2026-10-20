@@ -1229,6 +1229,21 @@
         const data = await response.json();
         messagesContainer.removeChild(loadingDiv);
 
+        if (!response.ok) {
+          let errMsg = data.error || data.response || "Error connecting to RAG assistant.";
+          if (response.status === 401 || (data.error && data.error.includes("Session expired"))) {
+            errMsg = "🔒 Your session has expired due to 30 minutes of inactivity. Please refresh the page and log in again to continue.";
+          } else if (response.status === 400 && data.error && data.error.includes("CSRF")) {
+            errMsg = "🔒 Security token expired. Please refresh the page and log in again.";
+          }
+          const errDiv = document.createElement('div');
+          errDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px; font-weight: 500; border: 1px solid #fca5a5;';
+          errDiv.innerHTML = `${errMsg} <br><a href="/login?next=${encodeURIComponent(window.location.pathname)}" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-top: 6px; display: inline-block;">Click here to Log In</a>`;
+          messagesContainer.appendChild(errDiv);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          return;
+        }
+
         if (data.session_id) {
           currentSessionId = data.session_id;
           localStorage.setItem('wilson_chat_session_id', currentSessionId);

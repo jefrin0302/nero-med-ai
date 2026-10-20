@@ -18,12 +18,14 @@
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
         {% if current_user.is_authenticated %}
           {% if current_user.role == 'admin' %}
+          <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
           <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}" style="color: #818cf8; font-weight: 700;">🛡️ Governance & RAG Monitor</a></li>
           {% elif current_user.role == 'clinician' %}
           <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
           <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
           {% endif %}
-        <li><span class="nav-link-item" style="color: #cbd5e1; font-size: 13px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        <li><span class="nav-link-item" style="color: #cbd5e1; font-size: 13px;">👤 {{ current_user.username }} ({{ 'Chief Doctor' if current_user.role == 'admin' else current_user.role }})</span></li>
         <li>
           <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -49,7 +51,7 @@
 
       {% if current_user.is_authenticated and current_user.role == 'admin' %}
       <div style="text-align: left; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; font-size: 13.5px; color: #334155; line-height: 1.5;">
-        ℹ️ <strong>Role Note (Administrator):</strong> You are logged in with the <strong>admin</strong> role. Under clinical Separation of Duties, individual patient charts and direct diagnosis are reserved for <strong>clinician</strong> accounts. As Administrator, your authorized workspace is the <strong>Clinical RAG Governance & Monitor</strong>.
+        ℹ️ <strong>Role Note (Chief Doctor):</strong> You are logged in with the <strong>admin (Chief Doctor)</strong> role. You have authorized access across Clinical Assessments, Patient Directory, and RAG Governance. Certain technician-only maintenance operations may require specialized role delegation.
       </div>
       {% endif %}
 
@@ -57,6 +59,9 @@
         {% if current_user.is_authenticated and current_user.role == 'admin' %}
         <a href="{{ url_for('rag_monitor') }}" class="btn-prime" style="text-decoration: none; padding: 10px 22px; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);">
           🛡️ Go to Governance & RAG Monitor
+        </a>
+        <a href="{{ url_for('patient_dashboard') }}" class="btn-prime" style="text-decoration: none; padding: 10px 22px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+          👥 Patient Directory
         </a>
         <a href="{{ url_for('home') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 22px;">
           🏠 Return to Home

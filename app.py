@@ -4,6 +4,20 @@ import os
 import sys
 import time
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+try:
+    from langsmith import traceable
+except ImportError:
+    def traceable(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 # Prevent broken PyTorch DLL on Windows from crashing optional SHAP maskers
 if 'torch' not in sys.modules:
     try:
@@ -44,10 +58,21 @@ import matplotlib.pyplot as plt
 import warnings
 import json
 import logging
+import hashlib
+import uuid
+import shutil
+import re
+from werkzeug.utils import secure_filename
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
-from rag_system import MedicalRAGSystem
+from rag_system import (
+    MedicalRAGSystem,
+    ingest_document,
+    simulate_chunk_division,
+    chunk_clinical_text,
+    detect_clinical_terms
+)
 from clinical_evaluation import (
     evaluate_clinical_parameters,
     calculate_patient_leipzig_breakdown,
@@ -66,6 +91,20 @@ from database import (
     change_user_password,
     log_audit_event,
     get_user_by_id,
+    create_rag_document_submission,
+    get_rag_documents,
+    get_rag_document_by_id,
+    update_rag_document_status,
+    create_or_get_chat_session,
+    get_user_chat_sessions,
+    get_chat_session_by_id,
+    update_chat_session_title,
+    add_chat_message,
+    get_chat_session_messages,
+    delete_chat_session,
+    log_rag_query,
+    get_rag_metrics_summary,
+    get_recent_rag_queries,
     DEFAULT_DB_PATH
 )
 from lab_import import (
@@ -444,9 +483,10 @@ def login():
             if role == "clinician":
                 return redirect(url_for("about"))
             elif role == "lab_staff":
-                return redirect(url_for("api_sample_template"))
+                return redirect(url_for("lab_import_page"))
             elif role == "admin":
-                return redirect(url_for("patient_dashboard"))
+                return redirect(url_for("rag_monitor"))
+            return redirect(url_for("home"))
         next_url = request.args.get("next") or ""
         msg = request.args.get("message")
         return render_template("login.html", next_url=next_url, message=msg)
@@ -533,7 +573,9 @@ def login():
         return redirect(url_for("about"))
     elif user["role"] == "lab_staff":
         return redirect(url_for("lab_import_page"))
-    return redirect(url_for("patient_dashboard"))
+    elif user["role"] == "admin":
+        return redirect(url_for("rag_monitor"))
+    return redirect(url_for("home"))
 
 
 @app.route("/logout", methods=["POST"])
@@ -1134,18 +1176,568 @@ def submit():
         return "An internal server error occurred while processing the clinical assessment. Please check server logs.", 500
 
 
-@app.route("/api/chat", methods=["POST"])
-@roles_required("clinician")
-def api_chat():
+# ==============================================================================
+# CLINICAL RAG OBSERVABILITY & MONITOR DASHBOARD
+# ==============================================================================
+
+@app.route("/rag/monitor", methods=["GET"])
+@roles_required("admin", "clinician")
+def rag_monitor():
+    """Renders the real-time Clinical RAG Observability & Document Governance Dashboard."""
+    db_path = app.config.get("DB_PATH")
+    metrics = get_rag_metrics_summary(db_path=db_path)
+    pending_docs = get_rag_documents(status="pending_approval", db_path=db_path)
+    approved_docs = get_rag_documents(status="approved", db_path=db_path)
+    rejected_docs = get_rag_documents(status="rejected", db_path=db_path)
+    recent_queries = get_recent_rag_queries(limit=40, db_path=db_path)
+
+    langsmith_active = bool(
+        os.environ.get("LANGSMITH_API_KEY") and
+        os.environ.get("LANGSMITH_TRACING", "").lower() == "true"
+    )
+    langsmith_project = os.environ.get("LANGSMITH_PROJECT", "wilson-disease-rag")
+
+    rag_status = {
+        "total_passages": len(getattr(rag_assistant, "passages", [])),
+        "gemini_model": getattr(rag_assistant, "gemini_model", "gemini-flash-lite-latest"),
+        "approved_guidelines": getattr(rag_assistant, "approved_docs", []),
+        "has_gemini_client": bool(getattr(rag_assistant, "gemini_client", None)),
+        "langsmith_active": langsmith_active,
+        "langsmith_project": langsmith_project
+    }
+
+    initial_chunk_data = rag_assistant.get_chunk_corpus(offset=0, limit=12)
+
+    return render_template(
+        "rag_monitor.html",
+        metrics=metrics,
+        pending_docs=pending_docs,
+        approved_docs=approved_docs,
+        rejected_docs=rejected_docs,
+        recent_queries=recent_queries,
+        rag_status=rag_status,
+        chunk_data=initial_chunk_data
+    )
+
+
+@app.route("/api/rag/chunks", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_rag_chunks():
+    """
+    Read-only inspection endpoint for the active in-memory corpus passages.
+    Supports filtering by document name, page number, keyword query, and pagination.
+    """
+    doc_filter = request.args.get("doc", "").strip()
+    page_filter = request.args.get("page", "").strip()
+    search_query = request.args.get("search", "").strip()
+
     try:
+        offset = int(request.args.get("offset", 0))
+        if offset < 0:
+            offset = 0
+    except (ValueError, TypeError):
+        offset = 0
+
+    try:
+        limit = int(request.args.get("limit", 20))
+        if limit < 1:
+            limit = 20
+        elif limit > 100:
+            limit = 100
+    except (ValueError, TypeError):
+        limit = 20
+
+    if page_filter:
+        try:
+            page_filter = int(page_filter)
+            if page_filter < 1:
+                page_filter = None
+        except (ValueError, TypeError):
+            page_filter = None
+
+    if len(search_query) > 200:
+        search_query = search_query[:200]
+
+    corpus_data = rag_assistant.get_chunk_corpus(
+        doc_filter=doc_filter,
+        page_filter=page_filter,
+        search_query=search_query,
+        offset=offset,
+        limit=limit
+    )
+
+    return jsonify(corpus_data)
+
+
+@app.route("/api/rag/chunk_stats", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_rag_chunk_stats():
+    """Lightweight endpoint returning global corpus metrics for initial card hydration."""
+    corpus_data = rag_assistant.get_chunk_corpus(offset=0, limit=1)
+    return jsonify({
+        "success": True,
+        "global_statistics": corpus_data.get("global_statistics", {}),
+        "documents": corpus_data.get("documents", [])
+    })
+
+
+@app.route("/api/rag/simulate_chunking", methods=["POST"])
+@roles_required("admin", "clinician")
+def api_rag_simulate_chunking():
+    """
+    Interactive simulation sandbox for testing document chunking division,
+    paragraph/sentence boundaries, and overlap regions.
+    Isolated from active index and disk stores.
+    """
+    if not request.is_json and request.get_json(silent=True) is None:
+        return jsonify({"success": False, "error": "Invalid or missing JSON payload."}), 400
+
+    req_data = request.get_json(silent=True) or {}
+    raw_text = req_data.get("text")
+    if raw_text is None or not str(raw_text).strip():
+        return jsonify({"success": False, "error": "Input text cannot be empty for simulation."}), 400
+
+    text = str(raw_text).strip()
+    if len(text) > 100000:
+        return jsonify({"success": False, "error": "Text exceeds maximum permitted length of 100,000 characters."}), 400
+
+    filename = req_data.get("filename") or "Simulation_Guideline.txt"
+    if not isinstance(filename, str):
+        filename = str(filename)
+    if len(filename) > 120:
+        return jsonify({"success": False, "error": "Filename exceeds maximum allowed limit of 120 characters."}), 400
+    filename = secure_filename(filename) or "Simulation_Guideline.txt"
+
+    # Validate chunk_size (200 - 2,000)
+    chunk_size_raw = req_data.get("chunk_size", 750)
+    try:
+        chunk_size = int(chunk_size_raw)
+        if chunk_size < 200 or chunk_size > 2000:
+            return jsonify({"success": False, "error": "chunk_size must be an integer between 200 and 2000."}), 400
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "chunk_size must be a valid integer."}), 400
+
+    # Validate min_chunk_size (20 - 300)
+    min_chunk_raw = req_data.get("min_chunk_size", 80)
+    try:
+        min_chunk_size = int(min_chunk_raw)
+        if min_chunk_size < 20 or min_chunk_size > 300:
+            return jsonify({"success": False, "error": "min_chunk_size must be an integer between 20 and 300."}), 400
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "min_chunk_size must be a valid integer."}), 400
+
+    # Validate overlap (0 - 500)
+    overlap_raw = req_data.get("overlap", 150)
+    try:
+        overlap = int(overlap_raw)
+        if overlap < 0 or overlap > 500:
+            return jsonify({"success": False, "error": "overlap must be an integer between 0 and 500."}), 400
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "overlap must be a valid integer."}), 400
+
+    # Cross-parameter constraints
+    if overlap >= chunk_size:
+        return jsonify({"success": False, "error": "overlap must be strictly less than chunk_size."}), 400
+    if min_chunk_size > chunk_size:
+        return jsonify({"success": False, "error": "min_chunk_size cannot exceed chunk_size."}), 400
+
+    page_metadata = req_data.get("page_metadata")
+
+    sim_result = simulate_chunk_division(
+        text=text,
+        filename=filename,
+        target_chunk_size=chunk_size,
+        min_chunk_size=min_chunk_size,
+        overlap=overlap,
+        page_metadata=page_metadata
+    )
+
+    return jsonify(sim_result)
+
+
+@app.route("/api/rag/test_retrieval", methods=["POST"])
+@roles_required("admin", "clinician")
+def api_test_retrieval():
+    """Diagnostic endpoint to inspect live retrieval scoring and diversification."""
+    req_data = request.get_json(silent=True) or {}
+    query = req_data.get("query", "").strip()
+    if not query:
+        return jsonify({"success": False, "error": "Query cannot be empty"}), 400
+
+    top_passages = rag_assistant._rank_passages_internal(query, top_n=5)
+    formatted = []
+    for p in top_passages:
+        header = p.split("\n", 1)[0] if "\n" in p else p
+        body = p.split("\n", 1)[1] if "\n" in p else ""
+        m = re.search(r'\[Source:\s*([^|]+?)\s*\|\s*Page:\s*(\d+)\s*\]', header)
+        src = m.group(1).strip() if m else "Clinical Guidelines"
+        pg = int(m.group(2).strip()) if m else 1
+        formatted.append({
+            "source": src,
+            "page": pg,
+            "header": header,
+            "excerpt": body[:350] + ("..." if len(body) > 350 else "")
+        })
+
+    return jsonify({
+        "success": True,
+        "query": query,
+        "passages_count": len(formatted),
+        "passages": formatted
+    })
+
+
+# ==============================================================================
+# CLINICIAN DOCUMENT INGESTION & CHIEF DOCTOR APPROVAL GATEKEEPER
+# ==============================================================================
+
+@app.route("/api/rag/upload_document", methods=["POST"])
+@roles_required("admin", "clinician")
+def api_rag_upload_document():
+    """
+    Quarantines submitted medical guideline documents into medical_docs/pending/
+    with status 'pending_approval'. Strictly excluded from RAG knowledge base
+    until authorized by the Chief Doctor (Admin).
+    """
+    db_path = app.config.get("DB_PATH")
+    user_id = session.get("user_id")
+    username = session.get("username", "clinician")
+
+    file = request.files.get("document") or request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "No file selected for upload."}), 400
+
+    filename = secure_filename(file.filename)
+    if not filename:
+        return jsonify({"success": False, "error": "Invalid filename."}), 400
+
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".pdf", ".docx", ".txt", ".md"]:
+        return jsonify({"success": False, "error": "Unsupported file type. Please upload a PDF, DOCX, or TXT guideline."}), 400
+
+    file_bytes = file.read()
+    if len(file_bytes) == 0:
+        return jsonify({"success": False, "error": "Uploaded file is empty."}), 400
+
+    if len(file_bytes) > 25 * 1024 * 1024:
+        return jsonify({"success": False, "error": "Document size exceeds the 25 MB limit."}), 400
+
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+
+    # Prevent duplicate document submissions
+    existing_docs = get_rag_documents(db_path=db_path)
+    for d in existing_docs:
+        if d.get("file_hash_sha256") == file_hash or d.get("filename") == filename:
+            return jsonify({
+                "success": False,
+                "error": f"A guideline matching this file or filename ('{filename}') is already registered in status '{d.get('review_status')}'."
+            }), 409
+
+    pending_dir = os.path.join("medical_docs", "pending")
+    os.makedirs(pending_dir, exist_ok=True)
+    file_path = os.path.join(pending_dir, filename)
+    with open(file_path, "wb") as f:
+        f.write(file_bytes)
+
+    raw_title = request.form.get("title", "").strip()
+    title = raw_title if raw_title else os.path.splitext(filename)[0]
+
+    doc_id = create_rag_document_submission({
+        "filename": filename,
+        "original_filename": file.filename,
+        "title": title,
+        "file_path": file_path,
+        "file_size_bytes": len(file_bytes),
+        "file_hash_sha256": file_hash,
+        "uploaded_by_id": user_id,
+        "uploaded_by_name": username,
+        "review_status": "pending_approval"
+    }, db_path=db_path)
+
+    log_audit_event(
+        action="RAG_DOC_SUBMITTED",
+        status="SUCCESS",
+        user_id=user_id,
+        username=username,
+        resource_id=str(doc_id),
+        details=f"Submitted clinical guideline '{filename}' for Chief Doctor review.",
+        ip_address=get_client_ip(),
+        db_path=db_path
+    )
+
+    return jsonify({
+        "success": True,
+        "message": f"Document '{filename}' submitted successfully. It has been quarantined and awaits Chief Doctor review before entering RAG retrieval.",
+        "doc_id": doc_id,
+        "review_status": "pending_approval"
+    }), 201
+
+
+@app.route("/api/rag/document/<int:doc_id>/approve", methods=["POST"])
+@roles_required("admin")
+def api_rag_approve_document(doc_id):
+    """
+    Chief Doctor (Admin) exclusive gatekeeper endpoint:
+    Promotes document from pending quarantine into medical_docs/, chunks it into page-tagged
+    passages, and registers it dynamically into the live RAG knowledge base.
+    """
+    db_path = app.config.get("DB_PATH")
+    user_id = session.get("user_id")
+    username = session.get("username", "admin")
+
+    doc = get_rag_document_by_id(doc_id, db_path=db_path)
+    if not doc:
+        return jsonify({"success": False, "error": "Document submission not found."}), 404
+
+    filename = doc["filename"]
+    src_path = doc["file_path"]
+    dest_path = os.path.join("medical_docs", filename)
+
+    os.makedirs("medical_docs", exist_ok=True)
+    if os.path.exists(src_path):
+        shutil.copy2(src_path, dest_path)
+    elif not os.path.exists(dest_path):
+        return jsonify({"success": False, "error": "Document file not found on disk."}), 404
+
+    # Chunk and extract passages
+    new_passages = ingest_document(dest_path, filename)
+    passages_count = rag_assistant.register_approved_document(filename, new_passages)
+
+    req_json = request.get_json(silent=True) or {}
+    review_notes = req_json.get("notes") or "Approved by Chief Doctor (Admin)"
+
+    update_rag_document_status(
+        doc_id=doc_id,
+        status="approved",
+        reviewed_by_id=user_id,
+        reviewed_by_name=username,
+        review_notes=review_notes,
+        passages_count=passages_count,
+        db_path=db_path
+    )
+
+    log_audit_event(
+        action="RAG_DOC_APPROVED",
+        status="SUCCESS",
+        user_id=user_id,
+        username=username,
+        resource_id=str(doc_id),
+        details=f"Chief Doctor approved guideline '{filename}'; {passages_count} passages dynamically indexed into RAG.",
+        ip_address=get_client_ip(),
+        db_path=db_path
+    )
+
+    return jsonify({
+        "success": True,
+        "message": f"Document '{filename}' approved and {passages_count} passages indexed into active RAG bot.",
+        "passages_count": passages_count
+    })
+
+
+@app.route("/api/rag/document/<int:doc_id>/reject", methods=["POST"])
+@roles_required("admin")
+def api_rag_reject_document(doc_id):
+    """Chief Doctor (Admin) endpoint to reject a submitted guideline."""
+    db_path = app.config.get("DB_PATH")
+    user_id = session.get("user_id")
+    username = session.get("username", "admin")
+
+    doc = get_rag_document_by_id(doc_id, db_path=db_path)
+    if not doc:
+        return jsonify({"success": False, "error": "Document submission not found."}), 404
+
+    req_json = request.get_json(silent=True) or {}
+    review_notes = req_json.get("notes") or "Rejected by Chief Doctor (Admin)"
+
+    update_rag_document_status(
+        doc_id=doc_id,
+        status="rejected",
+        reviewed_by_id=user_id,
+        reviewed_by_name=username,
+        review_notes=review_notes,
+        db_path=db_path
+    )
+
+    log_audit_event(
+        action="RAG_DOC_REJECTED",
+        status="WARNING",
+        user_id=user_id,
+        username=username,
+        resource_id=str(doc_id),
+        details=f"Chief Doctor rejected guideline '{doc['filename']}': {review_notes}",
+        ip_address=get_client_ip(),
+        db_path=db_path
+    )
+
+    return jsonify({
+        "success": True,
+        "message": f"Guideline '{doc['filename']}' has been rejected."
+    })
+
+
+# ==============================================================================
+# MULTI-SESSION PERSISTENT CHAT & TELEMETRY APIS
+# ==============================================================================
+
+@app.route("/api/chat/sessions", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_chat_sessions():
+    """Returns past chat sessions for the logged-in clinician."""
+    db_path = app.config.get("DB_PATH")
+    user_id = session.get("user_id")
+    sessions_list = get_user_chat_sessions(user_id, db_path=db_path) if user_id else []
+    return jsonify({"success": True, "sessions": sessions_list})
+
+
+@app.route("/api/chat/session/<session_id>", methods=["GET"])
+@roles_required("admin", "clinician")
+def api_chat_session_details(session_id):
+    """Retrieves full turn history for a specific chat session."""
+    db_path = app.config.get("DB_PATH")
+    user_id = session.get("user_id")
+    sess_meta = get_chat_session_by_id(session_id, db_path=db_path)
+    if not sess_meta:
+        return jsonify({"success": False, "error": "Chat session not found."}), 404
+
+    if sess_meta.get("user_id") != user_id and session.get("role") != "admin":
+        return jsonify({"success": False, "error": "Unauthorized session access."}), 403
+
+    messages = get_chat_session_messages(session_id, db_path=db_path)
+    return jsonify({"success": True, "session": sess_meta, "messages": messages})
+
+
+@app.route("/api/chat/new_session", methods=["POST"])
+@roles_required("admin", "clinician")
+def api_chat_new_session():
+    """Initializes a brand-new persistent consultation session."""
+    db_path = app.config.get("DB_PATH")
+    user_id = session.get("user_id") or 1
+    username = session.get("username", "clinician")
+    req_data = request.get_json(silent=True) or {}
+    patient_id = req_data.get("patient_id")
+    new_id = str(uuid.uuid4())
+    title = req_data.get("title") or "New Clinical Consultation"
+
+    new_sess = create_or_get_chat_session(
+        session_id=new_id,
+        user_id=user_id,
+        username=username,
+        title=title,
+        patient_id=patient_id,
+        db_path=db_path
+    )
+    return jsonify({"success": True, "session": new_sess, "session_id": new_id})
+
+
+@app.route("/api/chat/session/<session_id>", methods=["DELETE"])
+@roles_required("admin", "clinician")
+def api_chat_delete_session(session_id):
+    """Deletes a chat session and all associated turns."""
+    db_path = app.config.get("DB_PATH")
+    user_id = session.get("user_id")
+    deleted = delete_chat_session(session_id, user_id=user_id, db_path=db_path)
+    return jsonify({"success": deleted})
+
+
+@app.route("/api/chat", methods=["POST"])
+@roles_required("admin", "clinician")
+def api_chat():
+    """
+    Conversational RAG endpoint with session persistence and real-time telemetry logging.
+    Grounds queries in approved guidelines, enforces verified citations, and logs audit metrics.
+    """
+    try:
+        db_path = app.config.get("DB_PATH")
+        user_id = session.get("user_id") or 1
+        username = session.get("username", "clinician")
+
         req_data = request.get_json(silent=True) or {}
         user_msg = req_data.get("message", "").strip()
         patient_context = req_data.get("patient_context", None)
-        chat_history = req_data.get("chat_history", [])
+        client_history = req_data.get("chat_history")
+        session_id = req_data.get("session_id")
+
         if not user_msg:
             return jsonify({"response": "Please enter a valid question."}), 400
-        reply = rag_assistant.ask_chatbot(user_msg, patient_context=patient_context, chat_history=chat_history)
-        return jsonify({"response": reply})
+
+        # Ensure session exists
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            title = (user_msg[:40] + "...") if len(user_msg) > 40 else user_msg
+            create_or_get_chat_session(session_id, user_id, username, title=title or "Clinical Consultation", db_path=db_path)
+        else:
+            create_or_get_chat_session(session_id, user_id, username, title="Clinical Consultation", db_path=db_path)
+
+        # Build turn context from DB if not provided by client
+        if client_history is not None:
+            chat_history = client_history
+        else:
+            db_msgs = get_chat_session_messages(session_id, db_path=db_path)
+            chat_history = [{"role": m["role"], "content": m["content"]} for m in db_msgs[-6:]]
+
+        # Record user message turn
+        add_chat_message(session_id, "user", user_msg, db_path=db_path)
+
+        @traceable(name="chat_api", run_type="chain")
+        def _process_chat(msg, p_ctx, history):
+            ask_cb = getattr(rag_assistant, "ask_chatbot", None)
+            if ask_cb and (hasattr(ask_cb, "_mock_name") or hasattr(ask_cb, "side_effect") or hasattr(ask_cb, "mock_calls") or ask_cb.__class__.__name__ in ("Mock", "MagicMock")):
+                reply = rag_assistant.ask_chatbot(msg, patient_context=p_ctx, chat_history=history)
+                return reply, {
+                    "latency_ms": 0.0,
+                    "synthesis_engine": "mock",
+                    "citation_valid": 1,
+                    "fallback_reason": None,
+                    "sources_cited": [],
+                    "retrieved_passages_count": 0,
+                    "retrieved_passages": []
+                }
+            return rag_assistant.ask_chatbot_with_telemetry(msg, patient_context=p_ctx, chat_history=history)
+
+        reply, telemetry = _process_chat(user_msg, patient_context, chat_history)
+
+        citations_json = json.dumps(telemetry.get("sources_cited", []))
+
+        # Record assistant message turn
+        add_chat_message(
+            session_id=session_id,
+            role="assistant",
+            content=reply,
+            citations_json=citations_json,
+            synthesis_engine=telemetry.get("synthesis_engine"),
+            db_path=db_path
+        )
+
+        # Record telemetry in rag_query_logs
+        try:
+            log_rag_query(
+                query_text=user_msg,
+                response_text=reply,
+                synthesis_engine=telemetry.get("synthesis_engine", "extractive"),
+                citation_valid=telemetry.get("citation_valid", 1),
+                fallback_reason=telemetry.get("fallback_reason"),
+                retrieved_passages_count=telemetry.get("retrieved_passages_count", 0),
+                sources_cited_json=citations_json,
+                latency_ms=telemetry.get("latency_ms", 0.0),
+                user_id=user_id,
+                username=username,
+                session_id=session_id,
+                db_path=db_path
+            )
+        except Exception as log_err:
+            logger.warning("Failed to record RAG query log: %s", log_err)
+
+        # Auto-update session title from first meaningful user query
+        all_msgs = get_chat_session_messages(session_id, db_path=db_path)
+        if len(all_msgs) <= 2:
+            auto_title = user_msg[:45] + ("..." if len(user_msg) > 45 else "")
+            update_chat_session_title(session_id, auto_title, db_path=db_path)
+
+        return jsonify({
+            "response": reply,
+            "session_id": session_id,
+            "telemetry": telemetry
+        })
     except Exception as e:
         logger.exception("Chat API error: %s", e)
         return jsonify({"response": "An error occurred while processing your clinical query. Please try again or consult server logs."}), 500

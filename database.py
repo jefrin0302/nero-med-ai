@@ -201,6 +201,86 @@ def init_db(db_path: Optional[str] = None) -> None:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);")
 
+        # 5. RAG Document Governance Table (Chief Doctor Authorization Gatekeeper)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rag_documents (
+                doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT NOT NULL UNIQUE,
+                original_filename TEXT NOT NULL,
+                title TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size_bytes INTEGER NOT NULL,
+                file_hash_sha256 TEXT NOT NULL,
+                uploaded_by_id INTEGER,
+                uploaded_by_name TEXT,
+                review_status TEXT NOT NULL DEFAULT 'pending_approval' CHECK(review_status IN ('pending_approval', 'approved', 'rejected')),
+                reviewed_by_id INTEGER,
+                reviewed_by_name TEXT,
+                review_notes TEXT,
+                passages_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                reviewed_at TIMESTAMP,
+                FOREIGN KEY (uploaded_by_id) REFERENCES users(user_id) ON DELETE SET NULL,
+                FOREIGN KEY (reviewed_by_id) REFERENCES users(user_id) ON DELETE SET NULL
+            );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_docs_status ON rag_documents(review_status);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_docs_filename ON rag_documents(filename);")
+
+        # 6. Persistent Chat Sessions Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                username TEXT NOT NULL,
+                title TEXT NOT NULL,
+                patient_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated_at ON chat_sessions(updated_at);")
+
+        # 7. Turn-by-Turn Chat Messages Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+                content TEXT NOT NULL,
+                citations_json TEXT,
+                synthesis_engine TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE
+            );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);")
+
+        # 8. RAG Query Telemetry & Audit Logs Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rag_query_logs (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                session_id TEXT,
+                query_text TEXT NOT NULL,
+                response_text TEXT NOT NULL,
+                synthesis_engine TEXT NOT NULL,
+                citation_valid INTEGER NOT NULL DEFAULT 1,
+                fallback_reason TEXT,
+                retrieved_passages_count INTEGER DEFAULT 0,
+                sources_cited_json TEXT,
+                latency_ms REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+                FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE SET NULL
+            );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_query_logs_created_at ON rag_query_logs(created_at);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_query_logs_engine ON rag_query_logs(synthesis_engine);")
+
         conn.commit()
     logger.info("Database initialized successfully at: %s", target_path)
 
@@ -818,19 +898,21 @@ def change_user_password(
 # ==============================================================================
 
 def log_audit_event(
-    action: str,
-    status: str,
+    action: Optional[str] = None,
+    status: str = "SUCCESS",
     username: Optional[str] = None,
     user_id: Optional[int] = None,
     resource_id: Optional[str] = None,
     ip_address: Optional[str] = None,
     details: Optional[str] = None,
-    db_path: Optional[str] = None
+    db_path: Optional[str] = None,
+    **kwargs
 ) -> int:
     """
     Records an immutable audit event in SQLite.
     Never pass plaintext passwords or raw clinical biomarkers to details.
     """
+    actual_action = action or kwargs.get("event_type") or "UNKNOWN_ACTION"
     target_path = db_path or DEFAULT_DB_PATH
     try:
         with open_db(target_path) as conn:
@@ -838,7 +920,7 @@ def log_audit_event(
             cursor.execute("""
                 INSERT INTO audit_logs (user_id, username, action, resource_id, ip_address, status, details)
                 VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, (user_id, username, action, resource_id, ip_address, status, details))
+            """, (user_id, username, actual_action, resource_id, ip_address, status, details))
             conn.commit()
             return cursor.lastrowid
     except Exception as e:
@@ -855,4 +937,342 @@ def get_recent_audit_logs(limit: int = 100, db_path: Optional[str] = None) -> Li
             FROM audit_logs ORDER BY created_at DESC, log_id DESC LIMIT ?;
         """, (limit,))
         return [dict(r) for r in cursor.fetchall()]
+
+
+# ==============================================================================
+# RAG DOCUMENT GOVERNANCE (CHIEF DOCTOR AUTHORIZATION GATEKEEPER)
+# ==============================================================================
+
+def create_rag_document_submission(
+    filename_or_data: Any,
+    original_filename: Optional[str] = None,
+    title: Optional[str] = None,
+    file_path: Optional[str] = None,
+    file_size_bytes: Optional[int] = None,
+    file_hash_sha256: Optional[str] = None,
+    uploaded_by_id: Optional[int] = None,
+    uploaded_by_name: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> int:
+    """Inserts a new clinician document submission in 'pending_approval' status."""
+    if isinstance(filename_or_data, dict):
+        d = filename_or_data
+        fn = d.get("filename")
+        orig_fn = d.get("original_filename", fn)
+        t = d.get("title", fn)
+        fp = d.get("file_path")
+        fsz = d.get("file_size_bytes", 0)
+        fhash = d.get("file_hash_sha256")
+        uid = d.get("uploaded_by_id")
+        uname = d.get("uploaded_by_name")
+        target_db = db_path or d.get("db_path")
+    else:
+        fn = filename_or_data
+        orig_fn = original_filename
+        t = title
+        fp = file_path
+        fsz = file_size_bytes
+        fhash = file_hash_sha256
+        uid = uploaded_by_id
+        uname = uploaded_by_name
+        target_db = db_path
+
+    with open_db(target_db) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO rag_documents (
+                filename, original_filename, title, file_path, file_size_bytes,
+                file_hash_sha256, uploaded_by_id, uploaded_by_name, review_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_approval');
+        """, (
+            fn, orig_fn, t, fp, fsz,
+            fhash, uid, uname
+        ))
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_rag_documents(
+    status: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Retrieves RAG documents, optionally filtered by review_status ('pending_approval', 'approved', 'rejected')."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        if status:
+            cursor.execute("""
+                SELECT * FROM rag_documents WHERE review_status = ? ORDER BY created_at DESC;
+            """, (status,))
+        else:
+            cursor.execute("""
+                SELECT * FROM rag_documents ORDER BY created_at DESC;
+            """)
+        return [dict(r) for r in cursor.fetchall()]
+
+
+def get_rag_document_by_id(doc_id: int, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieves a single RAG document record by doc_id."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM rag_documents WHERE doc_id = ?;", (doc_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def update_rag_document_status(
+    doc_id: int,
+    status: str,
+    reviewed_by_id: Optional[int] = None,
+    reviewed_by_name: Optional[str] = None,
+    review_notes: Optional[str] = None,
+    passages_count: Optional[int] = None,
+    db_path: Optional[str] = None
+) -> bool:
+    """Updates review_status ('approved' or 'rejected') with Chief Doctor review metadata."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        if passages_count is not None:
+            cursor.execute("""
+                UPDATE rag_documents
+                SET review_status = ?, reviewed_by_id = ?, reviewed_by_name = ?,
+                    review_notes = ?, passages_count = ?, reviewed_at = CURRENT_TIMESTAMP
+                WHERE doc_id = ?;
+            """, (status, reviewed_by_id, reviewed_by_name, review_notes, passages_count, doc_id))
+        else:
+            cursor.execute("""
+                UPDATE rag_documents
+                SET review_status = ?, reviewed_by_id = ?, reviewed_by_name = ?,
+                    review_notes = ?, reviewed_at = CURRENT_TIMESTAMP
+                WHERE doc_id = ?;
+            """, (status, reviewed_by_id, reviewed_by_name, review_notes, doc_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+# ==============================================================================
+# MULTI-SESSION PERSISTENT CHAT DATABASE LAYER
+# ==============================================================================
+
+def create_or_get_chat_session(
+    session_id: str,
+    user_id: int,
+    username: str,
+    title: str = "New Consultation",
+    patient_id: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """Retrieves an existing chat session or creates a new persistent session."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM chat_sessions WHERE session_id = ?;", (session_id,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+
+        cursor.execute("""
+            INSERT INTO chat_sessions (session_id, user_id, username, title, patient_id)
+            VALUES (?, ?, ?, ?, ?);
+        """, (session_id, user_id, username, title, patient_id))
+        conn.commit()
+        cursor.execute("SELECT * FROM chat_sessions WHERE session_id = ?;", (session_id,))
+        return dict(cursor.fetchone())
+
+
+def get_user_chat_sessions(
+    user_id: int,
+    db_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Retrieves all chat sessions for a specific user, sorted newest first."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT s.*, 
+                   (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = s.session_id) AS message_count
+            FROM chat_sessions s
+            WHERE s.user_id = ?
+            ORDER BY s.updated_at DESC, s.created_at DESC;
+        """, (user_id,))
+        return [dict(r) for r in cursor.fetchall()]
+
+
+def get_chat_session_by_id(session_id: str, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieves a single chat session by session_id."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM chat_sessions WHERE session_id = ?;", (session_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def update_chat_session_title(session_id: str, title: str, db_path: Optional[str] = None) -> bool:
+    """Updates the title of a chat session."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE chat_sessions
+            SET title = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE session_id = ?;
+        """, (title, session_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def add_chat_message(
+    session_id: str,
+    role: str,
+    content: str,
+    citations_json: Optional[str] = None,
+    synthesis_engine: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> int:
+    """Appends a turn (user or assistant) to the persistent chat session and bumps updated_at."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO chat_messages (session_id, role, content, citations_json, synthesis_engine)
+            VALUES (?, ?, ?, ?, ?);
+        """, (session_id, role, content, citations_json, synthesis_engine))
+        cursor.execute("""
+            UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE session_id = ?;
+        """, (session_id,))
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_chat_session_messages(
+    session_id: str,
+    db_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Retrieves all chronologically ordered messages in a chat session."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC, message_id ASC;
+        """, (session_id,))
+        return [dict(r) for r in cursor.fetchall()]
+
+
+def delete_chat_session(
+    session_id: str,
+    user_id: Optional[int] = None,
+    db_path: Optional[str] = None
+) -> bool:
+    """Deletes a chat session and cascades deletion of its messages."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        if user_id:
+            cursor.execute("DELETE FROM chat_sessions WHERE session_id = ? AND user_id = ?;", (session_id, user_id))
+        else:
+            cursor.execute("DELETE FROM chat_sessions WHERE session_id = ?;", (session_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+# ==============================================================================
+# RAG QUERY TELEMETRY & OBSERVABILITY
+# ==============================================================================
+
+def log_rag_query(
+    query_text: str,
+    response_text: str,
+    synthesis_engine: str,
+    citation_valid: int = 1,
+    fallback_reason: Optional[str] = None,
+    retrieved_passages_count: int = 0,
+    sources_cited_json: Optional[str] = None,
+    latency_ms: Optional[float] = None,
+    user_id: Optional[int] = None,
+    username: Optional[str] = None,
+    session_id: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> int:
+    """Records real-time RAG query telemetry for the observability dashboard."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO rag_query_logs (
+                user_id, username, session_id, query_text, response_text,
+                synthesis_engine, citation_valid, fallback_reason,
+                retrieved_passages_count, sources_cited_json, latency_ms
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (
+            user_id, username, session_id, query_text, response_text,
+            synthesis_engine, citation_valid, fallback_reason,
+            retrieved_passages_count, sources_cited_json, latency_ms
+        ))
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_rag_metrics_summary(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Calculates aggregate quality and performance metrics for the RAG monitor dashboard."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                COUNT(*) AS total_queries,
+                SUM(CASE WHEN citation_valid = 1 THEN 1 ELSE 0 END) AS valid_citations,
+                SUM(CASE WHEN synthesis_engine = 'extractive' THEN 1 ELSE 0 END) AS fallback_count,
+                SUM(CASE WHEN synthesis_engine = 'gemini' THEN 1 ELSE 0 END) AS gemini_count,
+                AVG(latency_ms) AS avg_latency_ms
+            FROM rag_query_logs;
+        """)
+        row = cursor.fetchone()
+        total = row["total_queries"] or 0
+        valid = row["valid_citations"] or 0
+        fallbacks = row["fallback_count"] or 0
+        gemini = row["gemini_count"] or 0
+        avg_latency = round(row["avg_latency_ms"] or 0.0, 1)
+
+        pass_rate = round((valid / total) * 100, 1) if total > 0 else 100.0
+        fallback_rate = round((fallbacks / total) * 100, 1) if total > 0 else 0.0
+
+        # Query guideline citations distribution
+        cursor.execute("""
+            SELECT sources_cited_json FROM rag_query_logs WHERE sources_cited_json IS NOT NULL;
+        """)
+        guideline_counts = {"AASLD": 0, "EASL-ERN": 0, "NIH": 0, "INASL/CPG": 0, "Other": 0}
+        for log_row in cursor.fetchall():
+            try:
+                sources = json.loads(log_row[0]) if log_row[0] else []
+                for s in sources:
+                    src_str = s.get("source", "").lower() if isinstance(s, dict) else str(s).lower()
+                    if "aasld" in src_str:
+                        guideline_counts["AASLD"] += 1
+                    elif "easl" in src_str:
+                        guideline_counts["EASL-ERN"] += 1
+                    elif "nih" in src_str:
+                        guideline_counts["NIH"] += 1
+                    elif "clinical practice" in src_str or "inasl" in src_str:
+                        guideline_counts["INASL/CPG"] += 1
+                    else:
+                        guideline_counts["Other"] += 1
+            except Exception:
+                pass
+
+        return {
+            "total_queries": total,
+            "valid_citations": valid,
+            "pass_rate_pct": pass_rate,
+            "fallback_count": fallbacks,
+            "fallback_rate_pct": fallback_rate,
+            "gemini_count": gemini,
+            "avg_latency_ms": avg_latency,
+            "guideline_counts": guideline_counts
+        }
+
+
+def get_recent_rag_queries(
+    limit: int = 50,
+    offset: int = 0,
+    db_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Retrieves paginated recent RAG queries with telemetry."""
+    with open_db(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM rag_query_logs ORDER BY created_at DESC, log_id DESC LIMIT ? OFFSET ?;
+        """, (limit, offset))
+        return [dict(r) for r in cursor.fetchall()]
+
 

@@ -179,7 +179,7 @@ class TestGeminiRAGIntegration(unittest.TestCase):
         """Verifies that [Source: ... | Page: ...] metadata from retrieved passages is present in the prompt."""
         captured_prompt = None
 
-        def mock_generate_content(model, contents):
+        def mock_generate_content(model, contents, **kwargs):
             nonlocal captured_prompt
             captured_prompt = contents
             res = MagicMock()

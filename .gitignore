@@ -43,3 +43,11 @@ static/uploads/*
 *.sqlite
 *.sqlite3
 
+# Quarantined guideline uploads
+medical_docs/pending/*
+!medical_docs/pending/.gitkeep
+
+# IDE workspace files
+*.code-workspace
+
+

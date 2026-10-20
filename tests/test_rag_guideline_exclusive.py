@@ -19,6 +19,7 @@ import os
 import json
 import re
 import unittest
+from unittest.mock import MagicMock, patch
 
 from rag_system import MedicalRAGSystem, APPROVED_PDFS, PERSIST_DIR
 
@@ -26,12 +27,17 @@ class TestRAGGuidelineExclusive(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.assistant = MedicalRAGSystem()
+        cls.assistant.gemini_client = None
         cls.expected_pdfs = {
             "AASLD WD Guidelines.pdf",
             "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf",
             "NIH Wilson Disease.pdf",
             "clinical practice guidelines in WD.pdf"
         }
+
+    def setUp(self):
+        # Isolate offline guideline exclusivity assertions from live network API calls
+        self.assistant.gemini_client = None
 
     def test_passages_json_exclusive_to_approved_pdfs(self):
         """Verifies that 100% of passages in the index originate from the 4 approved PDFs."""
@@ -147,13 +153,114 @@ class TestRAGGuidelineExclusive(unittest.TestCase):
 
     def test_empty_medical_docs_triggers_no_docs_msg(self):
         """Verifies that when medical_docs has no valid documents, system returns NO_DOCS_MSG."""
-        from unittest.mock import patch
-        with patch.object(self.assistant, 'has_medical_documents', return_value=False):
-            response = self.assistant.ask_chatbot("What is Ceruloplasmin?")
+        temp_assistant = MedicalRAGSystem()
+        with patch.object(temp_assistant, 'has_medical_documents', return_value=False):
+            response = temp_assistant.ask_chatbot("What is Ceruloplasmin?")
             self.assertEqual(
                 response,
                 "I do not have access to any medical documents and cannot answer."
             )
+
+
+class TestGeminiRAGIntegration(unittest.TestCase):
+    """
+    Focused unit tests for Gemini RAG integration using a mocked client:
+    - Verifies source/page metadata is included in prompt context.
+    - Verifies successful Gemini generation returns formatted response with citations.
+    - Verifies Gemini exceptions trigger the extractive synthesis fallback.
+    - Verifies empty Gemini response triggers the extractive synthesis fallback.
+    """
+    def setUp(self):
+        self.assistant = MedicalRAGSystem()
+        self.mock_client = MagicMock()
+        self.assistant.gemini_client = self.mock_client
+
+    def test_prompt_includes_source_page_metadata(self):
+        """Verifies that [Source: ... | Page: ...] metadata from retrieved passages is present in the prompt."""
+        captured_prompt = None
+
+        def mock_generate_content(model, contents, **kwargs):
+            nonlocal captured_prompt
+            captured_prompt = contents
+            res = MagicMock()
+            res.text = "Ceruloplasmin is a copper glycoprotein. Source: AASLD WD Guidelines.pdf, p. 7"
+            return res
+
+        self.mock_client.models.generate_content.side_effect = mock_generate_content
+
+        known_passage = (
+            "[Source: AASLD WD Guidelines.pdf | Page: 7]\n"
+            "Serum ceruloplasmin is a copper-binding glycoprotein with ferroxidase activity. "
+            "A serum ceruloplasmin level less than 20 mg/dL provides diagnostic evidence for Wilson disease."
+        )
+
+        with patch.object(self.assistant, "_rank_passages_internal", return_value=[known_passage]):
+            reply = self.assistant.ask_chatbot("What is Ceruloplasmin?")
+
+        self.assertIsNotNone(captured_prompt)
+        self.assertIn("CONTEXT PASSAGES:", captured_prompt)
+        self.assertIn("[Source: AASLD WD Guidelines.pdf | Page: 7]", captured_prompt)
+        self.assertIn("[Source:", captured_prompt)
+        self.assertIn("| Page:", captured_prompt)
+        self.assertIn("Serum ceruloplasmin is a copper-binding glycoprotein", captured_prompt)
+        self.assertIn("AASLD WD Guidelines.pdf, p. 7", reply)
+
+    def test_gemini_valid_citation_accepted(self):
+        """Verifies that a Gemini response with a valid citation matching retrieved passages is accepted."""
+        res = MagicMock()
+        res.text = "Ceruloplasmin is a major copper carrier protein in the blood.\n\nSource: AASLD WD Guidelines.pdf, p. 7"
+        self.mock_client.models.generate_content.return_value = res
+
+        reply = self.assistant.ask_chatbot("What is Ceruloplasmin?")
+        self.assertIsNotNone(reply)
+        self.assertIn("Source: AASLD WD Guidelines.pdf, p. 7", reply)
+        self.assertIn("Ceruloplasmin is a major copper carrier protein", reply)
+
+    def test_gemini_fabricated_page_citation_triggers_fallback(self):
+        """Verifies that a fabricated page citation from Gemini triggers the extractive synthesis fallback."""
+        res = MagicMock()
+        res.text = "Ceruloplasmin is a copper glycoprotein.\n\nSource: AASLD WD Guidelines.pdf, p. 999"
+        self.mock_client.models.generate_content.return_value = res
+
+        reply = self.assistant.ask_chatbot("What is Ceruloplasmin?")
+        self.assertIsNotNone(reply)
+        self.assertNotIn("p. 999", reply)
+        has_approved_citation = any(pdf in reply for pdf in APPROVED_PDFS)
+        self.assertTrue(has_approved_citation, f"Extractive fallback missing approved citation:\n{reply}")
+        self.assertIn("ceruloplasmin", reply.lower())
+
+    def test_gemini_missing_citation_triggers_fallback(self):
+        """Verifies that a Gemini response missing citations triggers the extractive synthesis fallback."""
+        res = MagicMock()
+        res.text = "Ceruloplasmin is a copper-binding glycoprotein that transports copper."
+        self.mock_client.models.generate_content.return_value = res
+
+        reply = self.assistant.ask_chatbot("What is Ceruloplasmin?")
+        self.assertIsNotNone(reply)
+        has_approved_citation = any(pdf in reply for pdf in APPROVED_PDFS)
+        self.assertTrue(has_approved_citation, f"Extractive fallback missing approved citation:\n{reply}")
+        self.assertIn("ceruloplasmin", reply.lower())
+
+    def test_gemini_exception_triggers_extractive_fallback(self):
+        """Verifies that a Gemini API failure cleanly triggers the extractive synthesis fallback."""
+        self.mock_client.models.generate_content.side_effect = RuntimeError("503 Service Unavailable")
+
+        reply = self.assistant.ask_chatbot("What is Ceruloplasmin?")
+        self.assertIsNotNone(reply)
+        has_approved_citation = any(pdf in reply for pdf in APPROVED_PDFS)
+        self.assertTrue(has_approved_citation, f"Fallback reply missing approved citation:\n{reply}")
+        self.assertIn("ceruloplasmin", reply.lower())
+
+    def test_gemini_empty_response_triggers_extractive_fallback(self):
+        """Verifies that an empty Gemini response cleanly triggers the extractive synthesis fallback."""
+        res = MagicMock()
+        res.text = ""
+        self.mock_client.models.generate_content.return_value = res
+
+        reply = self.assistant.ask_chatbot("What is Ceruloplasmin?")
+        self.assertIsNotNone(reply)
+        has_approved_citation = any(pdf in reply for pdf in APPROVED_PDFS)
+        self.assertTrue(has_approved_citation, f"Empty-response fallback missing approved citation:\n{reply}")
 
 
 if __name__ == "__main__":

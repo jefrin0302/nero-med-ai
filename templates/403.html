@@ -17,7 +17,19 @@
       <ul class="nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
         {% if current_user.is_authenticated %}
+          {% if current_user.role == 'admin' %}
+          <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}" style="color: #818cf8; font-weight: 700;">🛡️ Governance & RAG Monitor</a></li>
+          {% elif current_user.role == 'clinician' %}
+          <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+          {% endif %}
         <li><span class="nav-link-item" style="color: #cbd5e1; font-size: 13px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        <li>
+          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0;">Sign Out</button>
+          </form>
+        </li>
         {% else %}
         <li><a class="nav-link-item" href="{{ url_for('login') }}">Login</a></li>
         {% endif %}
@@ -26,21 +38,45 @@
   </header>
 
   <main class="main-wrapper" style="display: flex; align-items: center; justify-content: center; min-height: 60vh;">
-    <div class="card-glass" style="max-width: 580px; width: 100%; text-align: center; padding: 48px 36px; border-top: 6px solid #ef4444;">
+    <div class="card-glass" style="max-width: 620px; width: 100%; text-align: center; padding: 48px 36px; border-top: 6px solid #ef4444;">
       <div style="font-size: 56px; margin-bottom: 16px;">🛡️</div>
       <h1 style="font-size: 26px; font-weight: 800; color: #991b1b; margin-bottom: 10px;">
         Access Forbidden (403)
       </h1>
-      <p style="font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 26px;">
-        {{ message or "You do not have the required role or authorization to access this clinical decision-support resource." }}
+      <p style="font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px;">
+        {{ message or "You do not have the required role or authorization to access this section." }}
       </p>
+
+      {% if current_user.is_authenticated and current_user.role == 'admin' %}
+      <div style="text-align: left; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; font-size: 13.5px; color: #334155; line-height: 1.5;">
+        ℹ️ <strong>Role Note (Administrator):</strong> You are logged in with the <strong>admin</strong> role. Under clinical Separation of Duties, individual patient charts and direct diagnosis are reserved for <strong>clinician</strong> accounts. As Administrator, your authorized workspace is the <strong>Clinical RAG Governance & Monitor</strong>.
+      </div>
+      {% endif %}
+
       <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <a href="{{ url_for('rag_monitor') }}" class="btn-prime" style="text-decoration: none; padding: 10px 22px; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);">
+          🛡️ Go to Governance & RAG Monitor
+        </a>
+        <a href="{{ url_for('home') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 22px;">
+          🏠 Return to Home
+        </a>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn-secondary" style="padding: 10px 22px; cursor: pointer; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+            🔄 Switch to Clinician Account
+          </button>
+        </form>
+        {% elif not current_user.is_authenticated %}
         <a href="{{ url_for('home') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 24px;">
           🏠 Return to Home
         </a>
-        {% if not current_user.is_authenticated %}
         <a href="{{ url_for('login') }}" class="btn-prime" style="text-decoration: none; padding: 10px 24px;">
           🔐 Clinician Login
+        </a>
+        {% else %}
+        <a href="{{ url_for('home') }}" class="btn-secondary" style="text-decoration: none; padding: 10px 24px;">
+          🏠 Return to Home
         </a>
         {% endif %}
       </div>

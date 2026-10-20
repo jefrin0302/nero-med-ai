@@ -33,13 +33,25 @@
 
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item active" href="{{ url_for('home') }}">Home</a></li>
+        {% if current_user.is_authenticated %}
+          {% if current_user.role == 'admin' %}
+          <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}" style="color: #818cf8; font-weight: 700; background: rgba(99, 102, 241, 0.15); border-radius: 6px; padding: 6px 12px;">🛡️ Governance & RAG Monitor</a></li>
+          {% elif current_user.role == 'clinician' %}
+          <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
+          {% elif current_user.role == 'lab_staff' %}
+          <li><a class="nav-link-item" href="{{ url_for('lab_import_page') }}">Lab Import</a></li>
+          {% endif %}
+        {% else %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
         <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
+        {% endif %}
         <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
         <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
         {% if current_user.is_authenticated %}
-        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
-        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }}</span></li>
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
         <li>
           <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -77,13 +89,28 @@
         </p>
 
         <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          {% if current_user.role == 'admin' %}
+          <a href="{{ url_for('rag_monitor') }}" class="btn-prime" style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); padding: 12px 28px; font-size: 16px;">
+            🛡️ Open Governance & RAG Monitor
+          </a>
+          <a href="{{ url_for('portfolio') }}" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">
+            👁️ Clinical Scan Guide
+          </a>
+          {% else %}
           <a href="{{ url_for('about') }}" class="btn-prime">
             🧪 Launch Clinical Assessment
           </a>
           <a href="{{ url_for('do') }}" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">
             📊 View Analytics Dashboard
           </a>
+          {% endif %}
         </div>
+
+        {% if current_user.role == 'admin' %}
+        <div style="margin-top: 24px; padding: 14px 18px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(165, 180, 252, 0.3); border-radius: 12px; font-size: 13.5px; color: #e0e7ff; line-height: 1.6;">
+          🛡️ <strong>Chief Doctor / Administrator Workspace:</strong> You have authorization over Clinical Document Governance, Quarantine Approvals, RAG Observability, and Telemetry. Under HIPAA Separation of Duties, individual patient medical charts and direct diagnosis are reserved for <code>clinician</code> accounts.
+        </div>
+        {% endif %}
       </div>
     </div>
 

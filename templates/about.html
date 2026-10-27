@@ -294,10 +294,7 @@
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
         <li><a class="nav-link-item active" href="{{ url_for('about') }}">Clinical Test</a></li>
         <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
         <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
         {% if current_user.is_authenticated %}
         <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
         <li>
@@ -1059,10 +1056,21 @@
       tbody.innerHTML = '';
       document.getElementById('modalRecognizedCount').textContent = recognizedCount;
 
-      const formIdMap = data.form_field_map || {};
+      const CANONICAL_TO_FORM_IDS = {
+        'Age': 'inputAge', 'Sex': 'inputGender', 'Region': 'inputRegion',
+        'Socioeconomic Status': 'inputSocioeconomicStatus', 'BMI': 'inputBMI', 'Alcohol Use': 'inputAlcoholUse',
+        'Ceruloplasmin Level': 'inputCeruloplasmin', 'Copper in Blood Serum': 'inputCopperBlood',
+        'Free Copper in Blood Serum': 'inputFreeCopperBlood', 'Copper in Urine': 'inputCopperUrine',
+        'ALT': 'inputALT', 'AST': 'inputAST', 'Total Bilirubin': 'inputTotalBilirubin',
+        'Albumin': 'inputAlbumin', 'Alkaline Phosphatase (ALP)': 'inputALP',
+        'Prothrombin Time / INR': 'inputProthrombin', 'Gamma-Glutamyl Transferase (GGT)': 'inputGGT',
+        'Kayser-Fleischer Rings': 'inputKFR', 'Neurological Symptoms Score': 'inputNeurological',
+        'Psychiatric Symptoms': 'inputPsychiatric', 'Cognitive Function Score': 'inputCognitive',
+        'Family History': 'inputFamilyHistory', 'ATB7B Gene Mutation': 'inputGeneMutation'
+      };
       for (const [canonName, val] of Object.entries(data.imported_fields || {})) {
         const tr = document.createElement('tr');
-        const formTargetId = Object.keys(formIdMap).find(id => formIdMap[id] === val) || canonName;
+        const formTargetId = (data.canonical_to_form_id && data.canonical_to_form_id[canonName]) || CANONICAL_TO_FORM_IDS[canonName] || canonName;
         tr.innerHTML = `
           <td><strong>${escapeHtml(canonName)}</strong></td>
           <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700;">${escapeHtml(String(val))}</code></td>

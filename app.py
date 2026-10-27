@@ -439,10 +439,21 @@ def safe_shap_and_predict(df_raw):
         final_prob = float(meta.predict_proba(stacked)[0][1])
     final_pred = int(final_prob >= 0.5)
 
+    def _pct(val):
+        if val is None:
+            return None
+        try:
+            v = float(val)
+            if 0.0 < v <= 1.0:
+                v = v * 100.0
+            return round(max(0.0, min(100.0, v)), 1)
+        except (ValueError, TypeError):
+            return None
+
     model_breakdown = {
-        "bilstm": round(bilstm_prob * 100, 1) if bilstm_prob is not None else None,
-        "svm": round(svm_prob * 100, 1) if svm_prob is not None else None,
-        "logreg": round(log_prob * 100, 1) if log_prob is not None else None
+        "bilstm": _pct(bilstm_prob),
+        "svm": _pct(svm_prob),
+        "logreg": _pct(log_prob)
     }
 
     # 3. Deterministic Full-Ensemble SHAP Explanation (Authentic patient data, zero noise)
@@ -576,12 +587,6 @@ def login():
     if next_url and is_safe_redirect_url(next_url):
         return redirect(next_url)
 
-    if user["role"] == "clinician":
-        return redirect(url_for("about"))
-    elif user["role"] == "lab_staff":
-        return redirect(url_for("lab_import_page"))
-    elif user["role"] == "admin":
-        return redirect(url_for("rag_monitor"))
     return redirect(url_for("home"))
 
 
@@ -1202,11 +1207,22 @@ def historical_assessment_report(assessment_id):
         leipzig_total = leipzig_breakdown.get("total_score", 0)
         physician_steps = generate_physician_next_steps(pred_label, prob, inputs_dict, leipzig_total)
 
-        # Model breakdown
+        # Model breakdown (safely parse percentage without double-scaling)
+        def _parse_model_pct(v):
+            if v is None:
+                return None
+            try:
+                val = float(v)
+                if 0.0 < val <= 1.0:
+                    val = val * 100.0
+                return round(max(0.0, min(100.0, val)), 1)
+            except (ValueError, TypeError):
+                return None
+
         model_breakdown = {
-            "svm": round(assessment["svm_prob"] * 100, 1) if assessment.get("svm_prob") is not None else None,
-            "logreg": round(assessment["logreg_prob"] * 100, 1) if assessment.get("logreg_prob") is not None else None,
-            "bilstm": round(assessment["bilstm_prob"] * 100, 1) if assessment.get("bilstm_prob") is not None else None
+            "svm": _parse_model_pct(assessment.get("svm_prob")),
+            "logreg": _parse_model_pct(assessment.get("logreg_prob")),
+            "bilstm": _parse_model_pct(assessment.get("bilstm_prob"))
         }
 
         # Safe SHAP path check (prevents directory traversal and checks file existence)

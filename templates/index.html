@@ -36,12 +36,10 @@
         {% if current_user.is_authenticated %}
           {% if current_user.role == 'admin' %}
           <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-          <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
           <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
           <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}" style="color: #818cf8; font-weight: 700; background: rgba(99, 102, 241, 0.15); border-radius: 6px; padding: 6px 12px;">🛡️ Governance & RAG Monitor</a></li>
           {% elif current_user.role == 'clinician' %}
           <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-          <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
           <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
           <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
           {% elif current_user.role == 'lab_staff' %}
@@ -49,10 +47,7 @@
           {% endif %}
         {% else %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
         {% endif %}
-        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
         {% if current_user.is_authenticated %}
         <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ 'Chief Doctor' if current_user.role == 'admin' else current_user.role }})</span></li>
         <li>
@@ -78,7 +73,7 @@
       
       <div style="max-width: 820px; position: relative; z-index: 2;">
         <span style="background: rgba(99, 102, 241, 0.25); color: #c7d2fe; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; border: 1px solid rgba(199, 210, 254, 0.3);">
-          ⚡ STACKED ENSEMBLE ML + RAG DECISION SUPPORT
+          ⚡ ADVANCED CLINICAL DECISION SUPPORT
         </span>
         
         <h1 class="hero-title" style="font-size: 42px; font-weight: 800; margin-top: 16px; margin-bottom: 20px; line-height: 1.25; letter-spacing: -1px;">
@@ -86,9 +81,7 @@
         </h1>
         
         <p style="font-size: 18px; color: #cbd5e1; margin-bottom: 32px; line-height: 1.6;">
-          Seamlessly combining <strong>Stacking Machine Learning</strong> (SVM + LogReg + Bi-LSTM), 
-          <strong>SHAP Explainable AI</strong>, and <strong>LangChain + ChromaDB RAG Engine</strong> 
-          to predict disease risk, explain risk drivers, and recommend medical guidelines.
+          Combining disease risk prediction, clear explanations of key risk factors, and evidence-based medical guidance to support early detection and informed clinical decisions.
         </p>
 
         <div style="display: flex; gap: 14px; flex-wrap: wrap;">
@@ -102,15 +95,23 @@
           <a href="{{ url_for('rag_monitor') }}" class="btn-prime" style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);">
             🛡️ Governance &amp; RAG Monitor
           </a>
-          <a href="{{ url_for('do') }}" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">
-            📊 View Analytics
-          </a>
-          {% else %}
-          <a href="{{ url_for('about') }}" class="btn-prime">
+          {% elif current_user.role == 'clinician' %}
+          <a href="{{ url_for('about') }}" class="btn-prime" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
             🧪 Launch Clinical Assessment
           </a>
-          <a href="{{ url_for('do') }}" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">
-            📊 View Analytics Dashboard
+          <a href="{{ url_for('patient_dashboard') }}" class="btn-prime" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+            👥 Patient Directory
+          </a>
+          <a href="{{ url_for('rag_monitor') }}" class="btn-prime" style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);">
+            🛡️ RAG Monitor
+          </a>
+          {% elif current_user.role == 'lab_staff' %}
+          <a href="{{ url_for('lab_import_page') }}" class="btn-prime" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">
+            📋 Launch Lab Import Workstation
+          </a>
+          {% else %}
+          <a href="{{ url_for('login') }}" class="btn-prime">
+            🔐 Clinician &amp; Staff Login
           </a>
           {% endif %}
         </div>
@@ -118,6 +119,10 @@
         {% if current_user.role == 'admin' %}
         <div style="margin-top: 24px; padding: 14px 18px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(165, 180, 252, 0.3); border-radius: 12px; font-size: 13.5px; color: #e0e7ff; line-height: 1.6;">
           👨‍⚕️ <strong>Chief Doctor (Department Head) Workspace:</strong> As Chief Doctor, you have comprehensive clinical authority across all patient medical records, diagnostic evaluations, AI explanations, and RAG knowledge governance. You hold exclusive authority to inspect, approve, or quarantine external clinical guidelines.
+        </div>
+        {% elif current_user.role == 'lab_staff' %}
+        <div style="margin-top: 24px; padding: 14px 18px; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; font-size: 13.5px; color: #e0f2fe; line-height: 1.6;">
+          🔬 <strong>Laboratory &amp; Pathology Workstation:</strong> Directly import, validate, and integrate electronic lab panels (PDF/DOCX/CSV) for automated clinical intake and rapid specialist review.
         </div>
         {% endif %}
       </div>
@@ -127,26 +132,26 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px;">
       
       <div class="card-glass">
-        <div style="font-size: 32px; margin-bottom: 8px;">🤖</div>
-        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--dark);">Hybrid ML Ensemble</h3>
+        <div style="font-size: 32px; margin-bottom: 8px;">🩺</div>
+        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--dark);">Clinical Risk Prediction</h3>
         <p style="font-size: 14px; color: var(--text-muted);">
-          Combines SVM, Logistic Regression, and Bi-LSTM deep learning via a meta-model for high predictive precision.
+          Evaluates multi-organ biochemical profiles and laboratory markers to deliver accurate, calibrated diagnostic risk assessment.
         </p>
       </div>
 
       <div class="card-glass">
         <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
-        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--dark);">SHAP Transparency</h3>
+        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--dark);">Transparent Risk Drivers</h3>
         <p style="font-size: 14px; color: var(--text-muted);">
-          Provides local and global feature explanations (Force plots, Beeswarm plots) so clinicians can audit predictions.
+          Provides clear explanations of the specific laboratory parameters and clinical symptoms contributing to each patient's risk profile.
         </p>
       </div>
 
       <div class="card-glass">
         <div style="font-size: 32px; margin-bottom: 8px;">📚</div>
-        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--dark);">RAG Clinical Guidance</h3>
+        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--dark);">Evidence-Based Guidance</h3>
         <p style="font-size: 14px; color: var(--text-muted);">
-          Retrieves evidence-backed chelation therapies, dosage guidelines, and low-copper dietary rules from ChromaDB.
+          Delivers guideline-backed treatment protocols, international Leipzig diagnostic criteria, and longitudinal monitoring recommendations.
         </p>
       </div>
 
@@ -166,20 +171,20 @@
 
         <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
           <div style="background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 12px;">2</div>
-          <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Multi-Model Inference</h4>
-          <p style="font-size: 13px; color: var(--text-muted);">Meta-model calculates disease probability and classifies risk level.</p>
+          <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Clinical Risk Evaluation</h4>
+          <p style="font-size: 13px; color: var(--text-muted);">Calculates patient disease probability and stratifies clinical risk level.</p>
         </div>
 
         <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
           <div style="background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 12px;">3</div>
-          <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">SHAP Feature Attribution</h4>
-          <p style="font-size: 13px; color: var(--text-muted);">Visualizes which lab parameters pushed the diagnosis higher or lower.</p>
+          <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Key Risk Factor Analysis</h4>
+          <p style="font-size: 13px; color: var(--text-muted);">Highlights which specific laboratory parameters drove the clinical assessment higher or lower.</p>
         </div>
 
         <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
           <div style="background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 12px;">4</div>
-          <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">RAG Protocol & Chat</h4>
-          <p style="font-size: 13px; color: var(--text-muted);">Generates chelation therapy guidelines and opens RAG medical assistant.</p>
+          <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Guideline Protocols &amp; Decision Support</h4>
+          <p style="font-size: 13px; color: var(--text-muted);">Generates evidence-based clinical protocols and provides clinical decision support.</p>
         </div>
 
       </div>

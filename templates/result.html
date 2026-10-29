@@ -524,14 +524,21 @@
                   <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.svm or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #64748b;">RBF Kernel Non-Linear</div>
                 </div>
+                {% if model_breakdown.rf is not none %}
+                <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — RANDOM FOREST</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.rf or 0), 100.0]|min }}%</div>
+                  <div style="font-size: 10px; color: #64748b;">Tree-Based Ensemble</div>
+                </div>
+                {% endif %}
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — LOGREG</div>
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL C — LOGREG</div>
                   <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.logreg or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #64748b;">Linear Statistical Odds</div>
                 </div>
                 {% if model_breakdown.bilstm is not none %}
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL C — BI-LSTM</div>
+                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL D — BI-LSTM</div>
                   <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ [(model_breakdown.bilstm or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #16a34a;">Deep Recurrent Net</div>
                 </div>

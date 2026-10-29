@@ -217,6 +217,7 @@ try:
     if preprocessor is not None and not hasattr(preprocessor, '_name_to_fitted_passthrough'):
         preprocessor._name_to_fitted_passthrough = {}
     svm = safe_load_artifact(os.path.join(ARTIFACT_DIR, "svm.joblib"))
+    rf = safe_load_artifact(os.path.join(ARTIFACT_DIR, "rf.joblib"))
     logreg = safe_load_artifact(os.path.join(ARTIFACT_DIR, "logreg_base.joblib"))
     meta = safe_load_artifact(os.path.join(ARTIFACT_DIR, "meta_model.joblib"))
     calibrator = safe_load_artifact(os.path.join(ARTIFACT_DIR, "calibrator.joblib"))
@@ -234,8 +235,8 @@ try:
         except Exception as e:
             logger.warning("Bi-LSTM loading failed: %s", e)
 
-    logger.info("Artifacts loaded: preproc=%s svm=%s logreg=%s meta=%s calibrator=%s bilstm=%s shap_bg=%s",
-                preprocessor is not None, svm is not None, logreg is not None, meta is not None, calibrator is not None, bilstm is not None, shap_background is not None)
+    logger.info("Artifacts loaded: preproc=%s svm=%s rf=%s logreg=%s meta=%s calibrator=%s bilstm=%s shap_bg=%s",
+                preprocessor is not None, svm is not None, rf is not None, logreg is not None, meta is not None, calibrator is not None, bilstm is not None, shap_background is not None)
 except Exception as e:
     logger.exception("Artifact loading failed: %s", e)
 
@@ -245,17 +246,22 @@ def models_ready():
 def full_ensemble_predict_proba(X_matrix):
     """
     Evaluates the complete multi-model ensemble pipeline:
-    Bi-LSTM + SVM + Logistic Regression -> Stacking Meta-Classifier.
+    Bi-LSTM + SVM + Random Forest + Logistic Regression -> Stacking Meta-Classifier.
     Returns (N,) array of consensus Wilson Disease probabilities for input rows.
     """
     svm_p = svm.predict_proba(X_matrix)[:, 1]
     log_p = logreg.predict_proba(X_matrix)[:, 1]
-    if getattr(meta, "n_features_in_", 2) == 3:
-        if bilstm is not None:
-            X_lstm = X_matrix.reshape((X_matrix.shape[0], X_matrix.shape[1], 1))
-            bilstm_p = bilstm.predict(X_lstm, verbose=0).ravel()
-        else:
-            bilstm_p = (svm_p + log_p) / 2.0
+    rf_p = rf.predict_proba(X_matrix)[:, 1] if rf is not None else (svm_p + log_p) / 2.0
+    if bilstm is not None:
+        X_lstm = X_matrix.reshape((X_matrix.shape[0], X_matrix.shape[1], 1))
+        bilstm_p = bilstm.predict(X_lstm, verbose=0).ravel()
+    else:
+        bilstm_p = (svm_p + log_p) / 2.0
+
+    n_feat = getattr(meta, "n_features_in_", 2)
+    if n_feat == 4:
+        stacked = np.column_stack([bilstm_p, svm_p, rf_p, log_p])
+    elif n_feat == 3:
         stacked = np.column_stack([bilstm_p, svm_p, log_p])
     else:
         stacked = np.column_stack([svm_p, log_p])
@@ -428,7 +434,22 @@ def safe_shap_and_predict(df_raw):
         bilstm_p = (svm_p + log_p) / 2.0
         bilstm_prob = None
 
-    if getattr(meta, "n_features_in_", 2) == 3:
+    # Compute Random Forest prediction if model is available
+    rf_prob = None
+    if rf is not None:
+        try:
+            rf_p = float(rf.predict_proba(X)[:, 1][0])
+            rf_prob = rf_p
+        except Exception as e:
+            logger.warning("Random Forest prediction failed: %s", e)
+            rf_p = (svm_p + log_p) / 2.0
+    else:
+        rf_p = (svm_p + log_p) / 2.0
+
+    n_feat = getattr(meta, "n_features_in_", 2)
+    if n_feat == 4:
+        stacked = np.column_stack([[bilstm_p], [svm_p], [rf_p], [log_p]])
+    elif n_feat == 3:
         stacked = np.column_stack([[bilstm_p], [svm_p], [log_p]])
     else:
         stacked = np.column_stack([[svm_p], [log_p]])
@@ -453,6 +474,7 @@ def safe_shap_and_predict(df_raw):
     model_breakdown = {
         "bilstm": _pct(bilstm_prob),
         "svm": _pct(svm_prob),
+        "rf": _pct(rf_prob),
         "logreg": _pct(log_prob)
     }
 
@@ -1221,6 +1243,7 @@ def historical_assessment_report(assessment_id):
 
         model_breakdown = {
             "svm": _parse_model_pct(assessment.get("svm_prob")),
+            "rf": _parse_model_pct(assessment.get("rf_prob")),
             "logreg": _parse_model_pct(assessment.get("logreg_prob")),
             "bilstm": _parse_model_pct(assessment.get("bilstm_prob"))
         }

@@ -291,7 +291,7 @@
       </button>
 
       <ul class="nav-links" id="main-nav-links">
-        {% if current_user.role in ('admin', 'clinician') %}
+        {% if current_user.is_authenticated %}
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
         {% endif %}
         {% if current_user.role == 'admin' %}

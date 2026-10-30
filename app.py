@@ -536,7 +536,7 @@ def login():
             if role == "clinician":
                 return redirect(url_for("about"))
             elif role == "lab_staff":
-                return redirect(url_for("about"))
+                return redirect(url_for("home"))
             elif role == "admin":
                 return redirect(url_for("admin_dashboard"))
             return redirect(url_for("home"))
@@ -625,7 +625,7 @@ def login():
     if user["role"] == "admin":
         return redirect(url_for("admin_dashboard"))
     elif user["role"] == "lab_staff":
-        return redirect(url_for("about"))
+        return redirect(url_for("home"))
     elif user["role"] == "clinician":
         return redirect(url_for("about"))
 
@@ -880,7 +880,7 @@ def lab_login():
         if "user_id" in session:
             role = session.get("role")
             if role == "lab_staff":
-                return redirect(url_for("about"))
+                return redirect(url_for("home"))
             elif role == "admin":
                 return redirect(url_for("admin_dashboard"))
             elif role == "clinician":
@@ -997,7 +997,7 @@ def lab_login():
     if next_url and is_safe_redirect_url(next_url):
         return redirect(next_url)
 
-    return redirect(url_for("about"))
+    return redirect(url_for("home"))
 
 
 @app.route("/admin/dashboard", methods=["GET"])

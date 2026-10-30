@@ -819,7 +819,7 @@ class TestAuthAndRBACSuite(unittest.TestCase):
             "csrf_token": csrf_token
         }, follow_redirects=False)
         self.assertEqual(res_post.status_code, 302)
-        self.assertIn("/about", res_post.headers["Location"])
+        self.assertIn("/home", res_post.headers["Location"])
 
     def test_lab_staff_login_portal_rejects_non_lab_staff(self):
         """Verifies /lab/login rejects clinicians or admins attempting to enter via lab portal."""

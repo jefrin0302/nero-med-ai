@@ -313,7 +313,9 @@
       </button>
 
       <ul class="nav-links" id="main-nav-links">
+        {% if current_user.role in ('admin', 'clinician') %}
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% endif %}
         {% if current_user.role == 'admin' %}
         <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
         {% endif %}
@@ -399,7 +401,7 @@
           </div>
         </div>
 
-        {% if patient_id %}
+        {% if patient_id and current_user.role in ('admin', 'clinician') %}
         <div class="web-collapsible-controls">
           <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 12px; padding: 7px 14px; text-decoration: none;">
             📋 Full Patient History
@@ -567,9 +569,11 @@
           🩺 Clinical Recommendations (RAG Support)
         </h2>
         <div style="display: flex; align-items: center; gap: 8px;">
+          {% if current_user.role != 'lab_staff' %}
           <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime chat-btn-in-card" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
             💬 Chat
           </button>
+          {% endif %}
           <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
         </div>
       </div>
@@ -783,6 +787,7 @@
     <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
   </footer>
 
+  {% if current_user.role != 'lab_staff' %}
   <!-- PROMINENT FLOATING RAG CHATBOT WIDGET -->
   <div id="chat-toggle" onclick="toggleChat()" style="position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #4f46e5, #0ea5e9); color: white; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 28px rgba(79, 70, 229, 0.5); font-size: 34px; z-index: 10000; border: 3px solid #ffffff; transition: transform 0.2s ease;">
     💬
@@ -856,6 +861,7 @@
       <button id="send-btn" onclick="sendChatMessage()" style="background: var(--primary); color: white; border: none; padding: 11px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; flex-shrink: 0;">Send</button>
     </div>
   </div>
+  {% endif %}
 
   <script>
     function toggleNavMenu() {
@@ -898,6 +904,7 @@
       model_breakdown: {{ model_breakdown|tojson if model_breakdown else {} }}
     };
 
+    {% if current_user.role != 'lab_staff' %}
     let chatOpen = true;
     let autoTTS = true;
     let recognition = null;
@@ -1303,6 +1310,9 @@
       }
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+    {% else %}
+    function toggleChat() {}
+    {% endif %}
   </script>
 
 </body>

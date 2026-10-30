@@ -153,11 +153,10 @@
   <!-- NAVBAR -->
   <header class="navbar-custom" style="background: rgba(15, 23, 42, 0.85); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}" style="color: #ffffff;">
+      <span class="brand-logo" style="color: #ffffff; cursor: default;">
         🧬 NeuroMed AI
-      </a>
+      </span>
       <ul class="nav-links">
-        <li><a class="nav-link-item" href="{{ url_for('home') }}" style="color: #cbd5e1;">Home</a></li>
         <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: #cbd5e1;">Clinician Portal</a></li>
         <li><a class="nav-link-item" href="{{ url_for('admin_login') }}" style="color: #cbd5e1;">Chief Doctor Portal</a></li>
       </ul>

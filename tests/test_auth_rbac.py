@@ -836,6 +836,27 @@ class TestAuthAndRBACSuite(unittest.TestCase):
         self.assertEqual(res_post.status_code, 403)
         self.assertIn("Access restricted: This portal is exclusively for Laboratory Staff", res_post.get_data(as_text=True))
 
+    def test_home_and_login_page_do_not_expose_home_to_unauthenticated_users(self):
+        """
+        Verifies unauthenticated users cannot access / or /home,
+        and that sign-in page header does not expose a Home link.
+        """
+        # 1. Unauthenticated / redirects to /login
+        res_root = self.client.get("/", follow_redirects=False)
+        self.assertEqual(res_root.status_code, 302)
+        self.assertIn("/login", res_root.headers["Location"])
+
+        # 2. Unauthenticated /home redirects to /login
+        res_home = self.client.get("/home", follow_redirects=False)
+        self.assertEqual(res_home.status_code, 302)
+        self.assertIn("/login", res_home.headers["Location"])
+
+        # 3. Sign-in page does not have 'Home' link in nav
+        res_login = self.client.get("/login")
+        self.assertEqual(res_login.status_code, 200)
+        html = res_login.get_data(as_text=True)
+        self.assertNotIn('>Home</a>', html)
+
 
 if __name__ == "__main__":
     unittest.main()

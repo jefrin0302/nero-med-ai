@@ -519,6 +519,8 @@ def safe_shap_and_predict(df_raw):
 @app.route("/")
 @app.route("/home")
 def home():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
     return render_template("index.html")
 
 
@@ -725,10 +727,10 @@ def change_password():
         if role == "clinician":
             return redirect(url_for("about"))
         elif role == "lab_staff":
-            return redirect(url_for("lab_import_page"))
+            return redirect(url_for("about"))
         elif role == "admin":
             return redirect(url_for("admin_dashboard"))
-        return redirect(url_for("patient_dashboard"))
+        return redirect(url_for("about"))
 
     return render_template("change_password.html")
 
@@ -749,7 +751,9 @@ def admin_login():
             role = session.get("role")
             if role == "admin":
                 return redirect(url_for("admin_dashboard"))
-            return redirect(url_for("home"))
+            elif role in ("clinician", "lab_staff"):
+                return redirect(url_for("about"))
+            return redirect(url_for("login"))
         next_url = request.args.get("next") or ""
         msg = request.args.get("message")
         return render_template("admin_login.html", next_url=next_url, message=msg)
@@ -877,7 +881,11 @@ def lab_login():
             role = session.get("role")
             if role == "lab_staff":
                 return redirect(url_for("about"))
-            return redirect(url_for("home"))
+            elif role == "admin":
+                return redirect(url_for("admin_dashboard"))
+            elif role == "clinician":
+                return redirect(url_for("about"))
+            return redirect(url_for("login"))
         next_url = request.args.get("next") or ""
         msg = request.args.get("message")
         return render_template("lab_login.html", next_url=next_url, message=msg)

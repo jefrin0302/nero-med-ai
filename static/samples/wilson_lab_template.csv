@@ -1,0 +1,2 @@
+Patient ID,Patient Name,Age,Sex,Region,Socioeconomic Status,BMI,Alcohol Use,Ceruloplasmin Level,Copper in Blood Serum,Free Copper in Blood Serum,Copper in Urine,ALT,AST,Total Bilirubin,Albumin,Alkaline Phosphatase (ALP),Prothrombin Time / INR,Gamma-Glutamyl Transferase (GGT),Kayser-Fleischer Rings,Neurological Symptoms Score,Psychiatric Symptoms,Cognitive Function Score,Family History,ATB7B Gene Mutation
+NEUROMED001,Sample Patient (Fictional),24,Female,North,High,22.5,False,28.5,115.0,8.2,24.5,22.0,25.0,0.80,4.4,85.0,1.05,28.0,No,0.2,No,95.0,No,No

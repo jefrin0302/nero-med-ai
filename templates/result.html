@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wilson Disease Diagnostic Report — NeuroMed AI</title>
+  <title>Wilson Disease Clinical AI Risk Evaluation & Decision Support Report — NeuroMed AI</title>
 
   <!-- Modern Theme CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
@@ -90,6 +90,213 @@
     .eval-normal { background: #d1fae5; color: #065f46; }
     .eval-abnormal-high { background: #fee2e2; color: #991b1b; }
     .eval-abnormal-low { background: #fef3c7; color: #92400e; }
+    .eval-neutral { background: #f1f5f9; color: #475569; }
+    .eval-warning { background: #fef3c7; color: #92400e; }
+
+    /* =========================================================
+       PRINT / PDF GENERATION STYLES (ISSUE-7)
+       ========================================================= */
+    @media print {
+      /* Remove web-only navigation and interactive controls */
+      .navbar-custom,
+      .web-action-controls,
+      .web-collapsible-controls,
+      .chat-btn-in-card,
+      .chevron-badge,
+      #chat-toggle,
+      #chat-widget,
+      .pwa-install-btn,
+      .btn-secondary,
+      .btn-prime,
+      footer.footer-custom {
+        display: none !important;
+      }
+
+      /* Clean page setup */
+      @page {
+        size: A4 portrait;
+        margin: 10mm 10mm 10mm 10mm;
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 11px !important;
+        line-height: 1.35 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .main-wrapper {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* Patient Identity Header */
+      #card-patient-identity {
+        display: block !important;
+        background: #f8fafc !important;
+        border: 1.5px solid #cbd5e1 !important;
+        padding: 12px 16px !important;
+        margin-bottom: 10px !important;
+        border-radius: 6px !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* Compact header */
+      .report-header {
+        background: #1e1b4b !important;
+        color: #ffffff !important;
+        padding: 14px 18px !important;
+        margin-bottom: 10px !important;
+        border-radius: 6px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .report-header h1 {
+        font-size: 20px !important;
+        margin-top: 2px !important;
+        margin-bottom: 3px !important;
+      }
+
+      .report-header p {
+        font-size: 10px !important;
+        margin-bottom: 0 !important;
+      }
+
+      .status-pill {
+        padding: 5px 12px !important;
+        font-size: 12px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* Ensure all collapsible card bodies are always visible in print */
+      .collapsible-content {
+        display: block !important;
+        height: auto !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+
+      .card-glass {
+        background: #ffffff !important;
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 10px !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .section-title {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      #card-gauge,
+      #card-checklist,
+      #card-table,
+      #card-shap {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .risk-gauge-container {
+        margin-top: 6px !important;
+        gap: 12px !important;
+      }
+
+      .data-table-container {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        margin-top: 6px !important;
+        overflow: visible !important;
+      }
+
+      .data-table {
+        font-size: 10px !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+
+      .data-table thead {
+        display: table-header-group;
+      }
+
+      .data-table tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .data-table th {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        padding: 6px 8px !important;
+        font-size: 9px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .data-table td {
+        padding: 5px 8px !important;
+        font-size: 10px !important;
+      }
+
+      .eval-badge {
+        font-size: 9px !important;
+        padding: 2px 5px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .integrity-notice {
+        display: block !important;
+        font-size: 10px !important;
+        padding: 6px 10px !important;
+        margin-bottom: 8px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 4px !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .clinical-disclaimer-box {
+        display: block !important;
+        font-size: 10px !important;
+        padding: 10px 14px !important;
+        margin-top: 12px !important;
+        border: 1.5px solid #94a3b8 !important;
+        border-radius: 6px !important;
+        background: #f8fafc !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      #shap-plot-container {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        padding: 8px !important;
+      }
+
+      .shap-plot-img {
+        max-width: 100% !important;
+        max-height: 420px !important;
+        width: auto !important;
+        margin: 0 auto;
+        display: block;
+        object-fit: contain !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -98,7 +305,7 @@
   <header class="navbar-custom">
     <div class="nav-container">
       <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI <span class="brand-badge">RAG 2.0</span>
+        🧬 NeuroMed AI
       </a>
 
       <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
@@ -106,11 +313,28 @@
       </button>
 
       <ul class="nav-links" id="main-nav-links">
+        {% if current_user.is_authenticated %}
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% endif %}
+        {% if current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        {% endif %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
+        {% if current_user.role in ('admin', 'clinician') %}
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+        {% endif %}
+        {% if current_user.is_authenticated %}
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ 'Lab Staff' if current_user.role == 'lab_staff' else ('Chief Doctor' if current_user.role == 'admin' else 'Clinician') }})</span></li>
+        <li>
+          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
+          </form>
+        </li>
+        {% else %}
+        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
+        {% endif %}
         <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
       </ul>
     </div>
@@ -120,14 +344,71 @@
   <main class="main-wrapper">
 
     <!-- ACTION CONTROLS -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
-      <a href="{{ url_for('about') }}" class="btn-secondary">
-        ⬅ Back to Input Form
-      </a>
+    <div class="web-action-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        {% if is_historical and patient_id %}
+        <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
+          ⬅ Back to Patient History
+        </a>
+        {% else %}
+        <a href="{{ url_for('about') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
+          ⬅ Back to Clinical Form
+        </a>
+        {% endif %}
+        {% if current_user.role in ('admin', 'clinician') %}
+        <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
+          🗂️ Patient Directory
+        </a>
+        {% endif %}
+      </div>
       
-      <button onclick="window.print()" class="btn-prime">
-        🖨️ Download / Print Diagnostic PDF Report
+      <button onclick="window.print()" class="btn-prime" style="font-size: 13px;" title="Print this report or save as PDF using your browser print dialog">
+        🖨️ Print Report / Save as PDF
       </button>
+    </div>
+
+    <!-- PATIENT IDENTIFICATION & CLINICAL METADATA CARD -->
+    <div class="card-glass" id="card-patient-identity" style="margin-bottom: 24px; padding: 20px 26px; border-left: 6px solid var(--primary); background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
+            <span class="badge-patient-id" style="background: #ede9fe; color: #5b21b6; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-family: monospace; font-size: 13px; letter-spacing: 0.5px;">
+              {{ patient_id or 'NEUROMED-RECORD' }}
+            </span>
+            <h2 class="patient-name-heading" style="font-size: 22px; font-weight: 800; color: var(--dark); margin: 0;">
+              {{ patient_name or 'Anonymous Patient' }}
+            </h2>
+            {% if is_historical %}
+            <span class="badge-historical" style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+              📜 Archived Assessment #{{ assessment_id }}
+            </span>
+            {% elif assessment_id %}
+            <span class="badge-live" style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+              ✨ New Saved Record #{{ assessment_id }}
+            </span>
+            {% else %}
+            <span class="badge-live" style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+              ✨ Live Assessment
+            </span>
+            {% endif %}
+          </div>
+          <div style="font-size: 13px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap;">
+            <span><strong>Assessment Date:</strong> <span class="assessment-date-val">{{ assessment_date or 'Recorded Today' }}</span></span>
+            {% if data and data.get('Age') %}<span><strong>Age:</strong> {{ data.Age | int }} yrs</span>{% endif %}
+            {% if data and data.get('Sex') %}<span><strong>Sex:</strong> {{ data.Sex }}</span>{% endif %}
+            {% if data and data.get('Region') %}<span><strong>Region:</strong> {{ data.Region }}</span>{% endif %}
+            {% if data and data.get('BMI') %}<span><strong>BMI:</strong> {{ data.BMI }} kg/m²</span>{% endif %}
+          </div>
+        </div>
+
+        {% if patient_id and current_user.role in ('admin', 'clinician') %}
+        <div class="web-collapsible-controls">
+          <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 12px; padding: 7px 14px; text-decoration: none;">
+            📋 Full Patient History
+          </a>
+        </div>
+        {% endif %}
+      </div>
     </div>
 
     <!-- REPORT HEADER BLOCK -->
@@ -135,10 +416,10 @@
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
         <div>
           <span style="color: #a5b4fc; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">
-            CLINICAL DIAGNOSTIC EVALUATION REPORT
+            CLINICAL RISK EVALUATION & DECISION SUPPORT REPORT
           </span>
           <h1 style="font-size: 32px; font-weight: 800; margin-top: 4px; margin-bottom: 8px; letter-spacing: -0.5px;">
-            Wilson's Disease AI Assessment
+            Wilson's Disease Clinical AI Assessment
           </h1>
           <p style="color: #cbd5e1; font-size: 14px;">
             Synthesized via Multi-Model ML Stacking Ensemble (SVM + LogReg + Bi-LSTM) & SHAP Explainable AI.
@@ -146,9 +427,9 @@
         </div>
 
         <div>
-          {% if "Positive" in prediction_text %}
+          {% if "High" in prediction_text or "Positive" in prediction_text %}
           <div class="status-pill status-positive">
-            🚨 {{ prediction_text }}
+            ⚠️ {{ prediction_text }}
           </div>
           {% else %}
           <div class="status-pill status-negative">
@@ -160,7 +441,7 @@
     </div>
 
     <!-- COLLAPSIBLE CONTROLS TOOLBAR -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+    <div class="web-collapsible-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
       <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">
         📑 Interactive Diagnostic Sections:
       </span>
@@ -177,51 +458,66 @@
     <!-- RISK GAUGE & METRIC DIAL -->
     <div class="card-glass collapsible-card" id="card-gauge">
       <div class="collapsible-trigger" onclick="toggleCard('card-gauge')">
-        <h2 class="section-title" style="margin-bottom: 0;">⚡ Diagnostic Risk Score & Model Confidence</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">⚡ Statistical Model Estimate & Output Convergence</h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
       <div class="collapsible-content">
+        {% if is_historical %}
+        <div class="integrity-notice" style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; margin-top: 12px; margin-bottom: 8px; border-radius: 4px; font-size: 12px; color: #1e293b; line-height: 1.5;">
+          🔒 <strong>Original Assessment Record:</strong> Displaying original stored ensemble prediction, calibrated probability, and constituent model breakdown recorded at assessment time (Model {{ model_version or 'v1.0.0' }}). Machine learning models were not re-executed.
+        </div>
+        {% endif %}
+
+        <div style="background: #f8fafc; border-left: 4px solid #6366f1; padding: 10px 14px; margin-top: 12px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: #334155; line-height: 1.5;">
+          ℹ️ <strong>Clinical Distinction & Boundary:</strong> This probability represents statistical pattern alignment from a calibrated machine learning ensemble (<strong>{{ model_version or 'v2.0.0-calibrated' }}</strong>). It is <strong>NOT</strong> a measure of clinical certainty or medical diagnosis. Statistical model convergence must never be equated with clinical certainty. Clinical evaluation is conducted independently below via the validated Leipzig consensus scoring system.
+        </div>
+
         <div class="risk-gauge-container" style="margin-top: 16px;">
           
           <!-- SVG Gauge Circle -->
           <div style="position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
             <svg width="160" height="160" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="10" />
-              <circle cx="60" cy="60" r="50" fill="none" 
-                      stroke="{% if probability > 0.5 %}#ef4444{% else %}#10b981{% endif %}" 
-                      stroke-width="10" 
-                      stroke-dasharray="314" 
-                      stroke-dashoffset="{{ 314 - (314 * probability) }}" 
-                      stroke-linecap="round" 
-                      transform="rotate(-90 60 60)" 
+              <circle cx="60" cy="60" r="50" fill="none"
+                      stroke="{% if probability > 0.5 %}#ef4444{% else %}#10b981{% endif %}"
+                      stroke-width="10"
+                      stroke-dasharray="314"
+                      stroke-dashoffset="{{ 314 - (314 * probability) }}"
+                      stroke-linecap="round"
+                      transform="rotate(-90 60 60)"
                       style="transition: stroke-dashoffset 1s ease-in-out;" />
             </svg>
             <div style="position: absolute; text-align: center;">
               <span style="font-size: 28px; font-weight: 800; color: var(--dark);">{{ (probability * 100) | round(1) }}%</span>
-              <span style="display: block; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">DIAGNOSTIC RISK</span>
+              <span style="display: block; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">STATISTICAL PROBABILITY</span>
             </div>
           </div>
 
           <!-- Metric Details -->
           <div style="max-width: 550px;">
-            <h3 style="font-size: 18px; font-weight: 700; color: var(--dark); margin-bottom: 8px;">
-              AI Stacking Ensemble Analysis
-            </h3>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+              <h3 style="font-size: 18px; font-weight: 700; color: var(--dark); margin: 0;">
+                Calibrated Stacking Ensemble Analysis
+              </h3>
+              <span style="font-size: 11px; font-weight: 800; background: #ede9fe; color: #5b21b6; padding: 3px 8px; border-radius: 4px; font-family: monospace;">
+                MODEL {{ model_version or 'v2.0.0-calibrated' }}
+              </span>
+            </div>
             <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6;">
-              The model probability score represents the meta-classifier's ensemble assessment. A score above 50% indicates elevated biochemical and clinical markers associated with Wilson's disease.
+              The model probability score represents the meta-classifier's calibrated probability for Wilson Disease based on learned multi-marker patterns. An elevated statistical output reflects pattern similarity with disease profiles in training distributions, but does not substitute for clinical diagnostic confirmation.
             </p>
 
             <div style="display: flex; gap: 16px; flex-wrap: wrap;">
               <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
-                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">CLASSIFICATION PROBABILITY</span>
+                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">CALIBRATED PROBABILITY</span>
                 <strong style="font-size: 18px; color: var(--dark);">{{ probability }}</strong>
               </div>
 
               <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
-                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">DECISION CONFIDENCE</span>
+                <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">STATISTICAL PATTERN CONVERGENCE</span>
                 <strong style="font-size: 18px; color: {% if probability > 0.8 or probability < 0.2 %}var(--success){% else %}var(--warning){% endif %};">
-                  {% if probability > 0.8 or probability < 0.2 %}High Confidence{% else %}Moderate Confidence{% endif %}
+                  {% if probability > 0.8 or probability < 0.2 %}Definite Statistical Convergence{% else %}Equivocal Statistical Convergence{% endif %}
                 </strong>
               </div>
             </div>
@@ -234,18 +530,25 @@
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
                   <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL A — SVM</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ model_breakdown.svm }}%</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.svm or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #64748b;">RBF Kernel Non-Linear</div>
                 </div>
+                {% if model_breakdown.rf is not none %}
+                <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — RANDOM FOREST</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.rf or 0), 100.0]|min }}%</div>
+                  <div style="font-size: 10px; color: #64748b;">Tree-Based Ensemble</div>
+                </div>
+                {% endif %}
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — LOGREG</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ model_breakdown.logreg }}%</div>
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL C — LOGREG</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.logreg or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #64748b;">Linear Statistical Odds</div>
                 </div>
                 {% if model_breakdown.bilstm is not none %}
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL C — BI-LSTM</div>
-                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ model_breakdown.bilstm }}%</div>
+                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL D — BI-LSTM</div>
+                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ [(model_breakdown.bilstm or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #16a34a;">Deep Recurrent Net</div>
                 </div>
                 {% endif %}
@@ -266,9 +569,11 @@
           🩺 Clinical Recommendations (RAG Support)
         </h2>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
+          {% if current_user.role != 'lab_staff' %}
+          <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime chat-btn-in-card" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
             💬 Chat
           </button>
+          {% endif %}
           <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
         </div>
       </div>
@@ -293,8 +598,16 @@
       </div>
 
       <div class="collapsible-content">
-        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        {% if is_historical %}
+        <div class="integrity-notice" style="background: #f5f3ff; border-left: 4px solid #8b5cf6; padding: 10px 14px; margin-top: 12px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: #1e293b; line-height: 1.5;">
+          ℹ️ <strong>Clinical Interpretation Notice:</strong> Clinical status badges and reference comparisons are <strong>recalculated using the current application logic</strong> from the patient's archived 23 clinical inputs.
+        </div>
+        {% endif %}
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">
           Structured table displaying patient clinical measurements alongside standard medical reference ranges.
+        </p>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 16px; font-style: italic;">
+          ℹ️ Reference ranges shown are project-configured clinical reference values and may vary by laboratory.
         </p>
 
         <div class="data-table-container">
@@ -308,40 +621,27 @@
               </tr>
             </thead>
             <tbody>
-              {% for key, value in data.items() %}
-              <tr>
-                <td><strong style="color: var(--dark);">{{ key.replace("_", " ").title() }}</strong></td>
-                <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ value }}</code></td>
-                
-                <!-- REFERENCE RANGES -->
-                <td style="color: var(--text-muted); font-size: 13px;">
-                  {% if "Ceruloplasmin" in key %} 20.0 – 40.0 mg/dL
-                  {% elif "Free Copper" in key %} < 15.0 µg/dL
-                  {% elif "Urine" in key %} < 40.0 µg/24h
-                  {% elif "Alt" in key or "Ast" in key %} < 40.0 U/L
-                  {% elif "Bilirubin" in key %} 0.2 – 1.2 mg/dL
-                  {% elif "Albumin" in key %} 3.5 – 5.0 g/dL
-                  {% elif "Kayser" in key %} Negative ("No")
-                  {% else %} Standard Clinical Metric
-                  {% endif %}
-                </td>
-
-                <!-- STATUS BADGES -->
-                <td>
-                  {% if "Ceruloplasmin" in key and (value|float) < 20.0 %}
-                    <span class="eval-badge eval-abnormal-low">⚠️ Abnormally Low (<20)</span>
-                  {% elif "Free Copper" in key and (value|float) > 15.0 %}
-                    <span class="eval-badge eval-abnormal-high">🚨 Elevated Free Copper (>15)</span>
-                  {% elif "Urine" in key and (value|float) > 40.0 %}
-                    <span class="eval-badge eval-abnormal-high">🚨 Elevated Urine Copper (>40)</span>
-                  {% elif "Kayser" in key and value == "Yes" %}
-                    <span class="eval-badge eval-abnormal-high">🚨 KF Rings Present</span>
-                  {% else %}
-                    <span class="eval-badge eval-normal">✅ Normal / Within Range</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
+              {% if clinical_table %}
+                {% for item in clinical_table %}
+                <tr>
+                  <td><strong style="color: var(--dark);">{{ item.label }}</strong></td>
+                  <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ item.formatted_value }}</code></td>
+                  <td style="color: var(--text-muted); font-size: 13px;">{{ item.reference_boundary }}</td>
+                  <td>
+                    <span class="eval-badge {{ item.badge_class }}">{{ item.badge_text }}</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                {% for key, value in data.items() %}
+                <tr>
+                  <td><strong style="color: var(--dark);">{{ key.replace("_", " ").title() }}</strong></td>
+                  <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ value }}</code></td>
+                  <td style="color: var(--text-muted); font-size: 13px;">Standard Clinical Metric</td>
+                  <td><span class="eval-badge eval-neutral">Recorded</span></td>
+                </tr>
+                {% endfor %}
+              {% endif %}
             </tbody>
           </table>
         </div>
@@ -351,7 +651,7 @@
     <!-- LEIPZIG SCORE BREAKDOWN & CLINICAL ACTION CHECKLIST -->
     <div class="card-glass collapsible-card" id="card-checklist">
       <div class="collapsible-trigger" onclick="toggleCard('card-checklist')">
-        <h2 class="section-title" style="margin-bottom: 0;">📋 Leipzig Criteria & Diagnostic Checklist</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">📋 Leipzig Criteria Contribution</h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
@@ -359,81 +659,124 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
           
           <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
-              🔍 Leipzig Criteria Contribution
-            </h4>
-            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8;">
-              <li>Ceruloplasmin < 10 mg/dL: <strong>+2 points</strong></li>
-              <li>24h Urine Copper > 100 µg/24h: <strong>+2 points</strong></li>
-              <li>Kayser-Fleischer Rings Present: <strong>+2 points</strong></li>
-              <li>ATP7B Mutation Present: <strong>+2 points</strong></li>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin: 0;">
+                🔍 Leipzig Criteria Contribution
+              </h4>
+              <span style="font-size: 13px; font-weight: 800; background: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 12px;">
+                {% if is_historical and stored_leipzig_score is not none %}
+                Original Stored Score: {{ stored_leipzig_score }} pts
+                {% else %}
+                Contribution: {{ leipzig_breakdown.total_score if leipzig_breakdown else 0 }} {% if leipzig_breakdown and leipzig_breakdown.total_score == 1 %}point{% else %}points{% endif %}
+                {% endif %}
+              </span>
+            </div>
+            {% if is_historical %}
+            <div class="integrity-notice" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: #1e293b; line-height: 1.5;">
+              ⚠️ <strong>Calculation Notice:</strong> Total Leipzig score ({% if stored_leipzig_score is not none %}{{ stored_leipzig_score }}{% else %}{{ leipzig_breakdown.total_score if leipzig_breakdown else 0 }}{% endif %} pts) was preserved from the original assessment record. The criteria breakdown and physician recommendations below are <strong>recalculated using the current application logic</strong> based on archived clinical inputs.
+            </div>
+            {% endif %}
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 12px; line-height: 1.4;">
+              This project calculates selected available Leipzig criteria only. Complete Leipzig assessment requires additional clinical and laboratory evaluation.
+            </p>
+            
+            {% if leipzig_breakdown %}
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8; margin-bottom: 12px;">
+              {% for crit in leipzig_breakdown.criteria_list %}
+              <li>
+                {{ crit.name }}: 
+                <strong style="color: {% if crit.points > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+                  {% if crit.points == 1 %}+1 point{% elif crit.points > 1 %}+{{ crit.points }} points{% else %}0 points{% endif %}
+                </strong>
+                <span style="color: var(--text-muted); font-size: 12px;">({{ crit.note }})</span>
+              </li>
+              {% endfor %}
             </ul>
+
+            <div style="border-top: 1px dashed var(--border); padding-top: 10px; margin-top: 10px;">
+              <p style="font-size: 12px; color: var(--text-main); line-height: 1.5; margin-bottom: 8px;">
+                <strong>Clinical Interpretation:</strong> {{ leipzig_breakdown.interpretation }}
+              </p>
+              <div style="font-size: 11px; color: #64748b; line-height: 1.4;">
+                <em>Unassessed Criteria (0 pts assigned in panel):</em>
+                <ul style="padding-left: 16px; margin-top: 4px;">
+                  {% for unassessed in leipzig_breakdown.unassessed_list %}
+                  <li>{{ unassessed }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+            {% endif %}
           </div>
 
           <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
               📑 Physician Next Steps
             </h4>
             <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8;">
-              <li>Confirm diagnosis via 24-hour urinary copper re-test.</li>
-              <li>Perform ophthalmic slit-lamp exam for KF rings.</li>
-              <li>Initiate initial chelation therapy if confirmed.</li>
-              <li>Screen first-degree family members (siblings/children).</li>
+              {% if physician_steps %}
+                {% for step in physician_steps %}
+                <li>{{ step }}</li>
+                {% endfor %}
+              {% else %}
+                <li>Comprehensive specialist hepatology/neurology evaluation.</li>
+                <li>Ophthalmic slit-lamp examination for KF rings.</li>
+                <li>24-hour urinary copper and hepatic laboratory re-testing.</li>
+              {% endif %}
             </ul>
+            <div style="margin-top: 14px; background: #fff; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; color: #64748b; line-height: 1.5;">
+              ⚠️ <strong>Clinical Decision Support Note:</strong> All findings and score calculations represent assistive decision support and do not constitute a definitive medical diagnosis or prescription. Final diagnosis and pharmacological therapy must be determined by a licensed physician.
+            </div>
           </div>
 
         </div>
       </div>
     </div>
 
-    <!-- EXPLAINABLE AI (SHAP PLOTS) SECTION -->
+    <!-- EXPLAINABLE AI (SHAP WATERFALL PLOT) SECTION -->
     <div class="card-glass collapsible-card" id="card-shap">
       <div class="collapsible-trigger" onclick="toggleCard('card-shap')">
-        <h2 class="section-title" style="margin-bottom: 0;">📊 Explainable AI (SHAP Feature Attribution)</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">📊 Explainable AI — Patient Risk Attribution</h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
       <div class="collapsible-content">
         <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">
-          SHAP (SHapley Additive exPlanations) visualizes how each biochemical feature pushed the diagnosis towards Positive (red) or Negative (blue).
+          SHAP (SHapley Additive exPlanations) Waterfall analysis visualizes how the current patient's clinical markers contributed to the ensemble prediction, shifting risk toward Positive (red, + risk) or Negative (blue, - risk) relative to baseline expectation.
         </p>
 
         <div style="display: flex; flex-direction: column; gap: 24px;">
 
-          {% if shap_force %}
-          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
+          {% if shap_waterfall %}
+          <div id="shap-plot-container" style="background: white; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              🔍 Force Plot (Patient Local Risk Attribution)
+              🔍 SHAP Waterfall Plot — Current Patient Explanation
             </h3>
-            <img src="{{ url_for('static', filename=shap_force) }}" alt="SHAP Force Plot" style="width: 100%; border-radius: 8px;">
+            <img src="{{ url_for('static', filename=shap_waterfall) }}" alt="SHAP Waterfall Plot" class="shap-plot-img" style="width: 100%; border-radius: 8px;">
           </div>
           {% endif %}
 
-          {% if shap_beeswarm %}
-          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
-            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              🌡️ Beeswarm Plot (Global Feature Distribution & Impact)
-            </h3>
-            <img src="{{ url_for('static', filename=shap_beeswarm) }}" alt="SHAP Beeswarm Plot" style="width: 100%; border-radius: 8px;">
-          </div>
-          {% endif %}
-
-          {% if shap_bar %}
-          <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
-            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              📌 Feature Importance Ranking (Bar Plot)
-            </h3>
-            <img src="{{ url_for('static', filename=shap_bar) }}" alt="SHAP Bar Plot" style="width: 100%; border-radius: 8px;">
-          </div>
-          {% endif %}
-
-          {% if not shap_force and not shap_beeswarm and not shap_bar %}
+          {% if not shap_waterfall %}
           <div style="background: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; color: var(--text-muted);">
-            SHAP feature attribution plots are generated dynamically during assessment.
+            {% if is_historical %}
+            SHAP feature attribution waterfall plot was not recorded or is no longer available on disk for this historical assessment.
+            {% else %}
+            SHAP feature attribution waterfall plot is generated dynamically during assessment.
+            {% endif %}
           </div>
           {% endif %}
 
         </div>
+      </div>
+    </div>
+
+    <!-- CLINICAL DECISION SUPPORT DISCLAIMER -->
+    <div class="clinical-disclaimer-box" style="margin-top: 24px; padding: 14px 18px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.6;">
+      <div style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+        <span>⚕️</span> <span>Mandatory Clinical Decision Support Notice & Disclaimer</span>
+      </div>
+      <div>
+        NeuroMed AI is an assistive clinical decision-support tool, <strong>not a confirmed medical diagnosis or diagnostic device</strong>. Predictions, probability metrics, and criteria breakdowns must be evaluated in context by a qualified, licensed clinician. Definitive diagnosis of Wilson's Disease requires comprehensive specialist hepatology/neurology evaluation, complete Leipzig scoring, ophthalmic slit-lamp examination for Kayser-Fleischer rings, 24-hour urinary copper testing, and genetic/biochemical confirmation.
       </div>
     </div>
 
@@ -444,6 +787,7 @@
     <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
   </footer>
 
+  {% if current_user.role != 'lab_staff' %}
   <!-- PROMINENT FLOATING RAG CHATBOT WIDGET -->
   <div id="chat-toggle" onclick="toggleChat()" style="position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #4f46e5, #0ea5e9); color: white; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 28px rgba(79, 70, 229, 0.5); font-size: 34px; z-index: 10000; border: 3px solid #ffffff; transition: transform 0.2s ease;">
     💬
@@ -464,11 +808,25 @@
         <span style="font-size: 18px;">🤖</span>
         <span>Wilson Medical RAG Assistant</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button id="sessions-toggle-btn" type="button" onclick="toggleSessionsDrawer()" title="View Consultation History & New Chat" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 700; transition: all 0.2s ease;">
+          <span>💬 History</span>
+        </button>
         <button id="tts-toggle-btn" type="button" onclick="toggleAutoTTS()" title="Auto Voice Output (Read aloud answers)" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 700; transition: all 0.2s ease;">
           <span id="tts-icon">🔊</span> <span id="tts-label">Voice: ON</span>
         </button>
         <span onclick="toggleChat(false)" style="cursor: pointer; font-size: 18px; opacity: 0.8; padding: 2px 6px;" title="Minimize Chat">✖</span>
+      </div>
+    </div>
+
+    <!-- CHAT SESSIONS DRAWER -->
+    <div id="chat-sessions-panel" style="display: none; background: #f8fafc; border-bottom: 2px solid var(--border); max-height: 200px; overflow-y: auto; padding: 12px; flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 800; color: #1e1b4b;">Consultation Sessions</span>
+        <button type="button" onclick="startNewChatSession()" style="background: var(--primary); color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer;">+ New Chat</button>
+      </div>
+      <div id="chat-sessions-list" style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Loading sessions...</span>
       </div>
     </div>
 
@@ -503,6 +861,7 @@
       <button id="send-btn" onclick="sendChatMessage()" style="background: var(--primary); color: white; border: none; padding: 11px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; flex-shrink: 0;">Send</button>
     </div>
   </div>
+  {% endif %}
 
   <script>
     function toggleNavMenu() {
@@ -541,13 +900,16 @@
     window.CURRENT_PATIENT_REPORT = {
       prediction: "{{ prediction_text }}",
       probability: {{ (probability * 100)|round(1) }},
-      data: {{ data|tojson }}
+      data: {{ data|tojson }},
+      model_breakdown: {{ model_breakdown|tojson if model_breakdown else {} }}
     };
 
+    {% if current_user.role != 'lab_staff' %}
     let chatOpen = true;
     let autoTTS = true;
     let recognition = null;
     let isListening = false;
+    let chatHistory = [];
 
     function toggleAutoTTS() {
       autoTTS = !autoTTS;
@@ -568,8 +930,12 @@
 
     function formatBotResponse(text) {
       if (!text) return "";
+      // Strip escaped or unescaped divider artifacts: \==\, \---\, ===, ---, ==, etc.
+      let clean = text.replace(/\\*={2,}\\*/g, '');
+      clean = clean.replace(/\\*-{3,}\\*/g, '');
+      clean = clean.replace(/^[ \t]*[=\-_~\\]+[ \t]*$/gm, '');
       // Strip any asterisks (* or **) and backticks completely
-      let clean = text.replace(/[*`#]/g, '');
+      clean = clean.replace(/[*`#]/g, '');
       // Convert any bullet hyphens at line start to clean bullet symbol (• )
       clean = clean.replace(/^[ \t]*-[ \t]+/gm, '• ');
       return clean.trim();
@@ -715,6 +1081,125 @@
       sendChatMessage();
     }
 
+    let currentSessionId = localStorage.getItem('wilson_chat_session_id') || null;
+
+    async function toggleSessionsDrawer() {
+      const panel = document.getElementById('chat-sessions-panel');
+      if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
+        await loadUserSessions();
+      } else {
+        panel.style.display = 'none';
+      }
+    }
+
+    async function loadUserSessions() {
+      const listDiv = document.getElementById('chat-sessions-list');
+      try {
+        const res = await fetch('/api/chat/sessions');
+        const data = await res.json();
+        if (data.success && data.sessions) {
+          if (data.sessions.length === 0) {
+            listDiv.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">No past consultations found.</span>';
+            return;
+          }
+          listDiv.innerHTML = data.sessions.map(s => `
+            <div onclick="selectSession('${s.session_id}')" style="background: ${s.session_id === currentSessionId ? '#e0e7ff' : 'white'}; border: 1px solid ${s.session_id === currentSessionId ? 'var(--primary)' : '#cbd5e1'}; padding: 6px 10px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+              <span style="font-weight: 700; color: #1e1b4b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;">${s.title || 'Consultation'}</span>
+              <span style="color: #64748b; font-size: 10px;">${s.message_count || 0} msgs</span>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        listDiv.innerHTML = '<span style="font-size: 11px; color: #ef4444;">Failed to load history.</span>';
+      }
+    }
+
+    async function startNewChatSession() {
+      try {
+        const res = await fetch('/api/chat/new_session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+          },
+          body: JSON.stringify({ patient_id: window.CURRENT_PATIENT_REPORT?.patient_id || null })
+        });
+        const data = await res.json();
+        if (data.success && data.session_id) {
+          currentSessionId = data.session_id;
+          localStorage.setItem('wilson_chat_session_id', currentSessionId);
+          chatHistory = [];
+          const container = document.getElementById('chat-messages');
+          container.innerHTML = `
+            <div style="background: #e0e7ff; padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: #3730a3; line-height: 1.5; font-weight: 500;">
+              New consultation started! I am your RAG Clinical Assistant with Voice Support 🎙️. Ask me anything about Wilson's Disease diagnosis, chelation therapy, or dietary guidelines!
+            </div>
+          `;
+          document.getElementById('chat-sessions-panel').style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Failed to create new session:', e);
+      }
+    }
+
+    async function selectSession(sessionId) {
+      currentSessionId = sessionId;
+      localStorage.setItem('wilson_chat_session_id', currentSessionId);
+      document.getElementById('chat-sessions-panel').style.display = 'none';
+      await loadSessionMessages(sessionId);
+    }
+
+    async function loadSessionMessages(sessionId) {
+      const container = document.getElementById('chat-messages');
+      container.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 10px;">Loading consultation messages...</div>';
+      try {
+        const res = await fetch(`/api/chat/session/${sessionId}`);
+        const data = await res.json();
+        if (data.success && data.messages) {
+          container.innerHTML = '';
+          chatHistory = [];
+          if (data.messages.length === 0) {
+            container.innerHTML = `
+              <div style="background: #e0e7ff; padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: #3730a3; line-height: 1.5; font-weight: 500;">
+                Consultation resumed. Ask any question about Wilson's Disease diagnosis, chelation therapy, or dietary guidelines!
+              </div>
+            `;
+          }
+          data.messages.forEach(m => {
+            chatHistory.push({ role: m.role, content: m.content });
+            if (m.role === 'user') {
+              const uDiv = document.createElement('div');
+              uDiv.style.cssText = 'background: var(--primary); color: white; padding: 10px 14px; border-radius: 12px; max-width: 85%; align-self: flex-end; font-weight: 500;';
+              uDiv.innerText = m.content;
+              container.appendChild(uDiv);
+            } else {
+              const bDiv = document.createElement('div');
+              bDiv.style.cssText = 'background: #e0e7ff; color: #1e1b4b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px;';
+              const tDiv = document.createElement('div');
+              tDiv.style.cssText = 'white-space: pre-wrap;';
+              tDiv.innerText = m.content;
+              bDiv.appendChild(tDiv);
+
+              const actRow = document.createElement('div');
+              actRow.style.cssText = 'display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px solid rgba(99,102,241,0.18); padding-top: 5px;';
+              const spk = document.createElement('button');
+              spk.type = 'button';
+              spk.style.cssText = 'background: white; border: 1px solid rgba(99,102,241,0.3); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;';
+              spk.innerHTML = '🔊 Read Aloud';
+              spk.onclick = () => speakBotText(m.content);
+              actRow.appendChild(spk);
+              bDiv.appendChild(actRow);
+              container.appendChild(bDiv);
+            }
+          });
+          container.scrollTop = container.scrollHeight;
+        }
+      } catch (e) {
+        container.innerHTML = '<div style="color: #ef4444; padding: 10px;">Failed to load messages.</div>';
+      }
+    }
+
     async function sendChatMessage() {
       const input = document.getElementById('chat-input');
       const message = input.value.trim();
@@ -743,15 +1228,44 @@
       try {
         const payload = {
           message: message,
-          patient_context: window.CURRENT_PATIENT_REPORT || null
+          session_id: currentSessionId,
+          patient_context: window.CURRENT_PATIENT_REPORT || null,
+          chat_history: chatHistory.slice(-6),
+          csrf_token: '{{ csrf_token() }}'
         };
+        // Record user turn in local history
+        chatHistory.push({ role: 'user', content: message });
+
         const response = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+          },
           body: JSON.stringify(payload)
         });
         const data = await response.json();
         messagesContainer.removeChild(loadingDiv);
+
+        if (!response.ok) {
+          let errMsg = data.error || data.response || "Error connecting to RAG assistant.";
+          if (response.status === 401 || (data.error && data.error.includes("Session expired"))) {
+            errMsg = "🔒 Your session has expired due to 30 minutes of inactivity. Please refresh the page and log in again to continue.";
+          } else if (response.status === 400 && data.error && data.error.includes("CSRF")) {
+            errMsg = "🔒 Security token expired. Please refresh the page and log in again.";
+          }
+          const errDiv = document.createElement('div');
+          errDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px; font-weight: 500; border: 1px solid #fca5a5;';
+          errDiv.innerHTML = `${errMsg} <br><a href="/login?next=${encodeURIComponent(window.location.pathname)}" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-top: 6px; display: inline-block;">Click here to Log In</a>`;
+          messagesContainer.appendChild(errDiv);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          return;
+        }
+
+        if (data.session_id) {
+          currentSessionId = data.session_id;
+          localStorage.setItem('wilson_chat_session_id', currentSessionId);
+        }
 
         const botDiv = document.createElement('div');
         botDiv.style.cssText = 'background: #e0e7ff; color: #1e1b4b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px;';
@@ -761,6 +1275,9 @@
         const cleanResponse = formatBotResponse(data.response || "No response received.");
         textNode.innerText = cleanResponse;
         botDiv.appendChild(textNode);
+
+        // Record assistant turn in local history
+        chatHistory.push({ role: 'assistant', content: cleanResponse });
 
         // Read aloud action bar
         const actionRow = document.createElement('div');
@@ -782,6 +1299,9 @@
         }
 
       } catch (err) {
+        if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
+          chatHistory.pop();
+        }
         messagesContainer.removeChild(loadingDiv);
         const errDiv = document.createElement('div');
         errDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 14px; max-width: 85%; align-self: flex-start;';
@@ -790,6 +1310,9 @@
       }
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+    {% else %}
+    function toggleChat() {}
+    {% endif %}
   </script>
 
 </body>

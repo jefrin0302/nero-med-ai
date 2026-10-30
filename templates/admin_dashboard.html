@@ -1,0 +1,2011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chief Doctor Executive Admin & Governance Dashboard — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  
+  <style>
+    :root {
+      --admin-navy: #090d16;
+      --admin-dark-card: #0f172a;
+      --admin-sidebar-bg: #090e1a;
+      --admin-indigo: #6366f1;
+      --admin-indigo-light: #818cf8;
+      --admin-cyan: #06b6d4;
+      --admin-emerald: #10b981;
+      --admin-amber: #f59e0b;
+      --admin-rose: #ef4444;
+      --admin-border: rgba(148, 163, 184, 0.15);
+    }
+
+    body {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* EXECUTIVE TOP BAR */
+    .admin-navbar {
+      background: linear-gradient(90deg, #090d16 0%, #1e1b4b 60%, #0f172a 100%);
+      color: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .admin-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 800;
+      color: white;
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+
+    .chief-doctor-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.25);
+      border: 1px solid rgba(165, 180, 252, 0.4);
+      color: #c7d2fe;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* DASHBOARD WRAPPER & SIDEBAR */
+    .dashboard-layout {
+      display: flex;
+      flex: 1;
+      min-height: calc(100vh - 65px);
+    }
+
+    .admin-sidebar {
+      width: 280px;
+      background: var(--admin-sidebar-bg);
+      color: #94a3b8;
+      border-right: 1px solid var(--admin-border);
+      padding: 24px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      overflow-y: auto;
+      max-height: calc(100vh - 65px);
+      position: sticky;
+      top: 65px;
+    }
+
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #64748b;
+      padding: 0 12px 6px 12px;
+    }
+
+    .nav-tab-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: #cbd5e1;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .sidebar-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-btn.active {
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.25) 0%, rgba(99, 102, 241, 0.12) 100%);
+      color: #ffffff;
+      border-color: rgba(99, 102, 241, 0.4);
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    }
+
+    .sidebar-badge {
+      margin-left: auto;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge-amber-count {
+      background: #f59e0b;
+      color: #0f172a;
+    }
+
+    .badge-green-status {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    /* MAIN CONTENT VIEWPORT */
+    .admin-main-pane {
+      flex: 1;
+      padding: 32px 36px 80px 36px;
+      background: #f8fafc;
+      overflow-x: hidden;
+      max-width: 1440px;
+    }
+
+    .tab-view {
+      display: none;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    .tab-view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* HERO EXECUTIVE BANNER */
+    .exec-banner {
+      background: linear-gradient(135deg, #090d16 0%, #1e1b4b 50%, #0f172a 100%);
+      color: white;
+      padding: 28px 32px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 28px;
+      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .exec-title-box h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin: 0 0 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .exec-subtitle {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin: 0;
+      max-width: 680px;
+      line-height: 1.5;
+    }
+
+    /* KPI METRIC CARDS */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .kpi-card {
+      background: white;
+      padding: 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .kpi-card.indigo::before { background: var(--admin-indigo); }
+    .kpi-card.emerald::before { background: var(--admin-emerald); }
+    .kpi-card.amber::before { background: var(--admin-amber); }
+    .kpi-card.cyan::before { background: var(--admin-cyan); }
+    .kpi-card.rose::before { background: var(--admin-rose); }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    .kpi-subtext {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* CARDS & PANELS */
+    .content-panel {
+      background: white;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 26px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: #fafbfc;
+    }
+
+    .panel-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel-body {
+      padding: 24px;
+    }
+
+    /* DATA TABLES */
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    .admin-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .admin-table td {
+      padding: 13px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+      vertical-align: middle;
+    }
+
+    .admin-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    /* BADGES */
+    .role-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .role-admin { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .role-clinician { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .role-lab { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+    .status-badge-active {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .status-badge-inactive {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* ACTION BUTTONS */
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-action-primary {
+      background: var(--admin-indigo);
+      color: white;
+    }
+    .btn-action-primary:hover {
+      background: #4f46e5;
+    }
+    .btn-action-outline {
+      background: white;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-action-outline:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+    .btn-action-danger {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .btn-action-danger:hover {
+      background: #fecaca;
+    }
+    .btn-action-success {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    .btn-action-success:hover {
+      background: #bbf7d0;
+    }
+
+    /* MODAL OVERLAY */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-card {
+      background: white;
+      border-radius: 16px;
+      max-width: 580px;
+      width: 100%;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      animation: modalPop 0.2s ease-out;
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .modal-body {
+      padding: 24px;
+    }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      background: #f8fafc;
+    }
+    .form-row {
+      margin-bottom: 18px;
+    }
+    .form-row label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--admin-indigo);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    /* RAG TERMINAL */
+    .rag-terminal {
+      background: #0f172a;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 380px;
+    }
+    .rag-messages {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .rag-msg {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      max-width: 85%;
+    }
+    .rag-msg.user {
+      background: #312e81;
+      color: #ffffff;
+      align-self: flex-end;
+      border: 1px solid rgba(165, 180, 252, 0.2);
+    }
+    .rag-msg.assistant {
+      background: #1e293b;
+      color: #f1f5f9;
+      align-self: flex-start;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .rag-citations-box {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.15);
+      font-size: 11.5px;
+      color: #94a3b8;
+    }
+    .rag-input-box {
+      display: flex;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- EXECUTIVE TOP NAVBAR -->
+  <header class="admin-navbar">
+    <div style="display: flex; align-items: center; gap: 18px;">
+      <a class="admin-brand" href="{{ url_for('admin_dashboard') }}">
+        🧬 NeuroMed AI
+      </a>
+      <span class="chief-doctor-badge">
+        🛡️ Chief Doctor Administration
+      </span>
+      <span style="font-size: 12px; color: #94a3b8; display: inline-flex; align-items: center; gap: 6px;">
+        <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span>
+        Ensemble v2.0 In-Service
+      </span>
+    </div>
+
+    <div class="top-actions">
+      <a href="{{ url_for('about') }}" class="btn-action btn-action-success" style="padding: 7px 14px;">
+        🧪 New Assessment
+      </a>
+      <a href="{{ url_for('patient_dashboard') }}" class="btn-action btn-action-outline" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">
+        👥 Patient Directory
+      </a>
+      <span style="font-size: 13px; color: #cbd5e1; margin-left: 6px;">
+        👤 <strong>{{ current_user.full_name or current_user.username }}</strong>
+      </span>
+      <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-action btn-action-danger" style="margin-left: 6px;">Sign Out</button>
+      </form>
+    </div>
+  </header>
+
+  <!-- DASHBOARD MAIN LAYOUT -->
+  <div class="dashboard-layout">
+
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="admin-sidebar">
+
+      <div>
+        <div class="sidebar-section-title">Executive Control</div>
+        <ul class="nav-tab-list">
+          <li>
+            <button class="sidebar-btn active" onclick="showTab('overview', this)">
+              📊 Overview Dashboard
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="sidebar-section-title">Clinical Workspace (Clinician Tools)</div>
+        <ul class="nav-tab-list">
+          <li>
+            <button class="sidebar-btn" onclick="showTab('clinical-workspace', this)">
+              🧪 Clinical Test Launcher
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('patients-dir', this)">
+              👥 Patient Management
+              <span class="sidebar-badge badge-green-status">{{ overview.total_patients }}</span>
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('disease-prediction', this)">
+              🧠 Disease Prediction &amp; AI
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('shap-xai', this)">
+              🔬 Explainable AI (SHAP)
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('rag-assistant', this)">
+              💬 Medical RAG Assistant
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('clinical-guide', this)">
+              📖 Leipzig Scoring &amp; Guidelines
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('prediction-reports', this)">
+              📑 Prediction History &amp; Reports
+              <span class="sidebar-badge badge-green-status">{{ overview.total_assessments }}</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="sidebar-section-title">Governance &amp; Administration</div>
+        <ul class="nav-tab-list">
+          <li>
+            <button class="sidebar-btn" onclick="showTab('user-mgmt', this)">
+              👥 User &amp; Role Management
+              <span class="sidebar-badge badge-green-status">{{ overview.active_users }}/{{ overview.total_users }}</span>
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('doc-approval', this)">
+              🛡️ Document Approval Center
+              {% if overview.pending_guidelines > 0 %}
+              <span class="sidebar-badge badge-amber-count">{{ overview.pending_guidelines }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('model-gov', this)">
+              ⚖️ Clinical AI Model Governance
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('system-health', this)">
+              🖥️ System Health &amp; Telemetry
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('audit-trail', this)">
+              📜 Security Audit Logs
+              <span class="sidebar-badge badge-green-status">{{ overview.events_24h }}</span>
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" onclick="showTab('governance-policies', this)">
+              📋 Compliance &amp; Policies
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <div style="margin-top: auto; padding: 12px; background: rgba(15, 23, 42, 0.6); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="font-size: 11px; color: #94a3b8; font-weight: 700;">AUDIT COMPLIANCE</div>
+        <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">Zero-Hallucination Guard Active</div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Session Security: 30m Idle Timeout</div>
+      </div>
+
+    </aside>
+
+    <!-- MAIN VIEWPORT -->
+    <main class="admin-main-pane">
+
+      <!-- ===================================================================== -->
+      <!-- TAB 1: EXECUTIVE OVERVIEW                                              -->
+      <!-- ===================================================================== -->
+      <div id="tab-overview" class="tab-view active">
+
+        <div class="exec-banner">
+          <div class="exec-title-box">
+            <h1>👑 Chief Doctor Executive Command Center</h1>
+            <p class="exec-subtitle">
+              Comprehensive clinical oversight, multi-model AI ensemble diagnostics, and system governance for Wilson's Disease.
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('about') }}" class="btn-action btn-action-primary" style="padding: 10px 18px; font-size: 13px;">
+              🚀 Launch Clinical Test
+            </a>
+            <button class="btn-action btn-action-outline" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);" onclick="showTab('doc-approval')">
+              🛡️ Review Guidelines ({% raw %}{{ overview.pending_guidelines }}{% endraw %})
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI METRICS GRID -->
+        <div class="kpi-grid">
+          <div class="kpi-card indigo">
+            <div class="kpi-label">Total Patients</div>
+            <div class="kpi-value">{{ overview.total_patients }}</div>
+            <div class="kpi-subtext">Registered clinical profiles</div>
+          </div>
+          <div class="kpi-card emerald">
+            <div class="kpi-label">Assessments Performed</div>
+            <div class="kpi-value">{{ overview.total_assessments }}</div>
+            <div class="kpi-subtext">{{ overview.positive_assessments }} Wilson Positive diagnoses</div>
+          </div>
+          <div class="kpi-card rose">
+            <div class="kpi-label">High-Risk Patients</div>
+            <div class="kpi-value">{{ overview.high_risk_patients }}</div>
+            <div class="kpi-subtext">Ensemble confidence &gt;= 70%</div>
+          </div>
+          <div class="kpi-card cyan">
+            <div class="kpi-label">Active Clinicians</div>
+            <div class="kpi-value">{{ overview.active_clinicians }}</div>
+            <div class="kpi-subtext">{{ overview.active_users }} total active accounts</div>
+          </div>
+          <div class="kpi-card amber">
+            <div class="kpi-label">Pending Guideline Approvals</div>
+            <div class="kpi-value">{{ overview.pending_guidelines }}</div>
+            <div class="kpi-subtext">Awaiting Chief Doctor signature</div>
+          </div>
+          <div class="kpi-card emerald">
+            <div class="kpi-label">Ensemble Accuracy</div>
+            <div class="kpi-value">99.93%</div>
+            <div class="kpi-subtext">1.0000 ROC-AUC (Calibrated)</div>
+          </div>
+        </div>
+
+        <!-- QUICK ACCESS CLINICAL & GOVERNANCE TILES -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; margin-bottom: 28px;">
+          
+          <!-- Recent Clinical Assessments -->
+          <div class="content-panel" style="margin-bottom: 0;">
+            <div class="panel-header">
+              <span class="panel-title">🩺 Recent Clinical Assessments</span>
+              <button class="btn-action btn-action-outline" onclick="showTab('prediction-reports')">View All</button>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Date</th>
+                    <th>Result</th>
+                    <th>Probability</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in patients[:6] %}
+                  <tr>
+                    <td>
+                      <strong>{{ p.patient_name }}</strong><br />
+                      <span style="font-size: 11px; color: #64748b;">{{ p.patient_id }}</span>
+                    </td>
+                    <td>{{ p.latest_assessment_date[:10] if p.latest_assessment_date else 'N/A' }}</td>
+                    <td>
+                      {% if p.latest_prediction_text and 'Positive' in p.latest_prediction_text %}
+                      <span style="color: #991b1b; font-weight: 700; background: #fee2e2; padding: 2px 8px; border-radius: 4px; font-size: 11px;">POSITIVE</span>
+                      {% elif p.latest_prediction_text and 'Negative' in p.latest_prediction_text %}
+                      <span style="color: #15803d; font-weight: 700; background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 11px;">NEGATIVE</span>
+                      {% else %}
+                      <span style="color: #64748b; font-size: 11px;">Pending</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ (p.latest_probability * 100)|round(1) if p.latest_probability is not none else 'N/A' }}%</td>
+                    <td>
+                      <a href="{{ url_for('patient_history_view', patient_id=p.patient_id) }}" class="btn-action btn-action-outline" style="padding: 4px 8px; font-size: 11px;">History</a>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 24px;">No patient assessments recorded yet.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Pending Guidelines Requiring Chief Doctor Approval -->
+          <div class="content-panel" style="margin-bottom: 0;">
+            <div class="panel-header">
+              <span class="panel-title">🛡️ Guidelines Requiring Approval</span>
+              <button class="btn-action btn-action-outline" onclick="showTab('doc-approval')">Manage Center</button>
+            </div>
+            <div class="panel-body">
+              {% if pending_docs|length > 0 %}
+                <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #92400e;">
+                  ⚠️ <strong>{{ pending_docs|length }} clinical document(s)</strong> have been submitted by clinicians and quarantined. They will not be used in the RAG knowledge base until you sign off.
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  {% for doc in pending_docs[:3] %}
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <div>
+                      <div style="font-weight: 700; font-size: 13px;">{{ doc.title or doc.original_filename }}</div>
+                      <div style="font-size: 11px; color: #64748b;">Uploaded by {{ doc.uploaded_by_name or 'Clinician' }} • {{ (doc.file_size_bytes / 1024)|round(1) }} KB</div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn-action btn-action-success" onclick="openApproveModal({{ doc.doc_id }}, '{{ doc.title or doc.original_filename }}')">Approve</button>
+                      <button class="btn-action btn-action-danger" onclick="openRejectModal({{ doc.doc_id }}, '{{ doc.title or doc.original_filename }}')">Reject</button>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div style="text-align: center; padding: 36px 20px; color: #64748b;">
+                  <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
+                  <div style="font-weight: 700; font-size: 15px; color: #1e293b;">All Clinical Guidelines Approved</div>
+                  <div style="font-size: 13px; margin-top: 4px;">There are no quarantined documents pending Chief Doctor review.</div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 2: CLINICAL WORKSPACE (ALL CLINICIAN FEATURES)                    -->
+      <!-- ===================================================================== -->
+      <div id="tab-clinical-workspace" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">🧪 Chief Doctor Clinical Assessment Launcher</span>
+            <a href="{{ url_for('about') }}" class="btn-action btn-action-primary">Open Full Clinical Form</a>
+          </div>
+          <div class="panel-body">
+            <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">
+              As Chief Doctor, you have complete clinical access to initiate new patient evaluations, enter 23 clinical biomarkers, upload certified laboratory reports, and generate multi-model Wilson's Disease risk predictions.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+              <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center;">
+                <div style="font-size: 36px; margin-bottom: 10px;">🧪</div>
+                <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Direct Clinical Assessment</h3>
+                <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">
+                  Launch assessment form with automated Patient ID generation and clinical reference bounds.
+                </p>
+                <a href="{{ url_for('about') }}" class="btn-action btn-action-primary" style="width: 100%; justify-content: center;">
+                  Start Assessment
+                </a>
+              </div>
+
+              <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center;">
+                <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
+                <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Import Certified Lab Data</h3>
+                <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">
+                  Upload laboratory CSV, JSON, or Word DOCX files to auto-populate and validate biomarkers.
+                </p>
+                <a href="{{ url_for('lab_import_page') }}" class="btn-action btn-action-outline" style="width: 100%; justify-content: center;">
+                  Open Lab Workstation
+                </a>
+              </div>
+
+              <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center;">
+                <div style="font-size: 36px; margin-bottom: 10px;">👥</div>
+                <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Longitudinal Patient Review</h3>
+                <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">
+                  Inspect biomarker trajectories over time and compare baseline against follow-up visits.
+                </p>
+                <a href="{{ url_for('patient_dashboard') }}" class="btn-action btn-action-outline" style="width: 100%; justify-content: center;">
+                  Browse Patients
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 3: PATIENT MANAGEMENT                                             -->
+      <!-- ===================================================================== -->
+      <div id="tab-patients-dir" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">👥 Patient Management Directory</span>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="patientSearchInput" onkeyup="filterPatientTable()" placeholder="Search patient ID or name..." class="form-input" style="width: 260px; padding: 6px 12px;" />
+              <a href="{{ url_for('about') }}" class="btn-action btn-action-primary">+ New Patient</a>
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="admin-table" id="adminPatientTable">
+              <thead>
+                <tr>
+                  <th>Patient ID</th>
+                  <th>Patient Name</th>
+                  <th>Age / Sex</th>
+                  <th>Region / BMI</th>
+                  <th>Assessments</th>
+                  <th>Last Evaluation</th>
+                  <th>Latest Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in patients %}
+                <tr>
+                  <td><strong style="color: var(--admin-indigo);">{{ p.patient_id }}</strong></td>
+                  <td><strong>{{ p.patient_name }}</strong></td>
+                  <td>{{ p.age|round(0)|int if p.age else 'N/A' }} / {{ p.sex or 'N/A' }}</td>
+                  <td>{{ p.region or 'N/A' }} / {{ p.bmi|round(1) if p.bmi else 'N/A' }}</td>
+                  <td><span class="sidebar-badge badge-green-status">{{ p.assessment_count }}</span></td>
+                  <td>{{ p.latest_assessment_date[:10] if p.latest_assessment_date else 'None' }}</td>
+                  <td>
+                    {% if p.latest_prediction_text and 'Positive' in p.latest_prediction_text %}
+                    <span style="color: #991b1b; font-weight: 700; background: #fee2e2; padding: 3px 8px; border-radius: 4px; font-size: 11px;">POSITIVE ({{ (p.latest_probability * 100)|round(1) if p.latest_probability is not none else 'N/A' }}%)</span>
+                    {% elif p.latest_prediction_text and 'Negative' in p.latest_prediction_text %}
+                    <span style="color: #15803d; font-weight: 700; background: #dcfce7; padding: 3px 8px; border-radius: 4px; font-size: 11px;">NEGATIVE ({{ (p.latest_probability * 100)|round(1) if p.latest_probability is not none else 'N/A' }}%)</span>
+                    {% else %}
+                    <span style="color: #64748b; font-size: 11px;">Unassessed</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div style="display: flex; gap: 6px;">
+                      <a href="{{ url_for('patient_history_view', patient_id=p.patient_id) }}" class="btn-action btn-action-outline" style="padding: 4px 8px; font-size: 11px;">History</a>
+                      <a href="{{ url_for('patient_compare_view', patient_id=p.patient_id) }}" class="btn-action btn-action-outline" style="padding: 4px 8px; font-size: 11px;">Compare</a>
+                      <button class="btn-action btn-action-danger" style="padding: 4px 8px; font-size: 11px;" onclick="confirmDeletePatient('{{ p.patient_id }}', '{{ p.patient_name }}')">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 30px;">No patient records registered yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 4: DISEASE PREDICTION & AI MODELS                                 -->
+      <!-- ===================================================================== -->
+      <div id="tab-disease-prediction" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">🧠 Wilson's Disease Stacking Ensemble Architecture</span>
+            <span class="role-badge role-clinician">Model Version: {{ meta_info.model_version or 'v2.0.0-calibrated' }}</span>
+          </div>
+          <div class="panel-body">
+            <p style="font-size: 14px; color: #475569; margin-bottom: 24px; line-height: 1.6;">
+              The prediction system synthesizes 3 distinct machine learning paradigms into a calibrated consensus probability. Individual models evaluate non-linear biomarker interactions, statistical baseline odds, and sequential recurrent patterns before the meta-classifier combines their outputs.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 28px;">
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+                <div style="font-size: 12px; font-weight: 800; color: #6366f1; text-transform: uppercase;">Model A</div>
+                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Support Vector Machine (SVM)</h3>
+                <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+                  RBF Kernel mapping multi-dimensional boundary crossings across free copper, AST/ALT, and neurological impairment.
+                </p>
+                <div style="margin-top: 14px; font-size: 12px; font-weight: 700; color: #0f172a;">
+                  Accuracy: 99.78% • AUC: 0.9999
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+                <div style="font-size: 12px; font-weight: 800; color: #0ea5e9; text-transform: uppercase;">Model B</div>
+                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Logistic Regression</h3>
+                <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+                  Calibrated statistical reference odds, preventing extreme overconfident outliers in boundary cases.
+                </p>
+                <div style="margin-top: 14px; font-size: 12px; font-weight: 700; color: #0f172a;">
+                  Accuracy: 99.70% • AUC: 0.9999
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+                <div style="font-size: 12px; font-weight: 800; color: #10b981; text-transform: uppercase;">Model C</div>
+                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Bidirectional LSTM</h3>
+                <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+                  Recurrent deep neural network capturing forward and backward cross-feature dependencies across 23 biomarkers.
+                </p>
+                <div style="margin-top: 14px; font-size: 12px; font-weight: 700; color: #0f172a;">
+                  Accuracy: 99.40% • AUC: 0.9998
+                </div>
+              </div>
+            </div>
+
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px;">
+              <h4 style="font-size: 15px; font-weight: 800; color: #1e40af; margin-bottom: 8px;">Stacking Meta-Classifier &amp; Isotonic Calibration</h4>
+              <p style="font-size: 13.5px; color: #1e3a8a; line-height: 1.6; margin: 0;">
+                The meta-learner combines probabilities from all 3 constituent models and applies non-parametric Isotonic Regression. The resulting probability reflects true epidemiological empirical risk (Brier Score: 0.00065, ECE: 0.000).
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 5: EXPLAINABLE AI (SHAP XAI)                                      -->
+      <!-- ===================================================================== -->
+      <div id="tab-shap-xai" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">🔬 Explainable AI (SHAP XAI) Attribution Center</span>
+            <span style="font-size: 12px; color: #64748b;">Shapley Value Additive Feature Importance</span>
+          </div>
+          <div class="panel-body">
+            <p style="font-size: 14px; color: #475569; margin-bottom: 24px;">
+              NeuroMed AI utilizes SHAP (SHapley Additive exPlanations) to provide mathematical transparency for every clinical risk prediction. The Chief Doctor can verify which specific physiological markers elevated or lowered a patient's risk score.
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px;">
+                <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Key Biomarker Importance Ranking</h4>
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                      <span>1. Free Copper in Serum</span>
+                      <span>+0.38 SHAP</span>
+                    </div>
+                    <div style="background: #e2e8f0; height: 6px; border-radius: 4px; margin-top: 4px; overflow: hidden;">
+                      <div style="background: #ef4444; width: 92%; height: 100%;"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                      <span>2. Serum Ceruloplasmin Level</span>
+                      <span>-0.34 SHAP</span>
+                    </div>
+                    <div style="background: #e2e8f0; height: 6px; border-radius: 4px; margin-top: 4px; overflow: hidden;">
+                      <div style="background: #3b82f6; width: 85%; height: 100%;"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                      <span>3. 24h Urinary Copper Excretion</span>
+                      <span>+0.29 SHAP</span>
+                    </div>
+                    <div style="background: #e2e8f0; height: 6px; border-radius: 4px; margin-top: 4px; overflow: hidden;">
+                      <div style="background: #ef4444; width: 74%; height: 100%;"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                      <span>4. Kayser-Fleischer Rings</span>
+                      <span>+0.22 SHAP</span>
+                    </div>
+                    <div style="background: #e2e8f0; height: 6px; border-radius: 4px; margin-top: 4px; overflow: hidden;">
+                      <div style="background: #ef4444; width: 62%; height: 100%;"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                      <span>5. Neurological Symptoms Score</span>
+                      <span>+0.18 SHAP</span>
+                    </div>
+                    <div style="background: #e2e8f0; height: 6px; border-radius: 4px; margin-top: 4px; overflow: hidden;">
+                      <div style="background: #ef4444; width: 50%; height: 100%;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px;">
+                <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Local Waterfall Plots</h4>
+                <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 14px;">
+                  During each patient assessment, an interactive high-resolution Waterfall plot is dynamically generated and persisted in the audit directory. It demonstrates how baseline odds $E[f(x)]$ shift to the final probability $f(x)$ for that specific patient.
+                </p>
+                <a href="{{ url_for('about') }}" class="btn-action btn-action-outline">Run Assessment to View Live Plot</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 6: MEDICAL RAG ASSISTANT                                          -->
+      <!-- ===================================================================== -->
+      <div id="tab-rag-assistant" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">💬 Chief Doctor Medical RAG Consultation Assistant</span>
+            <span style="font-size: 12px; color: #10b981; font-weight: 700;">● Grounded in AASLD &amp; EASL</span>
+          </div>
+          <div class="panel-body">
+            <div class="rag-terminal">
+              <div class="rag-messages" id="ragMessagesContainer">
+                <div class="rag-msg assistant">
+                  👋 <strong>Welcome, Chief Doctor.</strong> I am your clinical RAG assistant grounded strictly in verified clinical practice guidelines (AASLD 2022 and EASL-ERN). You can ask diagnostic criteria, chelator regimens (D-penicillamine, trientine), zinc maintenance, monitoring protocols, or Leipzig scoring rules.
+                </div>
+              </div>
+              <div class="rag-input-box">
+                <input type="text" id="ragQueryInput" class="form-input" style="background: #1e293b; color: white; border-color: rgba(255,255,255,0.15);" placeholder="Ask a clinical question (e.g. 'What is the first-line therapy for symptomatic Wilson's disease?')..." onkeydown="if(event.key==='Enter') sendRAGQuery()" />
+                <button class="btn-action btn-action-primary" onclick="sendRAGQuery()">Consult RAG</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 7: CLINICAL REFERENCE GUIDE & LEIPZIG                             -->
+      <!-- ===================================================================== -->
+      <div id="tab-clinical-guide" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">📖 Leipzig Criteria Diagnostic Reference Matrix</span>
+            <a href="{{ url_for('do') }}" class="btn-action btn-action-outline">Full Interactive Guide</a>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Clinical / Laboratory Feature</th>
+                  <th>Observed Finding</th>
+                  <th>Leipzig Score Contribution</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Kayser-Fleischer (K-F) Rings</strong></td>
+                  <td>Present: Slit-lamp biomicroscopy confirmed</td>
+                  <td><span class="role-badge role-admin">+2 Points</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Neurological Symptoms</strong></td>
+                  <td>Severe / Typical Wilsonian (tremor, dystonia, dysarthria)</td>
+                  <td><span class="role-badge role-admin">+2 Points</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Serum Ceruloplasmin Level</strong></td>
+                  <td>&lt; 0.10 g/L (&lt; 10 mg/dL)<br />0.10 – 0.20 g/L (10 – 20 mg/dL)</td>
+                  <td><span class="role-badge role-admin">+2 Points</span><br /><span class="role-badge role-clinician">+1 Point</span></td>
+                </tr>
+                <tr>
+                  <td><strong>24-Hour Urinary Copper Excretion</strong></td>
+                  <td>&gt; 2x Upper Limit of Normal (&gt; 100 μg/24h)<br />1 – 2x ULN (40 – 100 μg/24h)</td>
+                  <td><span class="role-badge role-admin">+2 Points</span><br /><span class="role-badge role-clinician">+1 Point</span></td>
+                </tr>
+                <tr>
+                  <td><strong>ATP7B Gene Mutation Analysis</strong></td>
+                  <td>Homozygous or 2 disease-causing alleles<br />1 disease-causing allele detected</td>
+                  <td><span class="role-badge role-admin">+2 Points</span><br /><span class="role-badge role-clinician">+1 Point</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Coombs-Negative Hemolytic Anemia</strong></td>
+                  <td>Present with high copper levels</td>
+                  <td><span class="role-badge role-clinician">+1 Point</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Diagnostic Interpretation Threshold</strong></td>
+                  <td><strong>Score &ge; 4: Diagnosis Established</strong><br />Score 3: Probable (further testing required)<br />Score &le; 1: Unlikely</td>
+                  <td><span class="role-badge role-admin">Consensus AASLD/EASL</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 8: PREDICTION HISTORY & REPORTS                                   -->
+      <!-- ===================================================================== -->
+      <div id="tab-prediction-reports" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">📑 Clinical Prediction History &amp; Certified Reports</span>
+            <span class="sidebar-badge badge-green-status">{{ overview.total_assessments }} Records</span>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Patient ID</th>
+                  <th>Patient Name</th>
+                  <th>Date &amp; Time</th>
+                  <th>Diagnosis Result</th>
+                  <th>Ensemble Probability</th>
+                  <th>Leipzig Score</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in patients %}
+                  {% if p.latest_assessment_date %}
+                  <tr>
+                    <td><strong>{{ p.patient_id }}</strong></td>
+                    <td>{{ p.patient_name }}</td>
+                    <td>{{ p.latest_assessment_date }}</td>
+                    <td>
+                      {% if p.latest_prediction_text and 'Positive' in p.latest_prediction_text %}
+                      <span style="color: #991b1b; font-weight: 700; background: #fee2e2; padding: 2px 8px; border-radius: 4px; font-size: 11px;">POSITIVE</span>
+                      {% else %}
+                      <span style="color: #15803d; font-weight: 700; background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 11px;">NEGATIVE</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ (p.latest_probability * 100)|round(2) if p.latest_probability is not none else 'N/A' }}%</td>
+                    <td><strong>{{ p.latest_leipzig_score or 'N/A' }}</strong> / 4</td>
+                    <td>
+                      <a href="{{ url_for('patient_history_view', patient_id=p.patient_id) }}" class="btn-action btn-action-outline" style="padding: 4px 8px; font-size: 11px;">View History</a>
+                    </td>
+                  </tr>
+                  {% endif %}
+                {% else %}
+                <tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 24px;">No assessments recorded yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 9: USER AND ROLE MANAGEMENT                                       -->
+      <!-- ===================================================================== -->
+      <div id="tab-user-mgmt" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">👥 User &amp; Role Management</span>
+            <button class="btn-action btn-action-primary" onclick="openCreateUserModal()">+ Provision New Account</button>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Username</th>
+                  <th>Full Name</th>
+                  <th>Role</th>
+                  <th>Account Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody">
+                {% for u in users %}
+                <tr id="user-row-{{ u.user_id }}">
+                  <td>#{{ u.user_id }}</td>
+                  <td><strong>{{ u.username }}</strong></td>
+                  <td>{{ u.full_name }}</td>
+                  <td>
+                    {% if u.role == 'admin' %}
+                    <span class="role-badge role-admin">Chief Doctor (Admin)</span>
+                    {% elif u.role == 'clinician' %}
+                    <span class="role-badge role-clinician">Clinician</span>
+                    {% elif u.role == 'lab_staff' %}
+                    <span class="role-badge role-lab">Lab Staff</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if u.is_active == 1 %}
+                    <span class="status-badge-active">● Active</span>
+                    {% else %}
+                    <span class="status-badge-inactive">✕ Deactivated</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ u.created_at[:10] if u.created_at else 'N/A' }}</td>
+                  <td>
+                    <div style="display: flex; gap: 6px;">
+                      {% if u.user_id != current_user.user_id %}
+                      <button class="btn-action {{ 'btn-action-danger' if u.is_active == 1 else 'btn-action-success' }}" style="padding: 4px 8px; font-size: 11px;" onclick="toggleUserStatus({{ u.user_id }}, {{ u.is_active }})">
+                        {{ 'Deactivate' if u.is_active == 1 else 'Activate' }}
+                      </button>
+                      {% else %}
+                      <span style="font-size: 11px; color: #94a3b8; padding: 4px 8px;">Active Self</span>
+                      {% endif %}
+                      <button class="btn-action btn-action-outline" style="padding: 4px 8px; font-size: 11px;" onclick="openResetPasswordModal({{ u.user_id }}, '{{ u.username }}')">
+                        Reset Password
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 10: DOCUMENT APPROVAL CENTER                                      -->
+      <!-- ===================================================================== -->
+      <div id="tab-doc-approval" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">🛡️ Clinical Document Approval Center &amp; Knowledge Governance</span>
+            <span class="role-badge role-admin">Chief Doctor Signature Required</span>
+          </div>
+          <div class="panel-body">
+            <p style="font-size: 13.5px; color: #64748b; margin-bottom: 20px;">
+              Only guidelines approved by the Chief Doctor are indexed into vector memory and referenced by the RAG consultation engine. Unapproved documents remain isolated in a quarantined state.
+            </p>
+
+            <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Submitted Guidelines Queue</h4>
+            <div style="overflow-x: auto; margin-bottom: 28px;">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Title / Document</th>
+                    <th>Uploaded By</th>
+                    <th>Size</th>
+                    <th>Status</th>
+                    <th>Submitted Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for doc in all_docs %}
+                  <tr>
+                    <td>
+                      <strong>{{ doc.title or doc.original_filename }}</strong><br />
+                      <span style="font-size: 11px; color: #64748b;">SHA-256: {{ doc.file_hash_sha256[:16] }}...</span>
+                    </td>
+                    <td>{{ doc.uploaded_by_name or 'Clinician' }}</td>
+                    <td>{{ (doc.file_size_bytes / 1024)|round(1) }} KB</td>
+                    <td>
+                      {% if doc.review_status == 'approved' %}
+                      <span class="status-badge-active">✓ Approved</span>
+                      {% elif doc.review_status == 'rejected' %}
+                      <span class="status-badge-inactive">✕ Rejected</span>
+                      {% else %}
+                      <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">⏳ Pending Approval</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ doc.created_at[:10] if doc.created_at else 'N/A' }}</td>
+                    <td>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn-action btn-action-outline" style="padding: 4px 8px; font-size: 11px;" onclick="previewDoc({{ doc.doc_id }})">Preview</button>
+                        {% if doc.review_status == 'pending_approval' %}
+                        <button class="btn-action btn-action-success" style="padding: 4px 8px; font-size: 11px;" onclick="openApproveModal({{ doc.doc_id }}, '{{ doc.title or doc.original_filename }}')">Approve</button>
+                        <button class="btn-action btn-action-danger" style="padding: 4px 8px; font-size: 11px;" onclick="openRejectModal({{ doc.doc_id }}, '{{ doc.title or doc.original_filename }}')">Reject</button>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 24px;">No guideline submissions registered.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 11: AI MODEL GOVERNANCE                                           -->
+      <!-- ===================================================================== -->
+      <div id="tab-model-gov" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">⚖️ Clinical AI Model Governance &amp; Validation</span>
+            <span class="status-badge-active">● FROZEN IN PRODUCTION</span>
+          </div>
+          <div class="panel-body">
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px; margin-bottom: 24px;">
+              <h4 style="font-size: 14px; font-weight: 800; color: #1e40af; margin-bottom: 4px;">Formal Model Governance Policy</h4>
+              <p style="font-size: 13px; color: #1e3a8a; margin: 0; line-height: 1.5;">
+                In accordance with SaMD (Software as a Medical Device) quality standards, all model weights, hyperparameter checkpoints, and probability calibrators are cryptographically locked. Unsupervised re-training, automatic weight replacement, or drift without clinical trial audit is prohibited.
+              </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+              <div style="padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div style="font-size: 11px; color: #64748b; font-weight: 700;">VALIDATION ACCURACY</div>
+                <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 4px;">{{ (meta_info.validation_metrics.accuracy * 100)|round(2) if meta_info.validation_metrics else '99.93' }}%</div>
+              </div>
+              <div style="padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div style="font-size: 11px; color: #64748b; font-weight: 700;">ROC-AUC SCORE</div>
+                <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 4px;">1.0000</div>
+              </div>
+              <div style="padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div style="font-size: 11px; color: #64748b; font-weight: 700;">SENSITIVITY</div>
+                <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 4px;">{{ (meta_info.validation_metrics.sensitivity * 100)|round(2) if meta_info.validation_metrics else '99.85' }}%</div>
+              </div>
+              <div style="padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div style="font-size: 11px; color: #64748b; font-weight: 700;">SPECIFICITY</div>
+                <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 4px;">{{ (meta_info.validation_metrics.specificity * 100)|round(2) if meta_info.validation_metrics else '99.96' }}%</div>
+              </div>
+            </div>
+
+            <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Constituent Models Status</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+              <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Support Vector Machine (SVM)</span>
+                <span class="status-badge-active">✓ In-Service</span>
+              </div>
+              <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Logistic Regression</span>
+                <span class="status-badge-active">✓ In-Service</span>
+              </div>
+              <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Bidirectional LSTM</span>
+                <span class="status-badge-active">✓ In-Service</span>
+              </div>
+              <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Stacking Meta-Classifier</span>
+                <span class="status-badge-active">✓ In-Service</span>
+              </div>
+              <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Isotonic Calibrator</span>
+                <span class="status-badge-active">✓ In-Service</span>
+              </div>
+              <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>SHAP KernelExplainer</span>
+                <span class="status-badge-active">✓ In-Service</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 12: SYSTEM HEALTH & TELEMETRY                                     -->
+      <!-- ===================================================================== -->
+      <div id="tab-system-health" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">🖥️ System Health &amp; Infrastructure Telemetry</span>
+            <span class="status-badge-active">● {{ health.status or 'HEALTHY' }}</span>
+          </div>
+          <div class="panel-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 28px;">
+              <div style="padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b;">DATABASE SIZE</div>
+                <div style="font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 4px;">{{ health.db_size_kb }} KB ({{ health.db_size_mb }} MB)</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">SQLite Version: {{ health.sqlite_version }}</div>
+              </div>
+              <div style="padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b;">PRAGMA INTEGRITY CHECK</div>
+                <div style="font-size: 22px; font-weight: 800; color: #166534; margin-top: 4px;">{{ health.db_integrity|upper }}</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Foreign Keys: {{ 'ON' if health.foreign_keys_enabled else 'OFF' }}</div>
+              </div>
+              <div style="padding: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b;">TOTAL AUDIT EVENTS</div>
+                <div style="font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 4px;">{{ health.table_counts.audit_logs }}</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Permanent Immutable Records</div>
+              </div>
+            </div>
+
+            <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Database Table Records</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+              {% for tbl, cnt in health.table_counts.items() %}
+              <div style="padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between;">
+                <span style="font-size: 13px; color: #475569;">{{ tbl }}</span>
+                <strong style="color: #0f172a;">{{ cnt }}</strong>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 13: SECURITY AUDIT LOGS                                           -->
+      <!-- ===================================================================== -->
+      <div id="tab-audit-trail" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">📜 Immutable Security &amp; Clinical Audit Trail</span>
+            <div style="display: flex; gap: 10px;">
+              <select id="auditActionFilter" onchange="filterAuditLogs()" class="form-input" style="width: 170px; padding: 6px 10px;">
+                <option value="">All Actions</option>
+                <option value="LOGIN_SUCCESS">Login Success</option>
+                <option value="USER_CREATED">User Created</option>
+                <option value="USER_DEACTIVATED">User Deactivated</option>
+                <option value="USER_PASSWORD_RESET">Password Reset</option>
+                <option value="ROLE_ACCESS_DENIED">Access Denied</option>
+                <option value="RAG_DOCUMENT_APPROVED">Document Approved</option>
+                <option value="PATIENT_DELETED">Patient Deleted</option>
+              </select>
+              <a href="{{ url_for('api_admin_export_audit_logs') }}" class="btn-action btn-action-outline">
+                📥 Export CSV
+              </a>
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="admin-table" id="auditLogTable">
+              <thead>
+                <tr>
+                  <th>Log ID</th>
+                  <th>Timestamp (UTC)</th>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Status</th>
+                  <th>IP Address</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                  <td>#{{ log.log_id }}</td>
+                  <td>{{ log.created_at }}</td>
+                  <td><strong>{{ log.username or 'SYSTEM' }}</strong></td>
+                  <td><code style="font-size: 11px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">{{ log.action }}</code></td>
+                  <td>
+                    {% if log.status == 'SUCCESS' %}
+                    <span class="status-badge-active">SUCCESS</span>
+                    {% else %}
+                    <span class="status-badge-inactive">{{ log.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ log.ip_address or 'N/A' }}</td>
+                  <td style="max-width: 320px; font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ log.details }}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 24px;">No audit events recorded yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 14: GOVERNANCE POLICIES & COMPLIANCE                             -->
+      <!-- ===================================================================== -->
+      <div id="tab-governance-policies" class="tab-view">
+        <div class="content-panel">
+          <div class="panel-header">
+            <span class="panel-title">📋 Clinical Governance Policies &amp; Compliance Enforcement</span>
+          </div>
+          <div class="panel-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+              <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <div style="font-size: 12px; font-weight: 800; color: #166534; text-transform: uppercase;">ACTIVE ENFORCEMENT</div>
+                <h4 style="font-size: 16px; font-weight: 800; margin: 4px 0 10px 0;">Authentication &amp; Session Guard</h4>
+                <ul style="font-size: 13px; color: #475569; line-height: 1.8; padding-left: 20px;">
+                  <li>30-minute idle session inactivity auto-expiration.</li>
+                  <li>Sliding-window rate limiter: 5 consecutive failures triggers 15-minute lock.</li>
+                  <li>Cryptographically bound CSRF tokens across all mutating actions.</li>
+                  <li>Instant session termination upon account deactivation.</li>
+                </ul>
+              </div>
+
+              <div style="padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <div style="font-size: 12px; font-weight: 800; color: #166534; text-transform: uppercase;">ACTIVE ENFORCEMENT</div>
+                <h4 style="font-size: 16px; font-weight: 800; margin: 4px 0 10px 0;">Clinical Evidence Grounding</h4>
+                <ul style="font-size: 13px; color: #475569; line-height: 1.8; padding-left: 20px;">
+                  <li>Zero-Hallucination Guard: RAG responses strictly grounded in approved PDFs.</li>
+                  <li>Page-level citations required for every synthesized statement.</li>
+                  <li>Chief Doctor Authorization Gatekeeper for all new medical literature.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODALS -->
+
+  <!-- 1. Provision User Modal -->
+  <div id="createUserModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">👤 Provision New Clinician Account</span>
+        <button onclick="closeModal('createUserModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <form id="createUserForm" onsubmit="submitCreateUser(event)">
+        <div class="modal-body">
+          <div class="form-row">
+            <label for="new_username">Username *</label>
+            <input type="text" id="new_username" required class="form-input" placeholder="e.g. dr_smith" />
+          </div>
+          <div class="form-row">
+            <label for="new_fullname">Full Name *</label>
+            <input type="text" id="new_fullname" required class="form-input" placeholder="e.g. Dr. John Smith, MD" />
+          </div>
+          <div class="form-row">
+            <label for="new_role">Assigned Role *</label>
+            <select id="new_role" class="form-input">
+              <option value="clinician">Clinician (Full Clinical Access)</option>
+              <option value="lab_staff">Lab Staff (Lab Import &amp; Reporting)</option>
+              <option value="admin">Chief Doctor / Administrator</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="new_password">Initial Temporary Password * (min 8 chars)</label>
+            <input type="password" id="new_password" required minlength="8" class="form-input" placeholder="••••••••••••" />
+          </div>
+          <div id="createUserError" style="color: #991b1b; font-size: 13px; display: none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-action btn-action-outline" onclick="closeModal('createUserModal')">Cancel</button>
+          <button type="submit" class="btn-action btn-action-primary">Provision Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Password Reset Modal -->
+  <div id="resetPasswordModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">🔑 Reset Account Password</span>
+        <button onclick="closeModal('resetPasswordModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13.5px; color: #475569; margin-bottom: 16px;">
+          Resetting password for user: <strong id="resetTargetUsername"></strong>. A temporary password will be generated, and the user will be required to choose a new password upon next login.
+        </p>
+        <div class="form-row">
+          <label for="custom_temp_password">Optional Custom Password (leave blank to auto-generate)</label>
+          <input type="text" id="custom_temp_password" class="form-input" placeholder="Leave blank to auto-generate" />
+        </div>
+        <div id="resetSuccessBox" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 14px; border-radius: 8px; color: #065f46; font-size: 13px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-action btn-action-outline" onclick="closeModal('resetPasswordModal')">Cancel</button>
+        <button type="button" class="btn-action btn-action-primary" id="btnConfirmReset" onclick="executePasswordReset()">Reset Password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Document Approval Modal -->
+  <div id="approveDocModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">✓ Chief Doctor Guideline Approval</span>
+        <button onclick="closeModal('approveDocModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13.5px; color: #475569; margin-bottom: 14px;">
+          You are authorizing guideline: <strong id="approveTargetDocTitle"></strong>. Upon approval, its passages will be dynamically chunked, tagged with page citations, and indexed into the active clinical RAG assistant.
+        </p>
+        <div class="form-row">
+          <label for="approve_notes">Clinical Approval Signature Notes</label>
+          <input type="text" id="approve_notes" class="form-input" placeholder="e.g. Verified AASLD 2022 clinical consistency" value="Approved by Chief Doctor" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-action btn-action-outline" onclick="closeModal('approveDocModal')">Cancel</button>
+        <button type="button" class="btn-action btn-action-success" onclick="executeApproveDoc()">Sign &amp; Authorize Guideline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Document Rejection Modal -->
+  <div id="rejectDocModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">✕ Reject Guideline Submission</span>
+        <button onclick="closeModal('rejectDocModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13.5px; color: #475569; margin-bottom: 14px;">
+          Rejecting document: <strong id="rejectTargetDocTitle"></strong>. This document will remain quarantined and will not be indexed.
+        </p>
+        <div class="form-row">
+          <label for="reject_notes">Mandatory Reason for Rejection *</label>
+          <input type="text" id="reject_notes" required class="form-input" placeholder="e.g. Outdated therapeutic guidelines / unverified source" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-action btn-action-outline" onclick="closeModal('rejectDocModal')">Cancel</button>
+        <button type="button" class="btn-action btn-action-danger" onclick="executeRejectDoc()">Reject Submission</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    let activeResetUserId = null;
+    let activeApproveDocId = null;
+    let activeRejectDocId = null;
+
+    // TAB SWITCHING
+    function showTab(tabId, btn) {
+      document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.add('active');
+
+      if (btn) {
+        document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      }
+    }
+
+    // MODAL HELPERS
+    function openModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.style.display = 'none';
+    }
+
+    // USER MANAGEMENT
+    function openCreateUserModal() {
+      document.getElementById('createUserForm').reset();
+      document.getElementById('createUserError').style.display = 'none';
+      openModal('createUserModal');
+    }
+
+    async function submitCreateUser(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('createUserError');
+      errBox.style.display = 'none';
+
+      const payload = {
+        username: document.getElementById('new_username').value.trim(),
+        full_name: document.getElementById('new_fullname').value.trim(),
+        role: document.getElementById('new_role').value,
+        password: document.getElementById('new_password').value
+      };
+
+      try {
+        const resp = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+          },
+          body: JSON.stringify(payload)
+        });
+        const res = await resp.json();
+        if (res.success) {
+          alert('User account provisioned successfully!');
+          window.location.reload();
+        } else {
+          errBox.innerText = res.error || 'Failed to create user.';
+          errBox.style.display = 'block';
+        }
+      } catch (err) {
+        errBox.innerText = 'Network error provisioning account.';
+        errBox.style.display = 'block';
+      }
+    }
+
+    async function toggleUserStatus(userId, currentStatus) {
+      const action = currentStatus === 1 ? 'deactivate' : 'activate';
+      if (!confirm(`Are you sure you want to ${action} this account?`)) return;
+
+      try {
+        const resp = await fetch(`/api/admin/users/${userId}/toggle_status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+          },
+          body: JSON.stringify({ is_active: currentStatus !== 1 })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          alert(res.message);
+          window.location.reload();
+        } else {
+          alert(res.error || 'Failed to update user status.');
+        }
+      } catch (err) {
+        alert('Error updating user status.');
+      }
+    }
+
+    function openResetPasswordModal(userId, username) {
+      activeResetUserId = userId;
+      document.getElementById('resetTargetUsername').innerText = username;
+      document.getElementById('custom_temp_password').value = '';
+      document.getElementById('resetSuccessBox').style.display = 'none';
+      document.getElementById('btnConfirmReset').style.display = 'inline-block';
+      openModal('resetPasswordModal');
+    }
+
+    async function executePasswordReset() {
+      if (!activeResetUserId) return;
+      const customPw = document.getElementById('custom_temp_password').value.trim();
+
+      try {
+        const resp = await fetch(`/api/admin/users/${activeResetUserId}/reset_password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+          },
+          body: JSON.stringify({ new_password: customPw })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          const box = document.getElementById('resetSuccessBox');
+          box.innerHTML = `<strong>Success!</strong> Password reset.<br />Temporary Password: <code style="font-size:14px; background:white; padding:2px 6px; border-radius:4px;">${res.temporary_password}</code><br /><span style="font-size:11px;">User must change password upon next sign-in.</span>`;
+          box.style.display = 'block';
+          document.getElementById('btnConfirmReset').style.display = 'none';
+        } else {
+          alert(res.error || 'Failed to reset password.');
+        }
+      } catch (err) {
+        alert('Network error resetting password.');
+      }
+    }
+
+    // DOCUMENT APPROVALS
+    function openApproveModal(docId, title) {
+      activeApproveDocId = docId;
+      document.getElementById('approveTargetDocTitle').innerText = title;
+      openModal('approveDocModal');
+    }
+
+    async function executeApproveDoc() {
+      if (!activeApproveDocId) return;
+      const notes = document.getElementById('approve_notes').value;
+
+      try {
+        const resp = await fetch(`/api/rag/document/${activeApproveDocId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+          },
+          body: JSON.stringify({ review_notes: notes })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          alert(`Guideline approved and indexed into RAG memory! (${res.passages_indexed} passages added)`);
+          window.location.reload();
+        } else {
+          alert(res.error || 'Failed to approve document.');
+        }
+      } catch (err) {
+        alert('Network error approving guideline.');
+      }
+    }
+
+    function openRejectModal(docId, title) {
+      activeRejectDocId = docId;
+      document.getElementById('rejectTargetDocTitle').innerText = title;
+      document.getElementById('reject_notes').value = '';
+      openModal('rejectDocModal');
+    }
+
+    async function executeRejectDoc() {
+      if (!activeRejectDocId) return;
+      const notes = document.getElementById('reject_notes').value.trim();
+      if (!notes) {
+        alert('Please provide a mandatory reason for rejection.');
+        return;
+      }
+
+      try {
+        const resp = await fetch(`/api/rag/document/${activeRejectDocId}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+          },
+          body: JSON.stringify({ review_notes: notes })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          alert('Document rejected successfully.');
+          window.location.reload();
+        } else {
+          alert(res.error || 'Failed to reject document.');
+        }
+      } catch (err) {
+        alert('Network error rejecting document.');
+      }
+    }
+
+    async function previewDoc(docId) {
+      window.open(`/api/rag/document/${docId}/preview`, '_blank');
+    }
+
+    // PATIENT MANAGEMENT
+    function filterPatientTable() {
+      const q = document.getElementById('patientSearchInput').value.toLowerCase();
+      const rows = document.querySelectorAll('#adminPatientTable tbody tr');
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    async function confirmDeletePatient(patientId, name) {
+      if (!confirm(`Are you sure you want to permanently delete patient ${name} (${patientId}) and all their historical clinical assessments? This action is recorded in the security audit log.`)) {
+        return;
+      }
+
+      try {
+        const resp = await fetch(`/api/patient/${encodeURIComponent(patientId)}/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+          }
+        });
+        const res = await resp.json();
+        if (res.success) {
+          alert(`Patient ${patientId} deleted successfully.`);
+          window.location.reload();
+        } else {
+          alert(res.error || 'Failed to delete patient.');
+        }
+      } catch (err) {
+        alert('Network error deleting patient.');
+      }
+    }
+
+    // AUDIT LOG FILTER
+    function filterAuditLogs() {
+      const action = document.getElementById('auditActionFilter').value.toLowerCase();
+      const rows = document.querySelectorAll('#auditLogTable tbody tr');
+      rows.forEach(r => {
+        if (!action) {
+          r.style.display = '';
+        } else {
+          const actText = r.children[3].innerText.toLowerCase();
+          r.style.display = actText.includes(action) ? '' : 'none';
+        }
+      });
+    }
+
+    // RAG LIVE CONSULTATION
+    async function sendRAGQuery() {
+      const input = document.getElementById('ragQueryInput');
+      const q = input.value.trim();
+      if (!q) return;
+
+      const container = document.getElementById('ragMessagesContainer');
+
+      // Add user message
+      const userDiv = document.createElement('div');
+      userDiv.className = 'rag-msg user';
+      userDiv.innerText = q;
+      container.appendChild(userDiv);
+      input.value = '';
+      container.scrollTop = container.scrollHeight;
+
+      // Add loading state
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'rag-msg assistant';
+      loadingDiv.id = 'ragLoadingMsg';
+      loadingDiv.innerHTML = '🔍 <em>Retrieving guideline evidence from AASLD / EASL passages...</em>';
+      container.appendChild(loadingDiv);
+      container.scrollTop = container.scrollHeight;
+
+      try {
+        const resp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+          },
+          body: JSON.stringify({ message: q })
+        });
+        const data = await resp.json();
+        const loadEl = document.getElementById('ragLoadingMsg');
+        if (loadEl) loadEl.remove();
+
+        const replyDiv = document.createElement('div');
+        replyDiv.className = 'rag-msg assistant';
+
+        let citationsHtml = '';
+        if (data.telemetry && data.telemetry.citations && data.telemetry.citations.length > 0) {
+          citationsHtml = `<div class="rag-citations-box">📚 <strong>Evidence Sources:</strong> ${data.telemetry.citations.join(', ')} (Latency: ${data.telemetry.latency_ms} ms)</div>`;
+        }
+
+        replyDiv.innerHTML = `<div>${data.response}</div>${citationsHtml}`;
+        container.appendChild(replyDiv);
+        container.scrollTop = container.scrollHeight;
+      } catch (err) {
+        const loadEl = document.getElementById('ragLoadingMsg');
+        if (loadEl) loadEl.remove();
+
+        const errDiv = document.createElement('div');
+        errDiv.className = 'rag-msg assistant';
+        errDiv.innerText = '⚠️ Error retrieving response from RAG engine.';
+        container.appendChild(errDiv);
+      }
+    }
+  </script>
+
+</body>
+</html>
+

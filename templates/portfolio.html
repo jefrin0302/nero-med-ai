@@ -21,7 +21,7 @@
   <header class="navbar-custom">
     <div class="nav-container">
       <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI <span class="brand-badge">RAG 2.0</span>
+        🧬 NeuroMed AI
       </a>
 
       <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
@@ -31,9 +31,6 @@
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
-        <li><a class="nav-link-item active" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
         <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
       </ul>
     </div>

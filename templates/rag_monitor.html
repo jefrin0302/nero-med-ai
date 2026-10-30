@@ -708,12 +708,12 @@
 
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% if current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        {% endif %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
         <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
         <li><a class="nav-link-item active" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
         {% if current_user.is_authenticated %}
         <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
         <li>
@@ -775,9 +775,6 @@
       </button>
       <button class="tab-btn" onclick="switchTab('audit')">
         📋 Live Query Audit Trail
-      </button>
-      <button class="tab-btn" onclick="switchTab('inspector')">
-        🔍 Retrieval Inspector
       </button>
       <button class="tab-btn" onclick="switchTab('chunks')">
         🧩 Chunks Explorer
@@ -1266,43 +1263,6 @@
       </div>
     </div>
 
-    <!-- ========================================================================= -->
-    <!-- TAB 4: INTERACTIVE RETRIEVAL INSPECTOR                                    -->
-    <!-- ========================================================================= -->
-    <div id="tab-inspector" class="tab-content">
-      <div class="content-card">
-        <div class="card-header-styled">
-          <span class="card-title-styled">🔍 Interactive Clinical Retrieval Inspector</span>
-          <span style="font-size: 12px; color: #64748b;">Live Query Diagnostic Tool</span>
-        </div>
-        <div class="card-body-styled">
-          <p style="font-size: 13px; color: #64748b; margin-bottom: 14px;">
-            Test how the clinical RAG engine scores, filters, and diversifies guideline passages across approved medical documents for any clinical query:
-          </p>
-
-          <div class="inspector-input-box">
-            <input type="text" id="inspector-query" class="inspector-input" placeholder="Type a clinical query (e.g., Trientine dosing in children, Kayser Fleischer rings, Leipzig score threshold)..." />
-            <button class="btn-action" style="background: var(--primary); color: white; padding: 12px 24px;" onclick="runRetrievalTest()">
-              ⚡ Run Diagnostic
-            </button>
-          </div>
-
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;">
-            <span style="font-size: 12px; color: #64748b; font-weight: 600; align-self: center;">Sample tests:</span>
-            <button class="query-chip" onclick="setInspectorQuery('What is the recommended dose of Trientine in pediatric patients?')">Trientine pediatric dose</button>
-            <button class="query-chip" onclick="setInspectorQuery('When should Kayser-Fleischer rings be evaluated by slit-lamp examination?')">Kayser-Fleischer examination</button>
-            <button class="query-chip" onclick="setInspectorQuery('What 24-hour urinary copper threshold confirms Wilson disease?')">24-h urinary copper threshold</button>
-            <button class="query-chip" onclick="setInspectorQuery('What Leipzig score constitutes a confirmed diagnosis?')">Leipzig score criteria</button>
-          </div>
-
-          <div id="inspector-loading" style="display: none; padding: 20px; text-align: center; color: #6366f1; font-weight: 600;">
-            ⏳ Querying approved clinical vectorstore and ranking guideline passages...
-          </div>
-
-          <div id="inspector-results"></div>
-        </div>
-      </div>
-    </div>
 
     <!-- ========================================================================= -->
     <!-- TAB 5: CHUNKS EXPLORER                                                    -->
@@ -1446,9 +1406,6 @@
             <div style="display: flex; gap: 6px;">
               <button class="btn-action-sm btn-secondary-sm" onclick="copyCitation('{{ chunk.source }}', {{ chunk.page }})" title="Copy formal citation">
                 📋 Copy
-              </button>
-              <button class="btn-action-sm btn-secondary-sm" onclick="inspectInRetrieval('{{ chunk.body[:70]|replace("'", "\\'")|replace('"', '\\"') }}')" title="Inspect in Diagnostic Retrieval">
-                🔍 Inspect
               </button>
             </div>
           </div>
@@ -1935,61 +1892,6 @@
       }
     }
 
-    // Set sample inspector query
-    function setInspectorQuery(text) {
-      document.getElementById('inspector-query').value = text;
-      runRetrievalTest();
-    }
-
-    // Run interactive retrieval test
-    async function runRetrievalTest() {
-      const query = document.getElementById('inspector-query').value.trim();
-      if (!query) return;
-
-      const loading = document.getElementById('inspector-loading');
-      const resultsDiv = document.getElementById('inspector-results');
-      loading.style.display = 'block';
-      resultsDiv.innerHTML = '';
-
-      try {
-        const response = await fetch('/api/rag/test_retrieval', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token() }}'
-          },
-          body: JSON.stringify({ query: query })
-        });
-        const data = await response.json();
-        loading.style.display = 'none';
-
-        if (response.ok && data.success) {
-          if (data.passages.length === 0) {
-            resultsDiv.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 20px;">No passages met the clinical relevance threshold for this query.</div>';
-            return;
-          }
-
-          let html = `<div style="font-weight: 700; margin-bottom: 12px; color: #1e1b4b;">Found ${data.passages.length} relevant guideline passages:</div>`;
-          data.passages.forEach((p, idx) => {
-            html += `
-              <div class="passage-card">
-                <div class="passage-header">
-                  <span>#${idx + 1} ${p.source} (Page ${p.page})</span>
-                  <span style="color: #10b981;">✓ Approved Guideline</span>
-                </div>
-                <div class="passage-text">${p.excerpt}</div>
-              </div>
-            `;
-          });
-          resultsDiv.innerHTML = html;
-        } else {
-          resultsDiv.innerHTML = `<div style="color: #ef4444; padding: 10px;">Error: ${data.error || 'Failed to inspect retrieval.'}</div>`;
-        }
-      } catch (err) {
-        loading.style.display = 'none';
-        resultsDiv.innerHTML = `<div style="color: #ef4444; padding: 10px;">Network error: ${err.message}</div>`;
-      }
-    }
 
     // =========================================================================
     // CHUNKS EXPLORER STATE & LOGIC
@@ -2172,9 +2074,6 @@
                 <button class="btn-action-sm btn-secondary-sm" onclick="copyCitation('${escapeHtml(chunk.source)}', ${chunk.page})" title="Copy formal citation">
                   📋 Copy
                 </button>
-                <button class="btn-action-sm btn-secondary-sm" onclick="inspectInRetrieval('${escapeHtml(chunk.body.slice(0, 70)).replace(/'/g, "\\\\'")}')" title="Inspect in Diagnostic Retrieval">
-                  🔍 Inspect
-                </button>
               </div>
             </div>
           </div>
@@ -2193,11 +2092,6 @@
       });
     }
 
-    function inspectInRetrieval(queryText) {
-      switchTab('inspector');
-      document.getElementById('inspector-query').value = queryText;
-      runRetrievalTest();
-    }
 
     // =========================================================================
     // PIPELINE STAGES EXPLORER

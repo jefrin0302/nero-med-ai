@@ -313,15 +313,19 @@
       </button>
 
       <ul class="nav-links" id="main-nav-links">
-        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
         {% if current_user.is_authenticated %}
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% endif %}
+        {% if current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        {% endif %}
+        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
+        {% if current_user.role in ('admin', 'clinician') %}
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
         <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
-        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
+        {% endif %}
+        {% if current_user.is_authenticated %}
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ 'Lab Staff' if current_user.role == 'lab_staff' else ('Chief Doctor' if current_user.role == 'admin' else 'Clinician') }})</span></li>
         <li>
           <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -351,9 +355,11 @@
           ⬅ Back to Clinical Form
         </a>
         {% endif %}
+        {% if current_user.role in ('admin', 'clinician') %}
         <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
           🗂️ Patient Directory
         </a>
+        {% endif %}
       </div>
       
       <button onclick="window.print()" class="btn-prime" style="font-size: 13px;" title="Print this report or save as PDF using your browser print dialog">
@@ -395,7 +401,7 @@
           </div>
         </div>
 
-        {% if patient_id %}
+        {% if patient_id and current_user.role in ('admin', 'clinician') %}
         <div class="web-collapsible-controls">
           <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 12px; padding: 7px 14px; text-decoration: none;">
             📋 Full Patient History
@@ -524,18 +530,25 @@
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
                   <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL A — SVM</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ model_breakdown.svm }}%</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.svm or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #64748b;">RBF Kernel Non-Linear</div>
                 </div>
+                {% if model_breakdown.rf is not none %}
+                <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — RANDOM FOREST</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.rf or 0), 100.0]|min }}%</div>
+                  <div style="font-size: 10px; color: #64748b;">Tree-Based Ensemble</div>
+                </div>
+                {% endif %}
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — LOGREG</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ model_breakdown.logreg }}%</div>
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL C — LOGREG</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.logreg or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #64748b;">Linear Statistical Odds</div>
                 </div>
                 {% if model_breakdown.bilstm is not none %}
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL C — BI-LSTM</div>
-                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ model_breakdown.bilstm }}%</div>
+                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL D — BI-LSTM</div>
+                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ [(model_breakdown.bilstm or 0), 100.0]|min }}%</div>
                   <div style="font-size: 10px; color: #16a34a;">Deep Recurrent Net</div>
                 </div>
                 {% endif %}
@@ -556,9 +569,11 @@
           🩺 Clinical Recommendations (RAG Support)
         </h2>
         <div style="display: flex; align-items: center; gap: 8px;">
+          {% if current_user.role != 'lab_staff' %}
           <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime chat-btn-in-card" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
             💬 Chat
           </button>
+          {% endif %}
           <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
         </div>
       </div>
@@ -772,6 +787,7 @@
     <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
   </footer>
 
+  {% if current_user.role != 'lab_staff' %}
   <!-- PROMINENT FLOATING RAG CHATBOT WIDGET -->
   <div id="chat-toggle" onclick="toggleChat()" style="position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #4f46e5, #0ea5e9); color: white; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 28px rgba(79, 70, 229, 0.5); font-size: 34px; z-index: 10000; border: 3px solid #ffffff; transition: transform 0.2s ease;">
     💬
@@ -845,6 +861,7 @@
       <button id="send-btn" onclick="sendChatMessage()" style="background: var(--primary); color: white; border: none; padding: 11px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; flex-shrink: 0;">Send</button>
     </div>
   </div>
+  {% endif %}
 
   <script>
     function toggleNavMenu() {
@@ -887,6 +904,7 @@
       model_breakdown: {{ model_breakdown|tojson if model_breakdown else {} }}
     };
 
+    {% if current_user.role != 'lab_staff' %}
     let chatOpen = true;
     let autoTTS = true;
     let recognition = null;
@@ -1292,6 +1310,9 @@
       }
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+    {% else %}
+    function toggleChat() {}
+    {% endif %}
   </script>
 
 </body>

@@ -211,20 +211,20 @@ FEATURE_PATTERNS = {
         r'(?:Kayser-Fleischer(?:\s*\(KF\))?\s*Rings?|KF\s*Rings?)\s*[:=\t\s\n-]*\s*([A-Za-z ()]+)'
     ],
     "Neurological Symptoms Score": [
-        r'(?:Neurological\s+Symptoms(?:\s+Score)?)\s*[:=\t\s\n-]*\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*10)?'
+        r'(?:Neurological(?:\s+Symptoms)?(?:\s+Score)?)\s*[:=\t\s\n-]*\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*10)?'
     ],
     "Psychiatric Symptoms": [
         r'(?:Documented\s+)?Psychiatric\s+Symptoms\s*[:=\t\s\n-]*\s*([A-Za-z ()]+)'
     ],
     "Cognitive Function Score": [
-        r'(?:Cognitive\s+Function(?:\s+Score)?)\s*[:=\t\s\n-]*\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*100)?'
+        r'(?:Cognitive(?:\s+Function)?(?:\s+Score)?)\s*[:=\t\s\n-]*\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*100)?'
     ],
     "Family History": [
         r'(?:Documented\s+)?Family\s+History(?:\s+of\s+Wilson(?:\'s)?\s+Disease)?\s*[:=\t\s\n-]*\s*([A-Za-z ()]+)'
     ],
     "ATB7B Gene Mutation": [
-        r'(?:AT[PB]7B\s+Gene(?:\s+Mutation(?:\s+Analysis)?)?)\s*[:=\t\s\n-]*\s*(Mutation\s+(?:Present|Absent|Detected|Not\s+Detected)|Present|Absent|Positive|Negative|Yes|No|Wild\s*Type)\b',
-        r'(?:AT[PB]7B\s+Gene(?:\s+Mutation(?:\s+Analysis)?)?)\s*[:=\t\s\n-]*\s*([A-Za-z ()]+)'
+        r'(?:AT[PB]7B(?:\s+Gene)?(?:\s+Mutation(?:\s+Analysis)?)?)\s*[:=\t\s\n-]*\s*(Mutation\s+(?:Present|Absent|Detected|Not\s+Detected)|Present|Absent|Positive|Negative|Yes|No|Wild\s*Type)\b',
+        r'(?:AT[PB]7B(?:\s+Gene)?(?:\s+Mutation(?:\s+Analysis)?)?)\s*[:=\t\s\n-]*\s*([A-Za-z ()]+)'
     ]
 }
 
@@ -454,15 +454,25 @@ def parse_unstructured_document(
         if len(cells) < 2:
             continue
         raw_key = cells[0].strip()
-        if not raw_key:
-            continue
-        canon = normalize_column_name(raw_key)
+        canon = normalize_column_name(raw_key) if raw_key else None
+        raw_val = cells[1].strip() if len(cells) > 1 else ""
+
+        # If column 0 is a row number (e.g. '1', '20') or empty, check column 1 for feature name
+        if (not canon or canon not in CANONICAL_FEATURES) and len(cells) >= 3 and (raw_key.isdigit() or not raw_key):
+            cand_key = cells[1].strip()
+            cand_canon = normalize_column_name(cand_key)
+            if cand_canon:
+                canon = cand_canon
+                raw_key = cand_key
+                raw_val = cells[2].strip()
+
         if canon == "_patient_name" and not patient_name:
-            patient_name = cells[1].strip()
+            patient_name = raw_val
         elif canon == "_patient_id" and not patient_id:
-            patient_id = cells[1].strip()
+            patient_id = raw_val
         elif canon in CANONICAL_FEATURES:
-            raw_val = cells[1].strip() if cells[1].strip() else (cells[2].strip() if len(cells) > 2 else "")
+            if not raw_val and len(cells) > 2:
+                raw_val = cells[2].strip()
             if raw_val and canon not in candidates:
                 candidates[canon] = (raw_key, raw_val)
 

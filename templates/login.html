@@ -89,14 +89,9 @@
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
+      <span class="brand-logo" style="cursor: default;">
         🧬 NeuroMed AI
-      </a>
-      <ul class="nav-links">
-        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Corneal Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
-      </ul>
+      </span>
     </div>
   </header>
 
@@ -105,11 +100,22 @@
       <div class="login-header">
         <div class="login-icon">🔐</div>
         <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 6px 0;">
-          Clinician & Staff Login
+          Clinician &amp; Staff Login
         </h1>
-        <p style="font-size: 13px; color: #64748b; margin: 0;">
+        <p style="font-size: 13px; color: #64748b; margin: 0 0 18px 0;">
           NeuroMed AI Clinical Decision Support
         </p>
+        <div style="display: flex; background: #f1f5f9; border-radius: 10px; padding: 4px; border: 1px solid #e2e8f0; gap: 4px;">
+          <a href="{{ url_for('login') }}" style="flex: 1; text-align: center; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #1e293b; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.06); text-decoration: none;">
+            🩺 Clinician
+          </a>
+          <a href="{{ url_for('lab_login') }}" style="flex: 1; text-align: center; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #64748b; text-decoration: none;">
+            🔬 Lab Staff
+          </a>
+          <a href="{{ url_for('admin_login') }}" style="flex: 1; text-align: center; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #64748b; text-decoration: none;">
+            👑 Chief Doctor
+          </a>
+        </div>
       </div>
 
       {% if error %}

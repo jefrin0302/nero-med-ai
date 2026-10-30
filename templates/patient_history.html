@@ -126,11 +126,11 @@
 
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% if current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        {% endif %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
         <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('do') }}">Analytics</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('portfolio') }}">Scan / Eye Guide</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('contact') }}">Support</a></li>
         {% if current_user.is_authenticated %}
         <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
         <li>
@@ -298,9 +298,10 @@
               {% endif %}
             </td>
             <td style="font-size: 12px; color: #64748b;">
-              {% if a.svm_prob is not none %}SVM: {{ a.svm_prob }}%{% endif %}
-              {% if a.logreg_prob is not none %} • LogReg: {{ a.logreg_prob }}%{% endif %}
-              {% if a.bilstm_prob is not none %} • BiLSTM: {{ a.bilstm_prob }}%{% endif %}
+              {% if a.svm_prob is not none %}SVM: {{ [a.svm_prob, 100.0]|min }}%{% endif %}
+              {% if a.rf_prob is not none %} • RF: {{ [a.rf_prob, 100.0]|min }}%{% endif %}
+              {% if a.logreg_prob is not none %} • LogReg: {{ [a.logreg_prob, 100.0]|min }}%{% endif %}
+              {% if a.bilstm_prob is not none %} • BiLSTM: {{ [a.bilstm_prob, 100.0]|min }}%{% endif %}
             </td>
             <td style="text-align: right;">
               <a href="{{ url_for('historical_assessment_report', assessment_id=a.assessment_id) }}" class="btn-prime" style="padding: 7px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">

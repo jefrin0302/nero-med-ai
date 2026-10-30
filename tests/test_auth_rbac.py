@@ -333,8 +333,8 @@ class TestAuthAndRBACSuite(unittest.TestCase):
 
     def test_lab_staff_least_privilege_enforcement(self):
         """
-        Verifies lab_staff CAN access sample templates & upload files,
-        but CANNOT access patient directory, submit predictions, or view patient records.
+        Verifies lab_staff CAN access clinical test entry & sample templates,
+        but CANNOT access patient directory, RAG monitor, or admin dashboard.
         """
         user = create_user("lab_analyst", "LabAnalystPass123!", "Lab Analyst", "lab_staff", db_path=self.test_db)
         with self.client.session_transaction() as sess:
@@ -344,7 +344,11 @@ class TestAuthAndRBACSuite(unittest.TestCase):
             sess["last_active"] = time.time()
             sess["_csrf_token"] = "valid_csrf_token"
 
-        # Allowed for lab_staff
+        # Allowed for lab_staff: Clinical Test entry form (/about)
+        res_about = self.client.get("/about")
+        self.assertEqual(res_about.status_code, 200)
+
+        # Allowed for lab_staff: Sample template
         res_template = self.client.get("/api/sample_template?format=csv")
         self.assertEqual(res_template.status_code, 200)
 
@@ -352,19 +356,13 @@ class TestAuthAndRBACSuite(unittest.TestCase):
         res_patients = self.client.get("/patients")
         self.assertEqual(res_patients.status_code, 403)
 
-        # FORBIDDEN for lab_staff: Clinical Test entry form
-        res_about = self.client.get("/about")
-        self.assertEqual(res_about.status_code, 403)
+        # FORBIDDEN for lab_staff: RAG monitor
+        res_rag = self.client.get("/rag/monitor")
+        self.assertEqual(res_rag.status_code, 403)
 
-        # FORBIDDEN for lab_staff: Patient lookup
-        res_lookup = self.client.get("/api/patient/NEUROMED001")
-        self.assertEqual(res_lookup.status_code, 403)
-
-        # FORBIDDEN for lab_staff: Model prediction execution
-        app.config["WTF_CSRF_ENABLED"] = False
-        res_submit = self.client.post("/submit", data={"patientName": "Test"})
-        self.assertEqual(res_submit.status_code, 403)
-        app.config["WTF_CSRF_ENABLED"] = True
+        # FORBIDDEN for lab_staff: Admin dashboard
+        res_admin = self.client.get("/admin/dashboard")
+        self.assertEqual(res_admin.status_code, 403)
 
     def test_chief_doctor_admin_has_full_clinical_and_governance_access(self):
         """
@@ -781,8 +779,8 @@ class TestAuthAndRBACSuite(unittest.TestCase):
         res_sample = self.client.get("/api/sample_template?format=json")
         self.assertEqual(res_sample.status_code, 200)
 
-        # 3. Lab staff CANNOT access clinical testing entry (/about) -> 403
-        self.assertEqual(self.client.get("/about").status_code, 403)
+        # 3. Lab staff CAN access clinical testing entry (/about) -> 200
+        self.assertEqual(self.client.get("/about").status_code, 200)
 
         # 4. Lab staff CANNOT access patient directory (/patients) -> 403
         self.assertEqual(self.client.get("/patients").status_code, 403)
@@ -796,17 +794,47 @@ class TestAuthAndRBACSuite(unittest.TestCase):
         # 7. Lab staff CANNOT access clinical analytics (/do) -> 403
         self.assertEqual(self.client.get("/do").status_code, 403)
 
-        # 8. Lab staff CANNOT execute assessment prediction via POST /submit -> 403
-        self.assertEqual(self.client.post("/submit", data={"csrf_token": "valid_lab_token"}).status_code, 403)
+        # 8. Lab staff CANNOT access RAG monitor (/rag/monitor) -> 403
+        self.assertEqual(self.client.get("/rag/monitor").status_code, 403)
 
         # 9. Lab staff CANNOT access clinical chat API -> 403
         self.assertEqual(self.client.post("/api/chat", json={"message": "test", "csrf_token": "valid_lab_token"}).status_code, 403)
 
-        # 10. Lab staff CANNOT access patient profile API -> 403
-        self.assertEqual(self.client.get("/api/patient/NEUROMED001").status_code, 403)
-
-        # 11. Lab staff CANNOT access SHAP plots or diagnostic files from /uploads -> 403
+        # 10. Lab staff CANNOT access SHAP plots or diagnostic files from /uploads -> 403
         self.assertEqual(self.client.get("/uploads/secret_waterfall.png").status_code, 403)
+
+    def test_lab_staff_login_portal_success(self):
+        """Verifies dedicated /lab/login portal authenticates lab_staff and redirects to /about."""
+        create_user("lab_staff", "Labstaff123!", "Laboratory Staff", "lab_staff", db_path=self.test_db)
+        res_get = self.client.get("/lab/login")
+        self.assertEqual(res_get.status_code, 200)
+        self.assertIn("Lab Staff Portal", res_get.get_data(as_text=True))
+
+        with self.client.session_transaction() as sess:
+            csrf_token = sess.get("_csrf_token")
+
+        res_post = self.client.post("/lab/login", data={
+            "username": "lab_staff",
+            "password": "Labstaff123!",
+            "csrf_token": csrf_token
+        }, follow_redirects=False)
+        self.assertEqual(res_post.status_code, 302)
+        self.assertIn("/about", res_post.headers["Location"])
+
+    def test_lab_staff_login_portal_rejects_non_lab_staff(self):
+        """Verifies /lab/login rejects clinicians or admins attempting to enter via lab portal."""
+        create_user("clinician_user", "ClinicianPass123!", "Dr. Someone", "clinician", db_path=self.test_db)
+        self.client.get("/lab/login")
+        with self.client.session_transaction() as sess:
+            csrf_token = sess.get("_csrf_token")
+
+        res_post = self.client.post("/lab/login", data={
+            "username": "clinician_user",
+            "password": "ClinicianPass123!",
+            "csrf_token": csrf_token
+        })
+        self.assertEqual(res_post.status_code, 403)
+        self.assertIn("Access restricted: This portal is exclusively for Laboratory Staff", res_post.get_data(as_text=True))
 
 
 if __name__ == "__main__":

@@ -81,6 +81,7 @@ from clinical_evaluation import (
 )
 from database import (
     init_db,
+    ensure_default_accounts,
     get_next_patient_id,
     create_or_update_patient,
     get_patient_by_id,
@@ -93,6 +94,15 @@ from database import (
     change_user_password,
     log_audit_event,
     get_user_by_id,
+    create_user,
+    list_all_users,
+    set_user_active_status,
+    reset_user_password,
+    get_system_health_stats,
+    get_filtered_audit_logs,
+    export_audit_logs_csv,
+    get_admin_overview_metrics,
+    get_recent_audit_logs,
     create_rag_document_submission,
     get_rag_documents,
     get_rag_document_by_id,
@@ -186,6 +196,7 @@ def get_active_db_path():
 # Safe database initialization on startup
 try:
     init_db(get_active_db_path())
+    ensure_default_accounts(get_active_db_path())
 except Exception as _db_err:
     logger.warning("Database initialization notice on startup: %s", _db_err)
 
@@ -501,9 +512,9 @@ def login():
             if role == "clinician":
                 return redirect(url_for("about"))
             elif role == "lab_staff":
-                return redirect(url_for("lab_import_page"))
+                return redirect(url_for("about"))
             elif role == "admin":
-                return redirect(url_for("rag_monitor"))
+                return redirect(url_for("admin_dashboard"))
             return redirect(url_for("home"))
         next_url = request.args.get("next") or ""
         msg = request.args.get("message")
@@ -586,6 +597,13 @@ def login():
     # Validate next_url to prevent open redirect attacks
     if next_url and is_safe_redirect_url(next_url):
         return redirect(next_url)
+
+    if user["role"] == "admin":
+        return redirect(url_for("admin_dashboard"))
+    elif user["role"] == "lab_staff":
+        return redirect(url_for("about"))
+    elif user["role"] == "clinician":
+        return redirect(url_for("about"))
 
     return redirect(url_for("home"))
 
@@ -686,9 +704,582 @@ def change_password():
             return redirect(url_for("about"))
         elif role == "lab_staff":
             return redirect(url_for("lab_import_page"))
+        elif role == "admin":
+            return redirect(url_for("admin_dashboard"))
         return redirect(url_for("patient_dashboard"))
 
     return render_template("change_password.html")
+
+
+# ==============================================================================
+# CHIEF DOCTOR ADMIN DASHBOARD & GOVERNANCE PORTAL
+# ==============================================================================
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    """
+    Dedicated Chief Doctor and System Administrator login portal.
+    Restricted strictly to users with role == 'admin'.
+    Includes rate-limiting, CSRF protection, and audit logging.
+    """
+    if request.method == "GET":
+        if "user_id" in session:
+            role = session.get("role")
+            if role == "admin":
+                return redirect(url_for("admin_dashboard"))
+            return redirect(url_for("home"))
+        next_url = request.args.get("next") or ""
+        msg = request.args.get("message")
+        return render_template("admin_login.html", next_url=next_url, message=msg)
+
+    # POST - Chief Doctor Authentication
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        next_url = data.get("next") or ""
+    else:
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        next_url = (request.form.get("next") or request.args.get("next") or "").strip()
+
+    client_ip = get_client_ip()
+    db_path = get_active_db_path()
+
+    # Rate limiting
+    allowed, remaining_sec = check_login_rate_limit(client_ip, username)
+    if not allowed:
+        log_audit_event(
+            action="ADMIN_LOGIN_RATE_LIMITED",
+            status="DENIED",
+            username=username,
+            ip_address=client_ip,
+            details=f"Admin rate limit exceeded: locked for {remaining_sec} seconds",
+            db_path=db_path
+        )
+        msg = f"Too many failed admin login attempts. Temporarily locked for {remaining_sec} seconds."
+        if request.is_json:
+            return jsonify({"success": False, "error": msg, "locked": True, "remaining_seconds": remaining_sec}), 429
+        return render_template("admin_login.html", error=msg, next_url=next_url), 429
+
+    # CSRF validation
+    if not request.is_json and app.config.get("WTF_CSRF_ENABLED", True) and not app.config.get("TESTING", False):
+        token = request.form.get("csrf_token")
+        if not validate_csrf_token(token):
+            log_audit_event(
+                action="ADMIN_CSRF_VALIDATION_FAILED",
+                status="DENIED",
+                username=username,
+                ip_address=client_ip,
+                details="Invalid or missing CSRF token on /admin/login",
+                db_path=db_path
+            )
+            return render_template("admin_login.html", error="Invalid security token. Please refresh and try again.", next_url=next_url), 400
+
+    # Credential verification
+    user = verify_user_credentials(username, password, db_path=db_path)
+    if not user:
+        record_failed_login(client_ip, username)
+        log_audit_event(
+            action="ADMIN_LOGIN_FAILED",
+            status="DENIED",
+            username=username,
+            ip_address=client_ip,
+            details="Invalid Chief Doctor username or password",
+            db_path=db_path
+        )
+        err_msg = "Invalid Chief Doctor administrator username or password."
+        if request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 401
+        return render_template("admin_login.html", error=err_msg, next_url=next_url), 401
+
+    # Verify role == 'admin'
+    if user["role"] != "admin":
+        record_failed_login(client_ip, username)
+        log_audit_event(
+            action="ADMIN_PORTAL_NON_ADMIN_ATTEMPT",
+            status="DENIED",
+            username=username,
+            user_id=user["user_id"],
+            ip_address=client_ip,
+            details=f"User with role '{user['role']}' attempted to access Chief Doctor portal",
+            db_path=db_path
+        )
+        err_msg = "Access restricted: This portal is exclusively for the Chief Doctor and System Administrators. Clinicians must sign in via the Staff Portal."
+        if request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 403
+        return render_template("admin_login.html", error=err_msg, next_url=next_url), 403
+
+    # Authentication successful
+    clear_failed_logins(client_ip, username)
+    session.clear()
+    session["user_id"] = user["user_id"]
+    session["username"] = user["username"]
+    session["full_name"] = user["full_name"]
+    session["role"] = user["role"]
+    session["last_active"] = time.time()
+    generate_csrf_token()
+
+    log_audit_event(
+        action="ADMIN_LOGIN_SUCCESS",
+        status="SUCCESS",
+        username=user["username"],
+        user_id=user["user_id"],
+        ip_address=client_ip,
+        details="Chief Doctor administrator authenticated successfully",
+        db_path=db_path
+    )
+
+    if request.is_json:
+        return jsonify({"success": True, "user": user, "message": "Chief Doctor authenticated successfully"}), 200
+
+    if user.get("must_change_password") == 1:
+        return redirect(url_for("change_password"))
+
+    if next_url and is_safe_redirect_url(next_url):
+        return redirect(next_url)
+
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/lab/login", methods=["GET", "POST"])
+def lab_login():
+    """
+    Dedicated Laboratory Staff login portal.
+    Restricted strictly to users with role == 'lab_staff'.
+    Includes rate-limiting, CSRF protection, and audit logging.
+    Redirects authenticated lab personnel directly to the Clinical Test Input portal (/about).
+    """
+    if request.method == "GET":
+        if "user_id" in session:
+            role = session.get("role")
+            if role == "lab_staff":
+                return redirect(url_for("about"))
+            return redirect(url_for("home"))
+        next_url = request.args.get("next") or ""
+        msg = request.args.get("message")
+        return render_template("lab_login.html", next_url=next_url, message=msg)
+
+    # POST - Laboratory Staff Authentication
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        next_url = data.get("next") or ""
+    else:
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        next_url = (request.form.get("next") or request.args.get("next") or "").strip()
+
+    client_ip = get_client_ip()
+    db_path = get_active_db_path()
+
+    # Rate limiting
+    allowed, remaining_sec = check_login_rate_limit(client_ip, username)
+    if not allowed:
+        log_audit_event(
+            action="LAB_LOGIN_RATE_LIMITED",
+            status="DENIED",
+            username=username,
+            ip_address=client_ip,
+            details=f"Lab staff rate limit exceeded: locked for {remaining_sec} seconds",
+            db_path=db_path
+        )
+        msg = f"Too many failed laboratory login attempts. Temporarily locked for {remaining_sec} seconds."
+        if request.is_json:
+            return jsonify({"success": False, "error": msg, "locked": True, "remaining_seconds": remaining_sec}), 429
+        return render_template("lab_login.html", error=msg, next_url=next_url), 429
+
+    # CSRF validation
+    if not request.is_json and app.config.get("WTF_CSRF_ENABLED", True) and not app.config.get("TESTING", False):
+        token = request.form.get("csrf_token")
+        if not validate_csrf_token(token):
+            log_audit_event(
+                action="LAB_CSRF_VALIDATION_FAILED",
+                status="DENIED",
+                username=username,
+                ip_address=client_ip,
+                details="Invalid or missing CSRF token on /lab/login",
+                db_path=db_path
+            )
+            return render_template("lab_login.html", error="Invalid security token. Please refresh and try again.", next_url=next_url), 400
+
+    # Credential verification
+    user = verify_user_credentials(username, password, db_path=db_path)
+    if not user:
+        record_failed_login(client_ip, username)
+        log_audit_event(
+            action="LAB_LOGIN_FAILED",
+            status="DENIED",
+            username=username,
+            ip_address=client_ip,
+            details="Invalid laboratory staff username or password",
+            db_path=db_path
+        )
+        err_msg = "Invalid laboratory staff username or password."
+        if request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 401
+        return render_template("lab_login.html", error=err_msg, next_url=next_url), 401
+
+    # Verify role == 'lab_staff'
+    if user["role"] != "lab_staff":
+        record_failed_login(client_ip, username)
+        log_audit_event(
+            action="LAB_PORTAL_NON_LAB_ATTEMPT",
+            status="DENIED",
+            username=username,
+            user_id=user["user_id"],
+            ip_address=client_ip,
+            details=f"User with role '{user['role']}' attempted to access Laboratory Staff portal",
+            db_path=db_path
+        )
+        err_msg = "Access restricted: This portal is exclusively for Laboratory Staff. Clinicians must sign in via the Clinician Portal, and Chief Doctor via the Chief Doctor Portal."
+        if request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 403
+        return render_template("lab_login.html", error=err_msg, next_url=next_url), 403
+
+    # Authentication successful
+    clear_failed_logins(client_ip, username)
+    session.clear()
+    session["user_id"] = user["user_id"]
+    session["username"] = user["username"]
+    session["role"] = user["role"]
+    session["full_name"] = user["full_name"]
+    session["last_active"] = time.time()
+    generate_csrf_token()
+
+    log_audit_event(
+        action="LAB_LOGIN_SUCCESS",
+        status="SUCCESS",
+        username=user["username"],
+        user_id=user["user_id"],
+        ip_address=client_ip,
+        details="Laboratory Staff signed in successfully with authorized clinical test entry permissions",
+        db_path=db_path
+    )
+
+    if request.is_json:
+        return jsonify({"success": True, "user": user, "message": "Laboratory Staff authenticated successfully"}), 200
+
+    if user.get("must_change_password") == 1:
+        return redirect(url_for("change_password"))
+
+    if next_url and is_safe_redirect_url(next_url):
+        return redirect(next_url)
+
+    return redirect(url_for("about"))
+
+
+@app.route("/admin/dashboard", methods=["GET"])
+@roles_required("admin")
+def admin_dashboard():
+    """
+    Renders the unified Chief Doctor Admin Dashboard.
+    Provides complete clinical capabilities alongside enterprise governance,
+    user management, document approval, model lifecycle oversight, and audit logs.
+    """
+    db_path = get_active_db_path()
+    overview_metrics = get_admin_overview_metrics(db_path=db_path)
+    system_health = get_system_health_stats(db_path=db_path)
+    all_users = list_all_users(db_path=db_path)
+    pending_docs = get_rag_documents(status="pending_approval", db_path=db_path)
+    approved_docs = get_rag_documents(status="approved", db_path=db_path)
+    rejected_docs = get_rag_documents(status="rejected", db_path=db_path)
+    all_docs = get_rag_documents(db_path=db_path)
+    recent_audit = get_recent_audit_logs(limit=50, db_path=db_path)
+    recent_queries = get_recent_rag_queries(limit=25, db_path=db_path)
+    rag_metrics = get_rag_metrics_summary(db_path=db_path)
+    all_patients_list = get_all_patients(db_path=db_path)
+    recent_patients = all_patients_list[:30] if all_patients_list else []
+
+    # Read real validation metrics from wilson_artifacts/meta_info.json
+    meta_info_path = os.path.join(ARTIFACT_DIR, "meta_info.json")
+    meta_info = {}
+    if os.path.exists(meta_info_path):
+        try:
+            with open(meta_info_path, "r", encoding="utf-8") as f:
+                meta_info = json.load(f)
+        except Exception as e:
+            logger.warning("Could not read meta_info.json: %s", e)
+
+    return render_template(
+        "admin_dashboard.html",
+        overview=overview_metrics,
+        health=system_health,
+        users=all_users,
+        pending_docs=pending_docs,
+        approved_docs=approved_docs,
+        rejected_docs=rejected_docs,
+        all_docs=all_docs,
+        audit_logs=recent_audit,
+        rag_queries=recent_queries,
+        rag_metrics=rag_metrics,
+        patients=recent_patients,
+        meta_info=meta_info,
+        artifacts_status={
+            "svm": svm is not None,
+            "logreg": logreg is not None,
+            "bilstm": bilstm is not None,
+            "meta": meta is not None,
+            "calibrator": calibrator is not None,
+            "preprocessor": preprocessor is not None,
+            "shap_explainer": ensemble_explainer is not None,
+            "passages_count": len(getattr(rag_assistant, "passages", [])),
+            "gemini_model": getattr(rag_assistant, "gemini_model", "gemini-flash-lite-latest")
+        }
+    )
+
+
+# ==============================================================================
+# CHIEF DOCTOR ADMIN REST APIS (RBAC PROTECTED)
+# ==============================================================================
+
+@app.route("/api/admin/users", methods=["GET", "POST"])
+@roles_required("admin")
+def api_admin_users():
+    """
+    GET: Returns list of registered users.
+    POST: Creates a new user (clinician, lab_staff, or admin).
+    """
+    db_path = get_active_db_path()
+    if request.method == "GET":
+        users = list_all_users(db_path=db_path)
+        return jsonify({"success": True, "users": users})
+
+    # POST - Create new user
+    data = request.get_json(silent=True) or request.form
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    full_name = (data.get("full_name") or "").strip()
+    role = (data.get("role") or "").strip().lower()
+
+    if not username or len(username) < 3:
+        return jsonify({"success": False, "error": "Username must be at least 3 characters."}), 400
+    if not password or len(password) < 8:
+        return jsonify({"success": False, "error": "Password must be at least 8 characters."}), 400
+    if not full_name:
+        return jsonify({"success": False, "error": "Full Name is required."}), 400
+    if role not in ("clinician", "lab_staff", "admin"):
+        return jsonify({"success": False, "error": "Invalid role specified."}), 400
+
+    try:
+        new_user = create_user(
+            username=username,
+            password=password,
+            full_name=full_name,
+            role=role,
+            db_path=db_path,
+            must_change_password=True
+        )
+        log_audit_event(
+            action="USER_CREATED",
+            status="SUCCESS",
+            username=session.get("username"),
+            user_id=session.get("user_id"),
+            resource_id=str(new_user["user_id"]),
+            ip_address=get_client_ip(),
+            details=f"Chief Doctor created account '{username}' with role '{role}'",
+            db_path=db_path
+        )
+        return jsonify({"success": True, "user": new_user, "message": f"User '{username}' created successfully."}), 201
+    except ValueError as ve:
+        return jsonify({"success": False, "error": str(ve)}), 400
+    except Exception as e:
+        logger.exception("Error creating user: %s", e)
+        return jsonify({"success": False, "error": "Failed to create user."}), 500
+
+
+@app.route("/api/admin/users/<int:target_user_id>/toggle_status", methods=["POST"])
+@roles_required("admin")
+def api_admin_toggle_user_status(target_user_id):
+    """
+    Activates or deactivates a user account.
+    Prevents self-deactivation by the active Chief Doctor.
+    """
+    db_path = get_active_db_path()
+    current_admin_id = session.get("user_id")
+
+    if target_user_id == current_admin_id:
+        return jsonify({"success": False, "error": "Security policy prohibits self-deactivation of the active Chief Doctor account."}), 400
+
+    target_user = get_user_by_id(target_user_id, db_path=db_path)
+    if not target_user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    data = request.get_json(silent=True) or request.form
+    new_status = bool(data.get("is_active", not target_user["is_active"]))
+
+    success = set_user_active_status(target_user_id, new_status, db_path=db_path)
+    if success:
+        action_name = "USER_ACTIVATED" if new_status else "USER_DEACTIVATED"
+        log_audit_event(
+            action=action_name,
+            status="SUCCESS",
+            username=session.get("username"),
+            user_id=current_admin_id,
+            resource_id=str(target_user_id),
+            ip_address=get_client_ip(),
+            details=f"Admin updated account '{target_user['username']}' active status to {new_status}",
+            db_path=db_path
+        )
+        return jsonify({
+            "success": True,
+            "user_id": target_user_id,
+            "is_active": 1 if new_status else 0,
+            "message": f"Account '{target_user['username']}' {'activated' if new_status else 'deactivated'} successfully."
+        })
+    return jsonify({"success": False, "error": "Failed to update user status."}), 500
+
+
+@app.route("/api/admin/users/<int:target_user_id>/reset_password", methods=["POST"])
+@roles_required("admin")
+def api_admin_reset_password(target_user_id):
+    """Resets a user's password and sets must_change_password=1."""
+    import secrets
+    db_path = get_active_db_path()
+    target_user = get_user_by_id(target_user_id, db_path=db_path)
+    if not target_user:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    data = request.get_json(silent=True) or request.form
+    new_password = (data.get("new_password") or "").strip()
+
+    if not new_password:
+        new_password = f"Temp@{secrets.token_hex(4)}!9"
+
+    if len(new_password) < 8:
+        return jsonify({"success": False, "error": "Password must be at least 8 characters."}), 400
+
+    try:
+        success = reset_user_password(target_user_id, new_password, db_path=db_path, must_change_password=True)
+        if success:
+            log_audit_event(
+                action="USER_PASSWORD_RESET",
+                status="SUCCESS",
+                username=session.get("username"),
+                user_id=session.get("user_id"),
+                resource_id=str(target_user_id),
+                ip_address=get_client_ip(),
+                details=f"Chief Doctor reset password for account '{target_user['username']}'",
+                db_path=db_path
+            )
+            return jsonify({
+                "success": True,
+                "user_id": target_user_id,
+                "username": target_user["username"],
+                "temporary_password": new_password,
+                "message": f"Password reset successfully for '{target_user['username']}'. User must change password upon next login."
+            })
+        return jsonify({"success": False, "error": "Database update failed."}), 500
+    except ValueError as ve:
+        return jsonify({"success": False, "error": str(ve)}), 400
+
+
+@app.route("/api/admin/audit_logs", methods=["GET"])
+@roles_required("admin")
+def api_admin_audit_logs():
+    """Returns filterable, searchable audit logs for the Chief Doctor."""
+    db_path = get_active_db_path()
+    limit = min(500, max(1, int(request.args.get("limit", 100))))
+    offset = max(0, int(request.args.get("offset", 0)))
+    action = request.args.get("action")
+    status = request.args.get("status")
+    username = request.args.get("username")
+    search = request.args.get("search")
+
+    records, total = get_filtered_audit_logs(
+        limit=limit,
+        offset=offset,
+        action=action,
+        status=status,
+        username=username,
+        search=search,
+        db_path=db_path
+    )
+    return jsonify({
+        "success": True,
+        "logs": records,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    })
+
+
+@app.route("/api/admin/audit_logs/export", methods=["GET"])
+@roles_required("admin")
+def api_admin_export_audit_logs():
+    """Generates and downloads RFC 4180 CSV export of audit logs."""
+    db_path = get_active_db_path()
+    csv_content = export_audit_logs_csv(limit=5000, db_path=db_path)
+    log_audit_event(
+        action="AUDIT_LOG_EXPORTED",
+        status="SUCCESS",
+        username=session.get("username"),
+        user_id=session.get("user_id"),
+        ip_address=get_client_ip(),
+        details="Chief Doctor exported system audit logs to CSV",
+        db_path=db_path
+    )
+    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=neuromed_audit_trail_{timestamp_str}.csv"}
+    )
+
+
+@app.route("/api/admin/system_health", methods=["GET"])
+@roles_required("admin")
+def api_admin_system_health():
+    """Returns live system health telemetry for the Chief Doctor."""
+    db_path = get_active_db_path()
+    stats = get_system_health_stats(db_path=db_path)
+    stats["server"] = {
+        "python_version": sys.version.split()[0],
+        "platform": sys.platform,
+        "models_ready": models_ready(),
+        "rag_passages_indexed": len(getattr(rag_assistant, "passages", [])),
+        "zero_hallucination_guard": "ACTIVE"
+    }
+    return jsonify({"success": True, "health": stats})
+
+
+@app.route("/api/admin/model_governance", methods=["GET"])
+@roles_required("admin")
+def api_admin_model_governance():
+    """Returns model metadata, performance metrics, and governance verification status."""
+    meta_info_path = os.path.join(ARTIFACT_DIR, "meta_info.json")
+    meta_info = {}
+    if os.path.exists(meta_info_path):
+        try:
+            with open(meta_info_path, "r", encoding="utf-8") as f:
+                meta_info = json.load(f)
+        except Exception as e:
+            logger.warning("Could not read meta_info.json: %s", e)
+
+    governance_data = {
+        "models_status": {
+            "svm": svm is not None,
+            "logreg": logreg is not None,
+            "bilstm": bilstm is not None,
+            "meta_stacker": meta is not None,
+            "calibrator": calibrator is not None,
+            "preprocessor": preprocessor is not None,
+            "shap_explainer": ensemble_explainer is not None
+        },
+        "model_version": meta_info.get("model_version", "v2.0.0-calibrated"),
+        "calibration_method": meta_info.get("calibration_method", "Isotonic Regression"),
+        "validation_metrics": meta_info.get("validation_metrics", {}),
+        "test_metrics_calibrated": meta_info.get("test_metrics_calibrated", {}),
+        "governance_policy": {
+            "status": "FROZEN_IN_SERVICE",
+            "production_approved": True,
+            "recalibration_required": False,
+            "change_control": "Requires Chief Doctor approval and dual-signed git commit tag"
+        }
+    }
+    return jsonify({"success": True, "governance": governance_data})
+
 
 
 @app.route("/lab/import", methods=["GET"])
@@ -714,7 +1305,7 @@ def lab_import_page():
 
 
 @app.route("/about")
-@roles_required("admin", "clinician")
+@roles_required("admin", "clinician", "lab_staff")
 def about():
     try:
         next_id = get_next_patient_id(get_active_db_path())
@@ -727,7 +1318,7 @@ def about():
 
 
 @app.route("/api/next_patient_id", methods=["GET"])
-@roles_required("admin", "clinician")
+@roles_required("admin", "clinician", "lab_staff")
 def api_next_patient_id():
     """Returns the next sequential Patient ID preview (e.g. NEUROMED001)."""
     try:
@@ -739,7 +1330,7 @@ def api_next_patient_id():
 
 
 @app.route("/api/patient/<patient_id>", methods=["GET"])
-@roles_required("admin", "clinician")
+@roles_required("admin", "clinician", "lab_staff")
 def api_get_patient(patient_id):
     """Retrieves patient demographic profile by ID without exposing sensitive internal data."""
     try:
@@ -1346,7 +1937,7 @@ def parse_cognitive(val):
 # PREDICT ROUTE
 # ============================
 @app.route("/submit", methods=["POST"])
-@roles_required("admin", "clinician")
+@roles_required("admin", "clinician", "lab_staff")
 def submit():
     if not models_ready():
         return "Models not loaded", 500

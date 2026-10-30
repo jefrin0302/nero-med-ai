@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chief Doctor & Administrator Portal — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <style>
+    .admin-login-body {
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #090d16 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: #f8fafc;
+    }
+    .admin-login-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+    }
+    .admin-login-card {
+      max-width: 480px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 20px;
+      padding: 40px 36px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 35px rgba(99, 102, 241, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    .admin-login-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #6366f1, #06b6d4, #10b981);
+    }
+    .portal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(165, 180, 252, 0.4);
+      color: #c7d2fe;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .form-group {
+      margin-bottom: 22px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .admin-input {
+      width: 100%;
+      padding: 13px 16px;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1.5px solid rgba(148, 163, 184, 0.25);
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+    .admin-input:focus {
+      outline: none;
+      border-color: #6366f1;
+      background: rgba(30, 41, 59, 0.95);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    }
+    .alert-box {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 22px;
+      line-height: 1.5;
+    }
+    .alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+    .alert-info {
+      background: rgba(99, 102, 241, 0.15);
+      color: #c7d2fe;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+    }
+    .btn-admin-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+      transition: all 0.2s ease;
+    }
+    .btn-admin-submit:hover {
+      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      box-shadow: 0 10px 28px rgba(99, 102, 241, 0.45);
+      transform: translateY(-1px);
+    }
+    .portal-toggle {
+      display: flex;
+      background: rgba(30, 41, 59, 0.6);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .portal-toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .portal-toggle-btn.active {
+      background: #6366f1;
+      color: #ffffff;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+    }
+    .security-notice {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 24px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body class="admin-login-body">
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom" style="background: rgba(15, 23, 42, 0.8);">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('login') }}">Staff Portal</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- LOGIN WRAPPER -->
+  <main class="admin-login-wrapper">
+    <div class="admin-login-card">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span class="portal-badge">
+          🛡️ Executive Governance Access
+        </span>
+        <h1 style="font-size: 26px; font-weight: 800; color: #ffffff; margin: 0 0 8px 0; letter-spacing: -0.5px;">
+          Chief Doctor Portal
+        </h1>
+        <p style="font-size: 13px; color: #94a3b8; margin: 0;">
+          Clinical Decision Support &amp; AI System Administration
+        </p>
+      </div>
+
+      <!-- PORTAL SWITCHER -->
+      <div class="portal-toggle">
+        <a href="{{ url_for('login') }}" class="portal-toggle-btn">
+          🩺 Clinician
+        </a>
+        <a href="{{ url_for('lab_login') }}" class="portal-toggle-btn">
+          🔬 Lab Staff
+        </a>
+        <a href="{{ url_for('admin_login') }}" class="portal-toggle-btn active">
+          👑 Chief Doctor
+        </a>
+      </div>
+
+      {% if error %}
+      <div class="alert-box alert-error">
+        ⚠️ {{ error }}
+      </div>
+      {% endif %}
+
+      {% if message %}
+      <div class="alert-box alert-info">
+        ℹ️ {{ message }}
+      </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('admin_login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        {% if next_url %}
+        <input type="hidden" name="next" value="{{ next_url }}" />
+        {% endif %}
+
+        <div class="form-group">
+          <label for="username">Chief Doctor Username</label>
+          <input type="text" id="username" name="username" class="admin-input" placeholder="e.g. admin" required autofocus autocomplete="username" />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Administrator Password</label>
+          <input type="password" id="password" name="password" class="admin-input" placeholder="••••••••••••" required autocomplete="current-password" />
+        </div>
+
+        <button type="submit" class="btn-admin-submit">
+          🛡️ Sign In to Governance Dashboard
+        </button>
+      </form>
+
+      <div class="security-notice">
+        🔒 <strong>Administrative Audit &amp; Governance Notice:</strong><br />
+        This executive gateway provides full access to patient health data, user provisioning, model governance, and clinical guideline authorization. All sign-ins, IP addresses, and administrative actions are permanently recorded in the immutable audit log.
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer-custom" style="background: transparent; border-top: 1px solid rgba(255, 255, 255, 0.08); color: #64748b;">
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Governance &amp; Decision Support System</p>
+  </footer>
+
+</body>
+</html>
+

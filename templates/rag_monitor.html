@@ -708,6 +708,9 @@
 
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% if current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        {% endif %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
         <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
         <li><a class="nav-link-item active" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>

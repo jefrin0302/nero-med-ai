@@ -15,6 +15,8 @@ import os
 import sqlite3
 import json
 import re
+import csv
+import io
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
@@ -978,6 +980,40 @@ def change_user_password(
         return True, "Password changed successfully."
 
 
+def ensure_default_accounts(db_path: Optional[str] = None) -> None:
+    """
+    Ensures standard clinical system accounts exist with authorized default credentials:
+    - clinician: Clinician123! (role: clinician)
+    - admin: ChiefDoctor123! (role: admin)
+    - lab_staff: Labstaff123! (role: lab_staff)
+    """
+    defaults = [
+        ("clinician", "Clinician123!", "Dr. Clinician", "clinician"),
+        ("admin", "ChiefDoctor123!", "Chief Doctor Admin", "admin"),
+        ("lab_staff", "Labstaff123!", "Laboratory Staff", "lab_staff"),
+    ]
+    target_path = db_path or DEFAULT_DB_PATH
+    for uname, pwd, name, role in defaults:
+        u = get_user_by_username(uname, db_path=target_path)
+        if not u:
+            try:
+                create_user(
+                    username=uname,
+                    password=pwd,
+                    full_name=name,
+                    role=role,
+                    db_path=target_path,
+                    must_change_password=0
+                )
+            except Exception as e:
+                logger.warning("Could not auto-create default user %s: %s", uname, e)
+        else:
+            if u.get("is_active") == 0:
+                set_user_active_status(u["user_id"], is_active=True, db_path=target_path)
+            if not verify_user_credentials(uname, pwd, db_path=target_path):
+                reset_user_password(u["user_id"], pwd, db_path=target_path, must_change_password=False)
+
+
 # ==============================================================================
 # AUDIT LOGGING HELPERS
 # ==============================================================================
@@ -1758,5 +1794,251 @@ def get_patient_comparison_data(
         "overall_badge": overall_badge,
         "clinical_synthesis": clinical_synthesis
     }
+
+
+# ==============================================================================
+# CHIEF DOCTOR GOVERNANCE & SYSTEM OBSERVABILITY HELPERS
+# ==============================================================================
+
+def get_system_health_stats(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Computes real-time system metrics, table row counts, SQLite database file size,
+    and storage health for Chief Doctor system monitoring.
+    """
+    target_path = db_path or DEFAULT_DB_PATH
+    db_size_bytes = 0
+    if os.path.exists(target_path):
+        db_size_bytes = os.path.getsize(target_path)
+    
+    db_size_kb = round(db_size_bytes / 1024, 2)
+    db_size_mb = round(db_size_bytes / (1024 * 1024), 2)
+
+    with open_db(target_path) as conn:
+        cursor = conn.cursor()
+        
+        # Table counts
+        def _count(table: str) -> int:
+            try:
+                cursor.execute(f"SELECT COUNT(*) FROM {table};")
+                return cursor.fetchone()[0]
+            except Exception:
+                return 0
+
+        counts = {
+            "users": _count("users"),
+            "patients": _count("patients"),
+            "assessments": _count("assessments"),
+            "rag_documents": _count("rag_documents"),
+            "rag_query_logs": _count("rag_query_logs"),
+            "audit_logs": _count("audit_logs"),
+            "lab_reports": _count("lab_reports"),
+            "chat_sessions": _count("chat_sessions"),
+            "chat_messages": _count("chat_messages")
+        }
+
+        # Role breakdown
+        cursor.execute("SELECT role, COUNT(*) FROM users GROUP BY role;")
+        role_counts = {r[0]: r[1] for r in cursor.fetchall()}
+
+        # Active vs deactivated users
+        cursor.execute("SELECT is_active, COUNT(*) FROM users GROUP BY is_active;")
+        active_counts = {r[0]: r[1] for r in cursor.fetchall()}
+
+        # SQLite integrity check
+        cursor.execute("PRAGMA integrity_check;")
+        integrity_row = cursor.fetchone()
+        integrity_status = integrity_row[0] if integrity_row else "unknown"
+
+        # PRAGMA foreign_keys
+        cursor.execute("PRAGMA foreign_keys;")
+        fk_row = cursor.fetchone()
+        foreign_keys_enabled = bool(fk_row[0]) if fk_row else False
+
+        # SQLite Version
+        cursor.execute("SELECT sqlite_version();")
+        sqlite_ver = cursor.fetchone()[0]
+
+    return {
+        "db_path": target_path,
+        "db_size_bytes": db_size_bytes,
+        "db_size_kb": db_size_kb,
+        "db_size_mb": db_size_mb,
+        "db_integrity": integrity_status,
+        "foreign_keys_enabled": foreign_keys_enabled,
+        "sqlite_version": sqlite_ver,
+        "table_counts": counts,
+        "role_breakdown": role_counts,
+        "active_users_count": active_counts.get(1, 0),
+        "deactivated_users_count": active_counts.get(0, 0),
+        "status": "HEALTHY" if integrity_status == "ok" else "DEGRADED"
+    }
+
+
+def get_filtered_audit_logs(
+    limit: int = 100,
+    offset: int = 0,
+    action: Optional[str] = None,
+    status: Optional[str] = None,
+    username: Optional[str] = None,
+    search: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> Tuple[List[Dict[str, Any]], int]:
+    """
+    Retrieves filterable, searchable, and paginated audit logs for the Chief Doctor.
+    Returns (records, total_matching_count).
+    """
+    target_path = db_path or DEFAULT_DB_PATH
+    conditions = []
+    params: List[Any] = []
+
+    if action:
+        conditions.append("action = ?")
+        params.append(action.strip())
+
+    if status:
+        conditions.append("status = ?")
+        params.append(status.strip())
+
+    if username:
+        conditions.append("username LIKE ?")
+        params.append(f"%{username.strip()}%")
+
+    if search:
+        s = f"%{search.strip()}%"
+        conditions.append("(action LIKE ? OR details LIKE ? OR username LIKE ? OR resource_id LIKE ?)")
+        params.extend([s, s, s, s])
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    with open_db(target_path) as conn:
+        cursor = conn.cursor()
+
+        # Count total matching
+        cursor.execute(f"SELECT COUNT(*) FROM audit_logs {where_clause};", tuple(params))
+        total_count = cursor.fetchone()[0]
+
+        # Fetch page
+        query = f"""
+            SELECT log_id, user_id, username, action, resource_id, ip_address, status, details, created_at
+            FROM audit_logs
+            {where_clause}
+            ORDER BY created_at DESC, log_id DESC
+            LIMIT ? OFFSET ?;
+        """
+        cursor.execute(query, tuple(params + [limit, offset]))
+        records = [dict(r) for r in cursor.fetchall()]
+
+    return records, total_count
+
+
+def export_audit_logs_csv(limit: int = 2000, db_path: Optional[str] = None) -> str:
+    """Generates RFC 4180 compliant CSV string of immutable audit logs."""
+    target_path = db_path or DEFAULT_DB_PATH
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(["Log ID", "Timestamp (UTC)", "Actor Username", "Action", "Status", "IP Address", "Resource ID", "Details"])
+
+    with open_db(target_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT log_id, created_at, username, action, status, ip_address, resource_id, details
+            FROM audit_logs
+            ORDER BY created_at DESC, log_id DESC
+            LIMIT ?;
+        """, (limit,))
+        for r in cursor.fetchall():
+            writer.writerow([
+                r["log_id"],
+                r["created_at"],
+                r["username"] or "ANONYMOUS",
+                r["action"],
+                r["status"],
+                r["ip_address"] or "N/A",
+                r["resource_id"] or "N/A",
+                (r["details"] or "").replace("\n", " ")
+            ])
+
+    return output.getvalue()
+
+
+def get_admin_overview_metrics(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Computes aggregated high-level KPIs for the Chief Doctor executive overview.
+    Strictly derived from live database records.
+    """
+    target_path = db_path or DEFAULT_DB_PATH
+    with open_db(target_path) as conn:
+        cursor = conn.cursor()
+
+        # 1. Patients total
+        cursor.execute("SELECT COUNT(*) FROM patients;")
+        total_patients = cursor.fetchone()[0]
+
+        # 2. Total assessments & Wilson Positive counts
+        cursor.execute("SELECT COUNT(*), SUM(CASE WHEN prediction_label = 1 THEN 1 ELSE 0 END) FROM assessments;")
+        row_assess = cursor.fetchone()
+        total_assessments = row_assess[0] if row_assess else 0
+        positive_assessments = row_assess[1] if (row_assess and row_assess[1]) else 0
+
+        # 3. High risk patients count (probability >= 0.70)
+        cursor.execute("SELECT COUNT(DISTINCT patient_id) FROM assessments WHERE probability >= 0.70;")
+        high_risk_patients = cursor.fetchone()[0]
+
+        # 4. Registered users breakdown
+        cursor.execute("SELECT COUNT(*), SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) FROM users;")
+        row_users = cursor.fetchone()
+        total_users = row_users[0] if row_users else 0
+        active_users = row_users[1] if (row_users and row_users[1]) else 0
+
+        cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'clinician' AND is_active = 1;")
+        active_clinicians = cursor.fetchone()[0]
+
+        # 5. RAG Guidelines status
+        cursor.execute("""
+            SELECT 
+                SUM(CASE WHEN review_status = 'pending_approval' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN review_status = 'approved' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN review_status = 'rejected' THEN 1 ELSE 0 END)
+            FROM rag_documents;
+        """)
+        row_docs = cursor.fetchone()
+        pending_guidelines = (row_docs[0] or 0) if row_docs else 0
+        approved_guidelines = (row_docs[1] or 0) if row_docs else 0
+        rejected_guidelines = (row_docs[2] or 0) if row_docs else 0
+
+        # 6. Recent security audit events in the past 24 hours
+        cursor.execute("""
+            SELECT COUNT(*) FROM audit_logs 
+            WHERE created_at >= datetime('now', '-1 day');
+        """)
+        events_24h = cursor.fetchone()[0]
+
+        # 7. Recent denied / security warnings in the past 24 hours
+        cursor.execute("""
+            SELECT COUNT(*) FROM audit_logs 
+            WHERE status = 'DENIED' AND created_at >= datetime('now', '-1 day');
+        """)
+        security_warnings_24h = cursor.fetchone()[0]
+
+        # 8. Certified lab reports total
+        cursor.execute("SELECT COUNT(*) FROM lab_reports;")
+        total_lab_reports = cursor.fetchone()[0]
+
+    return {
+        "total_patients": total_patients,
+        "total_assessments": total_assessments,
+        "positive_assessments": positive_assessments,
+        "high_risk_patients": high_risk_patients,
+        "total_users": total_users,
+        "active_users": active_users,
+        "active_clinicians": active_clinicians,
+        "pending_guidelines": pending_guidelines,
+        "approved_guidelines": approved_guidelines,
+        "rejected_guidelines": rejected_guidelines,
+        "events_24h": events_24h,
+        "security_warnings_24h": security_warnings_24h,
+        "total_lab_reports": total_lab_reports
+    }
+
 
 

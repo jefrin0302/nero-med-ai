@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laboratory Staff Sign In — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <style>
+    .lab-login-body {
+      background: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .lab-login-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      position: relative;
+    }
+    .lab-login-card {
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5), 0 0 35px rgba(14, 165, 233, 0.15);
+      backdrop-filter: blur(12px);
+    }
+    .portal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(14, 165, 233, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .portal-toggle {
+      display: flex;
+      background: rgba(15, 23, 42, 0.7);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 4px;
+    }
+    .portal-toggle-btn {
+      flex: 1;
+      text-align: center;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .portal-toggle-btn.active {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 10px rgba(14, 165, 233, 0.4);
+    }
+    .portal-toggle-btn:hover:not(.active) {
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #ffffff;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+    .alert-box {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+    .alert-info {
+      background: rgba(14, 165, 233, 0.15);
+      color: #bae6fd;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+    .btn-lab-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35);
+      transition: all 0.2s ease;
+    }
+    .btn-lab-submit:hover {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      box-shadow: 0 10px 28px rgba(14, 165, 233, 0.45);
+      transform: translateY(-1px);
+    }
+    .security-notice {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 24px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body class="lab-login-body">
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom" style="background: rgba(15, 23, 42, 0.85); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}" style="color: #ffffff;">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}" style="color: #cbd5e1;">Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: #cbd5e1;">Clinician Portal</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('admin_login') }}" style="color: #cbd5e1;">Chief Doctor Portal</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- LOGIN WRAPPER -->
+  <main class="lab-login-wrapper">
+    <div class="lab-login-card">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span class="portal-badge">
+          🔬 Clinical Laboratory Workstation
+        </span>
+        <h1 style="font-size: 26px; font-weight: 800; color: #ffffff; margin: 0 0 8px 0; letter-spacing: -0.5px;">
+          Lab Staff Portal
+        </h1>
+        <p style="font-size: 13px; color: #94a3b8; margin: 0;">
+          Biomarker Data Entry &amp; Clinical Test Intake
+        </p>
+      </div>
+
+      <!-- PORTAL SWITCHER -->
+      <div class="portal-toggle">
+        <a href="{{ url_for('login') }}" class="portal-toggle-btn">
+          🩺 Clinician
+        </a>
+        <a href="{{ url_for('lab_login') }}" class="portal-toggle-btn active">
+          🔬 Lab Staff
+        </a>
+        <a href="{{ url_for('admin_login') }}" class="portal-toggle-btn">
+          👑 Chief Doctor
+        </a>
+      </div>
+
+      {% if error %}
+      <div class="alert-box alert-error">
+        ⚠️ {{ error }}
+      </div>
+      {% endif %}
+
+      {% if message %}
+      <div class="alert-box alert-info">
+        ℹ️ {{ message }}
+      </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('lab_login') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next_url or '' }}">
+
+        <div class="form-group">
+          <label class="form-label" for="username">Laboratory Staff Username</label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            class="form-input" 
+            placeholder="e.g. lab_staff" 
+            required 
+            autofocus 
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            class="form-input" 
+            placeholder="••••••••••••" 
+            required 
+            autocomplete="current-password"
+          />
+        </div>
+
+        <button type="submit" class="btn-lab-submit">
+          Sign In to Clinical Test Portal ➔
+        </button>
+      </form>
+
+      <div class="security-notice">
+        🔒 <strong>Authorized Pathology &amp; Laboratory Access Only:</strong> This portal is dedicated to accredited laboratory staff for recording clinical biomarker panels and submitting diagnostic test inputs. All actions are cryptographically signed and recorded in compliance with clinical audit standards.
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>
+

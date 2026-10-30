@@ -231,7 +231,7 @@
         <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
         {% endif %}
         {% if current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">Admin / RAG</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
         {% endif %}
         <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
         <li>

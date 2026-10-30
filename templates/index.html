@@ -35,21 +35,22 @@
         <li><a class="nav-link-item active" href="{{ url_for('home') }}">Home</a></li>
         {% if current_user.is_authenticated %}
           {% if current_user.role == 'admin' %}
+          <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #ffffff; font-weight: 700; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); border-radius: 6px; padding: 6px 12px; box-shadow: 0 2px 6px rgba(79,70,229,0.3);">👑 Chief Doctor Dashboard</a></li>
           <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
           <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
-          <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}" style="color: #818cf8; font-weight: 700; background: rgba(99, 102, 241, 0.15); border-radius: 6px; padding: 6px 12px;">🛡️ Governance & RAG Monitor</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
           {% elif current_user.role == 'clinician' %}
           <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
           <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
           <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
           {% elif current_user.role == 'lab_staff' %}
-          <li><a class="nav-link-item" href="{{ url_for('lab_import_page') }}">Lab Import</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
           {% endif %}
         {% else %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
         {% endif %}
         {% if current_user.is_authenticated %}
-        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ 'Chief Doctor' if current_user.role == 'admin' else current_user.role }})</span></li>
+        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ 'Lab Staff' if current_user.role == 'lab_staff' else ('Chief Doctor' if current_user.role == 'admin' else 'Clinician') }})</span></li>
         <li>
           <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -86,6 +87,9 @@
 
         <div style="display: flex; gap: 14px; flex-wrap: wrap;">
           {% if current_user.role == 'admin' %}
+          <a href="{{ url_for('admin_dashboard') }}" class="btn-prime" style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);">
+            👑 Chief Doctor Dashboard
+          </a>
           <a href="{{ url_for('about') }}" class="btn-prime" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
             🧪 Launch Clinical Assessment
           </a>
@@ -93,7 +97,7 @@
             👥 Patient Directory
           </a>
           <a href="{{ url_for('rag_monitor') }}" class="btn-prime" style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);">
-            🛡️ Governance &amp; RAG Monitor
+            🛡️ RAG Monitor
           </a>
           {% elif current_user.role == 'clinician' %}
           <a href="{{ url_for('about') }}" class="btn-prime" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
@@ -106,8 +110,8 @@
             🛡️ RAG Monitor
           </a>
           {% elif current_user.role == 'lab_staff' %}
-          <a href="{{ url_for('lab_import_page') }}" class="btn-prime" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">
-            📋 Launch Lab Import Workstation
+          <a href="{{ url_for('about') }}" class="btn-prime" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">
+            🧪 Clinical Test Intake Form
           </a>
           {% else %}
           <a href="{{ url_for('login') }}" class="btn-prime">
@@ -119,10 +123,6 @@
         {% if current_user.role == 'admin' %}
         <div style="margin-top: 24px; padding: 14px 18px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(165, 180, 252, 0.3); border-radius: 12px; font-size: 13.5px; color: #e0e7ff; line-height: 1.6;">
           👨‍⚕️ <strong>Chief Doctor (Department Head) Workspace:</strong> As Chief Doctor, you have comprehensive clinical authority across all patient medical records, diagnostic evaluations, AI explanations, and RAG knowledge governance. You hold exclusive authority to inspect, approve, or quarantine external clinical guidelines.
-        </div>
-        {% elif current_user.role == 'lab_staff' %}
-        <div style="margin-top: 24px; padding: 14px 18px; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; font-size: 13.5px; color: #e0f2fe; line-height: 1.6;">
-          🔬 <strong>Laboratory &amp; Pathology Workstation:</strong> Directly import, validate, and integrate electronic lab panels (PDF/DOCX/CSV) for automated clinical intake and rapid specialist review.
         </div>
         {% endif %}
       </div>

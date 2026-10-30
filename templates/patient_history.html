@@ -126,6 +126,9 @@
 
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+        {% if current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        {% endif %}
         <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
         <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
         {% if current_user.is_authenticated %}
@@ -296,6 +299,7 @@
             </td>
             <td style="font-size: 12px; color: #64748b;">
               {% if a.svm_prob is not none %}SVM: {{ [a.svm_prob, 100.0]|min }}%{% endif %}
+              {% if a.rf_prob is not none %} • RF: {{ [a.rf_prob, 100.0]|min }}%{% endif %}
               {% if a.logreg_prob is not none %} • LogReg: {{ [a.logreg_prob, 100.0]|min }}%{% endif %}
               {% if a.bilstm_prob is not none %} • BiLSTM: {{ [a.bilstm_prob, 100.0]|min }}%{% endif %}
             </td>

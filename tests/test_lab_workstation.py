@@ -202,17 +202,21 @@ class TestLabWorkstationAndLongitudinalComparison(unittest.TestCase):
     # 3. RBAC ISOLATION & SEPARATION OF DUTIES
     # =========================================================================
 
-    def test_lab_staff_strictly_forbidden_from_ml_prediction_and_admin(self):
-        """Enforces that lab staff cannot run ML predictions (/submit) or access Chief Doctor panel (/rag/monitor)."""
+    def test_lab_staff_clinical_test_access_and_admin_barrier(self):
+        """Enforces that lab staff has access to clinical test entry (/about) but cannot access admin panels (/rag/monitor, /patients)."""
         self._login(self.lab_user)
 
-        # Lab staff attempted prediction execution
-        pred_res = self.client.post("/submit", data={"patientName": "Test"})
-        self.assertEqual(pred_res.status_code, 403)
+        # Lab staff CAN access clinical test input form (/about)
+        about_res = self.client.get("/about")
+        self.assertEqual(about_res.status_code, 200)
 
         # Lab staff attempted admin monitor access
         admin_res = self.client.get("/rag/monitor")
         self.assertEqual(admin_res.status_code, 403)
+
+        # Lab staff attempted patient directory access
+        patients_res = self.client.get("/patients")
+        self.assertEqual(patients_res.status_code, 403)
 
     def test_clinician_can_fetch_latest_lab_report_for_autofill(self):
         """Clinician can fetch patient's latest certified lab report via API for 1-click import."""

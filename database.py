@@ -159,11 +159,13 @@ def init_db(db_path: Optional[str] = None) -> None:
             );
         """)
 
-        # Schema migration check: ensure model_version column exists on existing assessments tables
+        # Schema migration check: ensure model_version and rf_prob columns exist on existing assessments tables
         cursor.execute("PRAGMA table_info(assessments);")
         existing_cols = [row[1] for row in cursor.fetchall()]
         if existing_cols and "model_version" not in existing_cols:
             cursor.execute("ALTER TABLE assessments ADD COLUMN model_version TEXT DEFAULT 'v1.0.0';")
+        if existing_cols and "rf_prob" not in existing_cols:
+            cursor.execute("ALTER TABLE assessments ADD COLUMN rf_prob REAL;")
 
         # Indexes for fast querying
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_assessments_patient_id ON assessments(patient_id);")
@@ -655,11 +657,12 @@ def save_assessment(
         mb = prediction_results.get("model_breakdown") or {}
         bilstm_prob = mb.get("bilstm")
         svm_prob = mb.get("svm")
+        rf_prob = mb.get("rf")
         logreg_prob = mb.get("logreg")
 
         # Create structured JSON snapshot of inputs for exact auditability
         inputs_json = json.dumps(clinical_inputs, default=str)
-        model_ver = prediction_results.get("model_version") or "v2.0.0-calibrated"
+        model_ver = prediction_results.get("model_version") or "v3.0.0-calibrated"
 
         cols.extend([
             "prediction_text", "prediction_label", "probability",
@@ -674,6 +677,14 @@ def save_assessment(
             leipzig, shap_path, inputs_json,
             model_ver
         ])
+
+        # Check if rf_prob column exists in schema
+        cursor.execute("PRAGMA table_info(assessments);")
+        existing_cols = [row[1] for row in cursor.fetchall()]
+        if "rf_prob" in existing_cols:
+            cols.append("rf_prob")
+            placeholders.append("?")
+            values.append(rf_prob)
 
         sql = f"INSERT INTO assessments ({', '.join(cols)}) VALUES ({', '.join(placeholders)});"
         cursor.execute(sql, values)

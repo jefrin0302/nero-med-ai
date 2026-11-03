@@ -243,7 +243,7 @@ def is_meaningless_query(user_question: str) -> bool:
     return True
 
 def sanitize_bot_answer(text: str) -> str:
-    """
+    r"""
     Cleans formatting artifacts, internal headers, and raw markdown symbols:
     - Removes separator artifacts: \==\, \---\, ===, ---, ==
     - Strips internal question-bank title headers and metadata
@@ -2058,8 +2058,9 @@ class MedicalRAGSystem:
 
             cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
             coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
             if coverage_report["facets_missing"]:
-                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}"
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish complete protocol data for these facets."
 
         # 2. Treatment comparison evaluation
         elif any(k in q_lower for k in ["difference", "differences", "compare", "comparison", "versus", " vs ", "between"]) and \
@@ -2109,8 +2110,9 @@ class MedicalRAGSystem:
 
             cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
             coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
             if coverage_report["facets_missing"]:
-                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}"
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish comparative data for these facets."
 
         # 3. Ceruloplasmin diagnostic role evaluation
         elif "ceruloplasmin" in q_lower and any(w in q_lower for w in ["role", "diagnos", "threshold", "level", "value", "interpret"]):
@@ -2158,8 +2160,129 @@ class MedicalRAGSystem:
 
             cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
             coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
             if coverage_report["facets_missing"]:
-                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}"
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish reference or accuracy data for these facets."
+
+        # 4. Leipzig scoring system criteria evaluation
+        elif "leipzig" in q_lower and any(w in q_lower for w in ["score", "scoring", "system", "criteria", "points", "diagnostic"]):
+            expected = ["clinical_and_kf_rings", "biochemical_copper_and_ceruloplasmin", "hepatic_copper_or_histology", "atp7b_genetics_and_cutoff"]
+            coverage_report["facets_expected"] = expected
+
+            facet_hits = {f: False for f in expected}
+            for doc_idx in candidate_indices:
+                if doc_idx >= len(self._parsed_passages):
+                    continue
+                _, _, _, body_lower = self._parsed_passages[doc_idx]
+                if any(w in body_lower for w in ["kayser", "kf", "rings", "neurologic", "neuro", "coombs"]):
+                    facet_hits["clinical_and_kf_rings"] = True
+                if any(w in body_lower for w in ["ceruloplasmin", "urinary copper", "urine copper", "serum copper"]):
+                    facet_hits["biochemical_copper_and_ceruloplasmin"] = True
+                if any(w in body_lower for w in ["hepatic", "liver copper", "histology", "biopsy", "parenchymal"]):
+                    facet_hits["hepatic_copper_or_histology"] = True
+                if any(w in body_lower for w in ["mutation", "atp7b", "chromosome 13", "score", "points", "cutoff", ">= 4", ">=4"]):
+                    facet_hits["atp7b_genetics_and_cutoff"] = True
+
+            coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+            coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            if coverage_report["facets_missing"]:
+                coverage_report["second_pass_performed"] = True
+                targeted_queries = {
+                    "clinical_and_kf_rings": "Kayser Fleischer rings neurological symptoms Coombs negative hemolytic anemia Leipzig",
+                    "biochemical_copper_and_ceruloplasmin": "serum ceruloplasmin 24 hour urinary copper Leipzig score points",
+                    "hepatic_copper_or_histology": "liver copper concentration biopsy parenchymal copper Leipzig scoring",
+                    "atp7b_genetics_and_cutoff": "ATP7B mutation analysis Leipzig score total 4 points established diagnosis"
+                }
+                for missing_facet in coverage_report["facets_missing"]:
+                    t_query = targeted_queries.get(missing_facet)
+                    if t_query:
+                        for idx, _ in self._bm25_search(t_query, k=5):
+                            candidate_indices.add(idx)
+                        for idx, _ in self._semantic_search(t_query, k=5):
+                            candidate_indices.add(idx)
+
+                facet_hits = {f: False for f in expected}
+                for doc_idx in candidate_indices:
+                    if doc_idx >= len(self._parsed_passages):
+                        continue
+                    _, _, _, body_lower = self._parsed_passages[doc_idx]
+                    if any(w in body_lower for w in ["kayser", "kf", "rings", "neurologic", "neuro", "coombs"]):
+                        facet_hits["clinical_and_kf_rings"] = True
+                    if any(w in body_lower for w in ["ceruloplasmin", "urinary copper", "urine copper", "serum copper"]):
+                        facet_hits["biochemical_copper_and_ceruloplasmin"] = True
+                    if any(w in body_lower for w in ["hepatic", "liver copper", "histology", "biopsy", "parenchymal"]):
+                        facet_hits["hepatic_copper_or_histology"] = True
+                    if any(w in body_lower for w in ["mutation", "atp7b", "chromosome 13", "score", "points", "cutoff", ">= 4", ">=4"]):
+                        facet_hits["atp7b_genetics_and_cutoff"] = True
+                coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+                coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
+            coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
+            if coverage_report["facets_missing"]:
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish complete scoring data for these criteria."
+
+        # 5. Simple / atomic or general clinical queries
+        else:
+            expected = ["direct_guideline_evidence"]
+            coverage_report["facets_expected"] = expected
+
+            stop_words = {
+                "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
+                "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
+                "many", "much", "can", "does", "do", "it", "for", "of", "with", "from", "by",
+                "according", "cited", "guideline", "guidelines", "practice", "clinical", "please",
+                "explain", "recommend", "recommended", "consideration", "prompt", "findings"
+            }
+            key_words = [_canonical_token(w) for w in re.findall(r'\b\w+\b', q_lower) if w not in stop_words and len(w) > 2]
+
+            has_match = False
+            for doc_idx in candidate_indices:
+                if doc_idx >= len(self._parsed_passages):
+                    continue
+                _, _, _, body_lower = self._parsed_passages[doc_idx]
+                if any(w in body_lower for w in key_words):
+                    has_match = True
+                    break
+
+            if has_match:
+                coverage_report["facets_covered"] = ["direct_guideline_evidence"]
+                coverage_report["facets_missing"] = []
+                coverage_report["coverage_percentage"] = 100.0
+                coverage_report["is_complete"] = True
+                coverage_report["second_pass_performed"] = False
+                coverage_report["evidence_gap"] = None
+            else:
+                if key_words:
+                    coverage_report["second_pass_performed"] = True
+                    t_query = " ".join(key_words)
+                    for idx, _ in self._bm25_search(t_query, k=5):
+                        candidate_indices.add(idx)
+                    for idx, _ in self._semantic_search(t_query, k=5):
+                        candidate_indices.add(idx)
+
+                    for doc_idx in candidate_indices:
+                        if doc_idx >= len(self._parsed_passages):
+                            continue
+                        _, _, _, body_lower = self._parsed_passages[doc_idx]
+                        if any(w in body_lower for w in key_words):
+                            has_match = True
+                            break
+
+                if has_match:
+                    coverage_report["facets_covered"] = ["direct_guideline_evidence"]
+                    coverage_report["facets_missing"] = []
+                    coverage_report["coverage_percentage"] = 100.0
+                    coverage_report["is_complete"] = True
+                    coverage_report["evidence_gap"] = None
+                else:
+                    coverage_report["facets_covered"] = []
+                    coverage_report["facets_missing"] = ["direct_guideline_evidence"]
+                    coverage_report["coverage_percentage"] = 0.0
+                    coverage_report["is_complete"] = False
+                    coverage_report["evidence_gap"] = "The available clinical practice guidelines do not contain evidence for this clinical query."
 
         return candidate_indices, coverage_report
 
@@ -2345,6 +2468,23 @@ class MedicalRAGSystem:
         if hasattr(self, "_bm25_df") and self._bm25_df:
             missing_terms = [w for w in raw_query_words if self._bm25_df.get(w, 0) == 0]
             if len(missing_terms) >= 2 or (len(raw_query_words) >= 3 and (len(missing_terms) / len(raw_query_words)) >= 0.25):
+                self._last_retrieval_meta = {
+                    "original_query": query,
+                    "subqueries": [query],
+                    "semantic_candidates_count": 0,
+                    "bm25_candidates_count": 0,
+                    "merged_candidates_count": 0,
+                    "final_passages_count": 0,
+                    "evidence_coverage": {
+                        "facets_expected": ["direct_guideline_evidence"],
+                        "facets_covered": [],
+                        "facets_missing": ["direct_guideline_evidence"],
+                        "coverage_percentage": 0.0,
+                        "is_complete": False,
+                        "second_pass_performed": False,
+                        "evidence_gap": "The available clinical practice guidelines do not contain evidence for this query."
+                    }
+                }
                 return []
 
         # 1. Query decomposition

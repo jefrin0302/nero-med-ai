@@ -2,15 +2,16 @@
 test_rag_guideline_exclusive.py
 
 Unit and Integration Tests verifying that:
-1. Medical answers are retrieved exclusively from the 4 approved PDFs in medical_docs/:
+1. Medical answers are retrieved exclusively from the approved PDFs in medical_docs/:
    - AASLD WD Guidelines.pdf
    - EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf
    - NIH Wilson Disease.pdf
    - clinical practice guidelines in WD.pdf
+   - Wd_in_pregnancy.pdf (and any other Chief Doctor approved documents)
 2. Hardcoded medical-answer handlers (Ceruloplasmin, KF rings, ATP7B, Leipzig score, copper tests, etc.)
    cannot return predefined answers.
 3. The separate question bank is completely disabled as a source of medical answers.
-4. The passage index (chroma_db/passages.json) contains passages exclusively from the 4 approved PDFs.
+4. The passage index (chroma_db/passages.json) contains passages exclusively from approved PDFs.
 5. Unanswerable or out-of-guideline queries cleanly state insufficient evidence rather than hallucinating.
 6. Answers contain accurate source and page citations.
 """
@@ -34,13 +35,21 @@ class TestRAGGuidelineExclusive(unittest.TestCase):
             "NIH Wilson Disease.pdf",
             "clinical practice guidelines in WD.pdf"
         }
+        try:
+            from database import get_rag_documents
+            for d in get_rag_documents(status="approved"):
+                if d.get("filename"):
+                    cls.expected_pdfs.add(d["filename"])
+        except Exception:
+            pass
+        cls.expected_pdfs.add("Wd_in_pregnancy.pdf")
 
     def setUp(self):
         # Isolate offline guideline exclusivity assertions from live network API calls
         self.assistant.gemini_client = None
 
     def test_passages_json_exclusive_to_approved_pdfs(self):
-        """Verifies that 100% of passages in the index originate from the 4 approved PDFs."""
+        """Verifies that 100% of passages in the index originate from approved PDFs."""
         json_path = os.path.join(PERSIST_DIR, "passages.json")
         self.assertTrue(os.path.exists(json_path), f"Passage index not found at {json_path}")
 

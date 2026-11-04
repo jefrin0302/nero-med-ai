@@ -1,0 +1,1166 @@
+{
+  "evaluation_report_version": "2.0.0",
+  "audit_phase": "Phase 6 Step 2.2 - Per-Claim Audit Ledger",
+  "benchmark_version": "1.0.0-draft",
+  "corpus_version": "approved_guidelines_4pdf_v1",
+  "audit_scope": "Full audit of 40 evaluated claims across 8 evaluated benchmark cases",
+  "primary_cause_summary": {
+    "total_claims_audited": 40,
+    "mutually_exclusive_causes": {
+      "bibliographic_footer": {
+        "count": 8,
+        "denominator": 40,
+        "ratio": 0.2,
+        "description": "Non-clinical bibliographic source summaries parsed as claims."
+      },
+      "genuine_citation_defect": {
+        "count": 4,
+        "denominator": 40,
+        "ratio": 0.1,
+        "description": "Citations referencing page numbers exceeding approved PDF page bounds (e.g. AASLD p. 31, p. 25, p. 27; EASL-ERN p. 18)."
+      },
+      "truncated_evaluator_passage": {
+        "count": 28,
+        "denominator": 40,
+        "ratio": 0.7,
+        "description": "Valid citation where evaluator received only a 150-char preview slice."
+      },
+      "multiple_passages_not_aggregated": {
+        "count": 0,
+        "denominator": 40,
+        "ratio": 0.0,
+        "description": "Multi-citation sentences evaluated without combining evidence."
+      },
+      "unsupported_claim": {
+        "count": 0,
+        "denominator": 40,
+        "ratio": 0.0,
+        "description": "Substantive claim unsupported after full passage inspection."
+      },
+      "unresolved_evidence": {
+        "count": 0,
+        "denominator": 40,
+        "ratio": 0.0,
+        "description": "Insufficient telemetry evidence."
+      }
+    }
+  },
+  "diagnostic_metrics_comparison": {
+    "original_v1_claim_support_metric": 0.05,
+    "v1_supported_claims_breakdown": {
+      "total_v1_reported_supported": 2,
+      "v1_supported_claim_indices": [
+        35,
+        40
+      ],
+      "finding": "Both v1 'supported' claims (WD-BENCH-007 #5, WD-BENCH-008 #5) were bibliographic footers accidentally matching citation headers."
+    },
+    "corrected_evidence_metric": {
+      "status": "unavailable_pending_full_passage_telemetry",
+      "substantive_claims_denominator": 32,
+      "confirmed_genuine_citation_defect_count": 4,
+      "confirmed_genuine_citation_defect_rate": 0.125,
+      "unresolved_pending_full_passage_text_count": 28,
+      "unresolved_pending_full_passage_text_rate": 0.875,
+      "confirmed_supported_count_on_unabridged_evidence": 0,
+      "confirmed_supported_rate": 0.0,
+      "note": "Because the original evaluation run (v1) supplied only 150-character passage previews in telemetry, the 28 non-defective clinical claims cannot be confirmed as supported without unabridged retrieved passage text. In accordance with strict evidence integrity, missing evidence is marked as unresolved rather than manufactured as supported."
+    }
+  },
+  "per_claim_audit_ledger": [
+    {
+      "claim_index": 1,
+      "case_id": "WD-BENCH-001",
+      "domain": "DOM-01",
+      "question_type": "multipart",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3]\n\u2022 Kayser-Fleischer rings represent deposition of copper in the Des\u00e7emet 'sm e m",
+      "extracted_claim_text": "\u2022 Kayser-Fleischer rings represent deposition of copper in the Des\u00e7emet 'sm e m",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 2,
+      "case_id": "WD-BENCH-001",
+      "domain": "DOM-01",
+      "question_type": "multipart",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3]\n\u2022 Initial neurological presentation occurs in 40-60% of patients, with symptoms",
+      "extracted_claim_text": "\u2022 Initial neurological presentation occurs in 40-60% of patients, with symptoms",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['40', '60']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 3,
+      "case_id": "WD-BENCH-001",
+      "domain": "DOM-01",
+      "question_type": "multipart",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 4]\n\u2022 Physical examina-tion should look for evidence of liver disease and neurologic",
+      "extracted_claim_text": "\u2022 Physical examina-tion should look for evidence of liver disease and neurologic",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 4"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 4,
+      "case_id": "WD-BENCH-001",
+      "domain": "DOM-01",
+      "question_type": "multipart",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 31]\n\u2022 Repeat examination for KF rings should be performed if there is a question of the patient's adherence because their",
+      "extracted_claim_text": "\u2022 Repeat examination for KF rings should be performed if there is a question of the patient's adherence because their",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 31"
+      ],
+      "citation_authenticity": false,
+      "page_bound_validity": false,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unsupported_invalid_citation",
+      "primary_cause_of_rejection": "genuine_citation_defect",
+      "contributing_causes": [
+        "genuine_citation_defect: page_out_of_bounds (AASLD WD Guidelines.pdf, p. 31 > max 23)",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "genuine_citation_defect",
+      "is_recalculable": true,
+      "recalculation_status": "confirmed_invalid_citation (page_out_of_bounds (AASLD WD Guidelines.pdf, p. 31 > max 23))"
+    },
+    {
+      "claim_index": 5,
+      "case_id": "WD-BENCH-001",
+      "domain": "DOM-01",
+      "question_type": "multipart",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 31]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "extracted_claim_text": "Sources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 31"
+      ],
+      "citation_authenticity": false,
+      "page_bound_validity": false,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "genuine_citation_defect: page_out_of_bounds (AASLD WD Guidelines.pdf, p. 31 > max 23)",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    },
+    {
+      "claim_index": 6,
+      "case_id": "WD-BENCH-002",
+      "domain": "DOM-02",
+      "question_type": "scoring_matrix",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 5]\n\u2022 A new scoring system-Modified Leipzig score has been suggested with extra points being added for family history and s",
+      "extracted_claim_text": "\u2022 A new scoring system-Modified Leipzig score has been suggested with extra points being added for family history and s",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 5"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 7,
+      "case_id": "WD-BENCH-002",
+      "domain": "DOM-02",
+      "question_type": "scoring_matrix",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 2]\n\u2022 Serum ceruloplasmin and 24-h copper urinary excretion Extrahepatic features of WD Leipzig score \u22654 Le",
+      "extracted_claim_text": "\u2022 Serum ceruloplasmin and 24-h copper urinary excretion Extrahepatic features of WD Leipzig score \u22654 Le",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 2"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['24', '4']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 8,
+      "case_id": "WD-BENCH-002",
+      "domain": "DOM-02",
+      "question_type": "scoring_matrix",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 6]\n\u2022 MODIFIED LEIPZIG SCORE-A NEW SCORING SYSTEM The Leipzig score of 199388 was mo",
+      "extracted_claim_text": "\u2022 MODIFIED LEIPZIG SCORE-A NEW SCORING SYSTEM The Leipzig score of 199388 was mo",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 6"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['199388']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 9,
+      "case_id": "WD-BENCH-002",
+      "domain": "DOM-02",
+      "question_type": "scoring_matrix",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 11]\n\u2022 A broadly modified version of the Leipzig score has recently been developed as a diagnostic scoring",
+      "extracted_claim_text": "\u2022 A broadly modified version of the Leipzig score has recently been developed as a diagnostic scoring",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 11"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 10,
+      "case_id": "WD-BENCH-002",
+      "domain": "DOM-02",
+      "question_type": "scoring_matrix",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 18]\n\nSources: NIH Wilson Disease.pdf, p.",
+      "extracted_claim_text": "Sources: NIH Wilson Disease.pdf, p.",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 18"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    },
+    {
+      "claim_index": 11,
+      "case_id": "WD-BENCH-004",
+      "domain": "DOM-04",
+      "question_type": "procedure",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 4]\n\u2022 D-penicillamine Challenge Test After a baseline 24-h collection for copper assay, a second 24-h sample of urine is co",
+      "extracted_claim_text": "\u2022 D-penicillamine Challenge Test After a baseline 24-h collection for copper assay, a second 24-h sample of urine is co",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 4"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['24', '24']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 12,
+      "case_id": "WD-BENCH-004",
+      "domain": "DOM-04",
+      "question_type": "procedure",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 9]\n\u2022 It is an excellent test in symptomatic patients, but may be false negative in those who are asymptoma",
+      "extracted_claim_text": "\u2022 It is an excellent test in symptomatic patients, but may be false negative in those who are asymptoma",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 9"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 13,
+      "case_id": "WD-BENCH-004",
+      "domain": "DOM-04",
+      "question_type": "procedure",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 9]\n\u2022 Urinary copper values should be five to ten times normal; if the values are lower, nonadherence may b",
+      "extracted_claim_text": "\u2022 Urinary copper values should be five to ten times normal; if the values are lower, nonadherence may b",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 9"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 14,
+      "case_id": "WD-BENCH-004",
+      "domain": "DOM-04",
+      "question_type": "procedure",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 14]\n\u2022 Basal 24 -h urinary copper excretion Measuring the amount of copper excreted in the urine in a2 4 -h period may be v",
+      "extracted_claim_text": "\u2022 Basal 24 -h urinary copper excretion Measuring the amount of copper excreted in the urine in a2 4 -h period may be v",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 14"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['24', '4']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 15,
+      "case_id": "WD-BENCH-004",
+      "domain": "DOM-04",
+      "question_type": "procedure",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 8]\n\nSources: NIH Wilson Disease.pdf, p.",
+      "extracted_claim_text": "Sources: NIH Wilson Disease.pdf, p.",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 8"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    },
+    {
+      "claim_index": 16,
+      "case_id": "WD-BENCH-005",
+      "domain": "DOM-05",
+      "question_type": "multipart",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 1]\n\u2022 OMIM Entries for Wilson Disease (View All in OMIM) 277900 WILSON DISEASE; WND",
+      "extracted_claim_text": "\u2022 OMIM Entries for Wilson Disease (View All in OMIM) 277900 WILSON DISEASE; WND",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 1"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['277900']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 17,
+      "case_id": "WD-BENCH-005",
+      "domain": "DOM-05",
+      "question_type": "multipart",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 21]\n\u2022 Wilson disease (WD; hepatolenticular degeneration) was first comprehensively described in 1912 by Kinnier Wilson as",
+      "extracted_claim_text": "\u2022 Wilson disease (WD; hepatolenticular degeneration) was first comprehensively described in 1912 by Kinnier Wilson as",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 21"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['1912']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 18,
+      "case_id": "WD-BENCH-005",
+      "domain": "DOM-05",
+      "question_type": "multipart",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 2]\n\u2022 The role of testing for ATP7B mutation or haplotype studies as-sumes importance if the affected individual is alive",
+      "extracted_claim_text": "\u2022 The role of testing for ATP7B mutation or haplotype studies as-sumes importance if the affected individual is alive",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 2"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 19,
+      "case_id": "WD-BENCH-005",
+      "domain": "DOM-05",
+      "question_type": "multipart",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 12]\n\u2022 Once both ATP7B pathogenic variants have been identified in an affected family member, carrier and p",
+      "extracted_claim_text": "\u2022 Once both ATP7B pathogenic variants have been identified in an affected family member, carrier and p",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 12"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 20,
+      "case_id": "WD-BENCH-005",
+      "domain": "DOM-05",
+      "question_type": "multipart",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 2]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "extracted_claim_text": "Sources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 2"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    },
+    {
+      "claim_index": 21,
+      "case_id": "WD-BENCH-006",
+      "domain": "DOM-06",
+      "question_type": "comparative",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\u2022 Patients receiving zinc salts can expe-rience neurological deterioration, tho",
+      "extracted_claim_text": "\u2022 Patients receiving zinc salts can expe-rience neurological deterioration, tho",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 22,
+      "case_id": "WD-BENCH-006",
+      "domain": "DOM-06",
+      "question_type": "comparative",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\u2022 There are indications that zinc and trientine are associated with fewer side",
+      "extracted_claim_text": "\u2022 There are indications that zinc and trientine are associated with fewer side",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 23,
+      "case_id": "WD-BENCH-006",
+      "domain": "DOM-06",
+      "question_type": "comparative",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 18]\n\u2022 Used since the 1950s as first-line therapy for Wilson disease , D-penicillami",
+      "extracted_claim_text": "\u2022 Used since the 1950s as first-line therapy for Wilson disease , D-penicillami",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 18"
+      ],
+      "citation_authenticity": false,
+      "page_bound_validity": false,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unsupported_invalid_citation",
+      "primary_cause_of_rejection": "genuine_citation_defect",
+      "contributing_causes": [
+        "genuine_citation_defect: page_out_of_bounds (EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 18 > max 15)",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "genuine_citation_defect",
+      "is_recalculable": true,
+      "recalculation_status": "confirmed_invalid_citation (page_out_of_bounds (EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 18 > max 15))"
+    },
+    {
+      "claim_index": 24,
+      "case_id": "WD-BENCH-006",
+      "domain": "DOM-06",
+      "question_type": "comparative",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 14]\n\u2022 Accumulated clinical experience suggests that adverse effects due to D-penicillamine resolve when trientine is subst",
+      "extracted_claim_text": "\u2022 Accumulated clinical experience suggests that adverse effects due to D-penicillamine resolve when trientine is subst",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 14"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 25,
+      "case_id": "WD-BENCH-006",
+      "domain": "DOM-06",
+      "question_type": "comparative",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 25]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "extracted_claim_text": "Sources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 25"
+      ],
+      "citation_authenticity": false,
+      "page_bound_validity": false,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "genuine_citation_defect: page_out_of_bounds (AASLD WD Guidelines.pdf, p. 25 > max 23)",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    },
+    {
+      "claim_index": 26,
+      "case_id": "WD-BENCH-007",
+      "domain": "DOM-07",
+      "question_type": "safety_warning",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 25]\n\u2022 Adverse effects on trientine seem to be less frequent than on D-penicillamine but still may include allergic reacti",
+      "extracted_claim_text": "\u2022 Adverse effects on trientine seem to be less frequent than on D-penicillamine but still may include allergic reacti",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 25"
+      ],
+      "citation_authenticity": false,
+      "page_bound_validity": false,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unsupported_invalid_citation",
+      "primary_cause_of_rejection": "genuine_citation_defect",
+      "contributing_causes": [
+        "genuine_citation_defect: page_out_of_bounds (AASLD WD Guidelines.pdf, p. 25 > max 23)",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "genuine_citation_defect",
+      "is_recalculable": true,
+      "recalculation_status": "confirmed_invalid_citation (page_out_of_bounds (AASLD WD Guidelines.pdf, p. 25 > max 23))"
+    },
+    {
+      "claim_index": 27,
+      "case_id": "WD-BENCH-007",
+      "domain": "DOM-07",
+      "question_type": "safety_warning",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\u2022 D-Penicillamine use is associated with numerous adverse effects.",
+      "extracted_claim_text": "\u2022 D-Penicillamine use is associated with numerous adverse effects.",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 28,
+      "case_id": "WD-BENCH-007",
+      "domain": "DOM-07",
+      "question_type": "safety_warning",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 23]\n\u2022 Pyridoxine must be given along with D-penicillamine.",
+      "extracted_claim_text": "\u2022 Pyridoxine must be given along with D-penicillamine.",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 23"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 29,
+      "case_id": "WD-BENCH-007",
+      "domain": "DOM-07",
+      "question_type": "safety_warning",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 14]\n\u2022 In one study, trientine-2HCl was associated with a higher risk of neurologic worsening than D-penicillamine in patie",
+      "extracted_claim_text": "\u2022 In one study, trientine-2HCl was associated with a higher risk of neurologic worsening than D-penicillamine in patie",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 14"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 30,
+      "case_id": "WD-BENCH-007",
+      "domain": "DOM-07",
+      "question_type": "safety_warning",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\nSources: AASLD WD Guidelines.pdf, p.",
+      "extracted_claim_text": "Sources: AASLD WD Guidelines.pdf, p.",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": true,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    },
+    {
+      "claim_index": 31,
+      "case_id": "WD-BENCH-008",
+      "domain": "DOM-08",
+      "question_type": "procedure",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 22]\n\u2022 Chelation therapy has a long track record of success as maintenance therapy, but adverse effects do cause discontin",
+      "extracted_claim_text": "\u2022 Chelation therapy has a long track record of success as maintenance therapy, but adverse effects do cause discontin",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 22"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 32,
+      "case_id": "WD-BENCH-008",
+      "domain": "DOM-08",
+      "question_type": "procedure",
+      "original_sentence_text": "[AASLD WD Guidelines.pdf, p. 27]\n\u2022 Urinary excretion of zinc should be more than 2000 mg/day to ensure compliance and also to determine the quality of",
+      "extracted_claim_text": "\u2022 Urinary excretion of zinc should be more than 2000 mg/day to ensure compliance and also to determine the quality of",
+      "associated_citations": [
+        "AASLD WD Guidelines.pdf, p. 27"
+      ],
+      "citation_authenticity": false,
+      "page_bound_validity": false,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['2000']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unsupported_invalid_citation",
+      "primary_cause_of_rejection": "genuine_citation_defect",
+      "contributing_causes": [
+        "genuine_citation_defect: page_out_of_bounds (AASLD WD Guidelines.pdf, p. 27 > max 23)",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "genuine_citation_defect",
+      "is_recalculable": true,
+      "recalculation_status": "confirmed_invalid_citation (page_out_of_bounds (AASLD WD Guidelines.pdf, p. 27 > max 23))"
+    },
+    {
+      "claim_index": 33,
+      "case_id": "WD-BENCH-008",
+      "domain": "DOM-08",
+      "question_type": "procedure",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 14]\n\u2022 Zinc is used as afirst-line drug in presymptomatic patients or symp-tomatic patients with neurologic",
+      "extracted_claim_text": "\u2022 Zinc is used as afirst-line drug in presymptomatic patients or symp-tomatic patients with neurologic",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 14"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 34,
+      "case_id": "WD-BENCH-008",
+      "domain": "DOM-08",
+      "question_type": "procedure",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 14]\n\u2022 There are insufficient data to prove the superiority of combination therapy but if it used, the 2 dr",
+      "extracted_claim_text": "\u2022 There are insufficient data to prove the superiority of combination therapy but if it used, the 2 dr",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 14"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "numbers_present: ['2']",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 35,
+      "case_id": "WD-BENCH-008",
+      "domain": "DOM-08",
+      "question_type": "procedure",
+      "original_sentence_text": "[clinical practice guidelines in WD.pdf, p. 15]\n\nSources: AASLD WD Guidelines.pdf, p.",
+      "extracted_claim_text": "Sources: AASLD WD Guidelines.pdf, p.",
+      "associated_citations": [
+        "clinical practice guidelines in WD.pdf, p. 15"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": true,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    },
+    {
+      "claim_index": 36,
+      "case_id": "WD-BENCH-009",
+      "domain": "DOM-09",
+      "question_type": "multipart",
+      "original_sentence_text": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3]\n\u2022 For individuals who have more advanced liver disease or develop liver failure,",
+      "extracted_claim_text": "\u2022 For individuals who have more advanced liver disease or develop liver failure,",
+      "associated_citations": [
+        "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 37,
+      "case_id": "WD-BENCH-009",
+      "domain": "DOM-09",
+      "question_type": "multipart",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 13]\n\u2022 Adults often present with hepatic disease with or without concurrent neuropsychiatric disease.",
+      "extracted_claim_text": "\u2022 Adults often present with hepatic disease with or without concurrent neuropsychiatric disease.",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 13"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 38,
+      "case_id": "WD-BENCH-009",
+      "domain": "DOM-09",
+      "question_type": "multipart",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 3]\n\u2022 Note: Specific instances when Wilson disease should be considered is ALF with nonimmune hemolytic anemia or autoimmun",
+      "extracted_claim_text": "\u2022 Note: Specific instances when Wilson disease should be considered is ALF with nonimmune hemolytic anemia or autoimmun",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 3"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 39,
+      "case_id": "WD-BENCH-009",
+      "domain": "DOM-09",
+      "question_type": "multipart",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 3]\n\u2022 Discontinuation of all treatment leads to hepatic and neurologic decompensation that is usually refractory to further",
+      "extracted_claim_text": "\u2022 Discontinuation of all treatment leads to hepatic and neurologic decompensation that is usually refractory to further",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 3"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": false,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "unresolved_truncated_passage",
+      "primary_cause_of_rejection": "truncated_evaluator_passage",
+      "contributing_causes": [
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "evaluator_limitation",
+      "is_recalculable": false,
+      "recalculation_status": "not_recalculable_without_full_retrieved_passage_text"
+    },
+    {
+      "claim_index": 40,
+      "case_id": "WD-BENCH-009",
+      "domain": "DOM-09",
+      "question_type": "multipart",
+      "original_sentence_text": "[NIH Wilson Disease.pdf, p. 13]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "extracted_claim_text": "Sources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+      "associated_citations": [
+        "NIH Wilson Disease.pdf, p. 13"
+      ],
+      "citation_authenticity": true,
+      "page_bound_validity": true,
+      "is_bibliographic_footer": true,
+      "numerical_check": "no_numbers_in_claim",
+      "passage_supplied_in_v1": "150_char_telemetry_preview",
+      "is_passage_truncated": true,
+      "passage_aggregation_behavior": "single_passage",
+      "original_v1_support_score": false,
+      "support_classification": "footer_excluded",
+      "primary_cause_of_rejection": "bibliographic_footer",
+      "contributing_causes": [
+        "bibliographic_footer",
+        "truncated_evaluator_passage"
+      ],
+      "defect_nature": "non_clinical_footer",
+      "is_recalculable": false,
+      "recalculation_status": "excluded_as_non_clinical_footer"
+    }
+  ]
+}

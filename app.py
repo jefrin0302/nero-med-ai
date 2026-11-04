@@ -2119,10 +2119,10 @@ def rag_monitor():
     recent_queries = get_recent_rag_queries(limit=40, db_path=db_path)
 
     langsmith_active = bool(
-        os.environ.get("LANGSMITH_API_KEY") and
-        os.environ.get("LANGSMITH_TRACING", "").lower() == "true"
+        (os.environ.get("LANGSMITH_API_KEY") or os.environ.get("LANGCHAIN_API_KEY")) and
+        (os.environ.get("LANGSMITH_TRACING", "").lower() == "true" or os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true")
     )
-    langsmith_project = os.environ.get("LANGSMITH_PROJECT", "wilson-disease-rag")
+    langsmith_project = os.environ.get("LANGSMITH_PROJECT") or os.environ.get("LANGCHAIN_PROJECT", "wilson-disease-rag")
 
     rag_status = {
         "total_passages": len(getattr(rag_assistant, "passages", [])),

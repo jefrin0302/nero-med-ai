@@ -1,0 +1,336 @@
+{
+  "benchmark_version": "1.0.0-draft",
+  "corpus_version": "approved_guidelines_4pdf_v1",
+  "approved_guideline_documents": [
+    "AASLD WD Guidelines.pdf",
+    "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf",
+    "NIH Wilson Disease.pdf",
+    "clinical practice guidelines in WD.pdf"
+  ],
+  "last_updated": "2026-11-03",
+  "description": "Baseline clinical evaluation dataset for NeuroMed AI Wilson's Disease RAG system. Contains representative cases across 10 clinical domains. All cases are currently in DRAFT status awaiting expert clinician review, reference authoring, and formal sign-off.",
+  "cases": [
+    {
+      "case_id": "WD-BENCH-001",
+      "domain": "DOM-01",
+      "domain_name": "Initial Presentation & Diagnostic Clues",
+      "question_text": "What are the primary clinical presentations of Wilson's Disease, and which initial physical signs warrant immediate diagnostic evaluation?",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "hepatic_presentation",
+        "neurologic_signs",
+        "ophthalmic_signs"
+      ],
+      "expected_answer_elements": [
+        "Hepatic manifestations (acute hepatitis, chronic liver disease, cirrhosis, hepatomegaly)",
+        "Neurological and psychiatric manifestations (tremor, dystonia, dysarthria, behavioral changes)",
+        "Ophthalmic signs (Kayser-Fleischer rings on slit-lamp exam, sunflower cataracts)",
+        "Coombs-negative hemolytic anemia as an acute diagnostic clue"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-002",
+      "domain": "DOM-02",
+      "domain_name": "Leipzig Consensus Scoring System",
+      "question_text": "Explain the Leipzig scoring system for Wilson disease diagnosis: criteria, point allocation, and interpretation thresholds.",
+      "question_type": "scoring_matrix",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "clinical_and_kf_rings",
+        "biochemical_copper_and_ceruloplasmin",
+        "hepatic_copper_or_histology",
+        "atp7b_genetics_and_cutoff"
+      ],
+      "expected_answer_elements": [
+        "Kayser-Fleischer rings scoring (present: 2, absent: 0)",
+        "Neurological symptoms scoring (severe: 2, mild: 1, absent: 0)",
+        "Serum ceruloplasmin scoring (<0.1 g/L: 2, 0.1-0.2 g/L: 1, normal: 0)",
+        "Liver copper content scoring (>250 µg/g: 2, 50-249 µg/g: 1, normal: -1)",
+        "24-hour urinary copper scoring (>2x ULN: 2, 1-2x ULN: 1, normal: 0)",
+        "ATP7B mutation analysis (both chromosomes: 2, 1 chromosome: 1, none: 0)",
+        "Consensus interpretation cutoffs (>=4: established diagnosis, 2-3: probable, 0-1: unlikely)"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-003",
+      "domain": "DOM-03",
+      "domain_name": "Biochemical Laboratory Interpretation",
+      "question_text": "What is the clinical role of serum ceruloplasmin in diagnosing Wilson's Disease, and what factors can cause false-positive or false-negative results?",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "thresholds_reference",
+        "diagnostic_accuracy_and_limitations"
+      ],
+      "expected_answer_elements": [
+        "Standard reference range (typically 20-40 mg/dL or 0.2-0.4 g/L)",
+        "Diagnostic cutoff values (<10 mg/dL highly suggestive, 10-20 mg/dL intermediate)",
+        "Acute-phase reactant behavior causing false-negative normal levels during active inflammation or pregnancy",
+        "Causes of false-positive low levels (aceruloplasminemia, protein-losing enteropathy, severe hepatic insufficiency, copper deficiency)"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-004",
+      "domain": "DOM-04",
+      "domain_name": "Urinary Copper Testing Protocols",
+      "question_text": "Explain 24-hour urinary copper testing: collection procedure, measurement methods, diagnostic thresholds, and monitoring under chelation therapy.",
+      "question_type": "procedure",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "collection_procedure",
+        "laboratory_measurement",
+        "diagnostic_thresholds",
+        "treatment_monitoring"
+      ],
+      "expected_answer_elements": [
+        "Specimen collection in a copper-free, acid-washed container over an exact 24-hour window",
+        "Analytical measurement methodology and precautions against external environmental contamination",
+        "Basal diagnostic cutoffs (>100 µg/24h or >1.6 µmol/24h in symptomatic patients; >40 µg/24h in asymptomatic/pediatric)",
+        "Therapeutic targets during chelator therapy (200-500 µg/24h or 3-8 µmol/24h)",
+        "Therapeutic target on zinc maintenance therapy (<75 µg/24h or <1.2 µmol/24h)"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-005",
+      "domain": "DOM-05",
+      "domain_name": "Genetics & Molecular Pathogenesis",
+      "question_text": "What is the ATP7B gene, where is it located, and what is its role in Wilson disease pathogenesis and familial screening?",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "atp7b_genetics_and_cutoff",
+        "pathogenesis_and_screening"
+      ],
+      "expected_answer_elements": [
+        "Chromosomal localization (chromosome 13q14.3)",
+        "Protein function as intracellular transmembrane P-type copper-transporting ATPase (ATPase 2)",
+        "Mechanism of cellular defect (impaired copper incorporation into apoceruloplasmin and impaired biliary copper excretion)",
+        "Mutation complexity (autosomal recessive, >800 pathogenic variants, frequent compound heterozygosity)",
+        "Familial screening protocol for all first-degree relatives (siblings have 25% risk)"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-006",
+      "domain": "DOM-06",
+      "domain_name": "Treatment Selection (First-Line vs Maintenance)",
+      "question_text": "Compare D-penicillamine, trientine, and zinc in treating Wilson disease: mechanism, typical dosage, monitoring, and safety.",
+      "question_type": "comparative",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "d_penicillamine",
+        "trientine",
+        "zinc_therapy"
+      ],
+      "expected_answer_elements": [
+        "D-penicillamine pharmacology (copper chelation promoting urinary excretion; typical dosing 750-1500 mg/day divided)",
+        "Trientine pharmacology (chelating agent alternative; preferred in neurological presentation or penicillamine intolerance)",
+        "Zinc pharmacology (metallothionein induction blocking intestinal copper absorption; maintenance and presymptomatic dosing)",
+        "Comparative efficacy between initial de-coppering and long-term maintenance phases"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-007",
+      "domain": "DOM-07",
+      "domain_name": "Adverse Effects & Safety Precautions",
+      "question_text": "What are the major adverse effects of D-penicillamine and trientine, why is Pyridoxine co-prescribed, and what is the danger of abrupt treatment cessation?",
+      "question_type": "safety_warning",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "d_penicillamine",
+        "trientine",
+        "treatment_monitoring"
+      ],
+      "expected_answer_elements": [
+        "Early penicillamine adverse effects (fever, rash, lymphadenopathy, cytopenias, proteinuria)",
+        "Late penicillamine toxicities (nephrotic syndrome, lupus-like syndrome, elastosis perforans serpiginosa)",
+        "Initial paradoxical neurological worsening (observed in 10-20% on penicillamine initiation)",
+        "Trientine adverse effect profile (milder than penicillamine, occasional sideroblastic anemia or worsening)",
+        "Pyridoxine (Vitamin B6, 25-50 mg/day) co-administration rationale to prevent antipyridoxine deficiency neuropathy",
+        "Critical clinical safety advisory: abrupt cessation risks precipitating fatal acute hepatic failure"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-008",
+      "domain": "DOM-08",
+      "domain_name": "Therapeutic Monitoring & Surveillance",
+      "question_text": "What is the recommended surveillance schedule and laboratory monitoring panel for a Wilson's disease patient on maintenance chelator or zinc therapy?",
+      "question_type": "procedure",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "treatment_monitoring",
+        "diagnostic_thresholds"
+      ],
+      "expected_answer_elements": [
+        "Surveillance frequency (initial titration: every 1-3 months; stable maintenance: twice yearly to annually)",
+        "Routine monitoring laboratory panel (complete blood count, urinalysis, liver biochemistries ALT/AST/bilirubin/INR, renal panel)",
+        "24-hour urinary copper assessment intervals and target excretion ranges by drug class",
+        "Assessment of adherence, symptom control, and annual slit-lamp exam for Kayser-Fleischer ring resolution"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-009",
+      "domain": "DOM-09",
+      "domain_name": "Special Populations & Critical Care",
+      "question_text": "How should Wilson's Disease be managed during pregnancy, in pediatric patients, and in acute liver failure presentations?",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "expected_evidence_facets": [
+        "pediatric_presentation",
+        "treatment_monitoring"
+      ],
+      "expected_answer_elements": [
+        "Pregnancy management (therapy must NEVER be stopped; reduce chelator dose by 25-50% in 3rd trimester for wound healing; teratogenicity considerations)",
+        "Pediatric considerations (frequent hepatic presentation with asymptomatic transaminitis; zinc monotherapy risk in pediatric liver disease)",
+        "Acute liver failure management (rapidly fatal without liver transplantation; utility of King's College or Nazir Prognostic Index; plasma exchange/dialysis bridging)"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-010",
+      "domain": "DOM-10",
+      "domain_name": "Out-of-Corpus Negative Controls",
+      "question_text": "Is CRISPR gene therapy or zinc-nanoparticle infusion approved for Wilson disease management?",
+      "question_type": "negative_control",
+      "is_in_corpus": false,
+      "expected_evidence_facets": [
+        "direct_guideline_evidence"
+      ],
+      "expected_answer_elements": [
+        "Explicit statement that available clinical practice guidelines do not contain evidence supporting CRISPR gene therapy or zinc-nanoparticle infusion for Wilson disease",
+        "Advisory that neither intervention is approved by AASLD, EASL, NIH, or INASL guidelines for clinical care",
+        "Safe clinical disclaimer directing the user to a qualified specialist"
+      ],
+      "clinician_evaluation": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "reviewer_name": null,
+        "reviewer_affiliation": null,
+        "reviewed_at": null,
+        "clinician_reference_answer": null,
+        "critical_facts": [],
+        "acceptable_paraphrases": [],
+        "prohibited_claims": [],
+        "mandatory_source_page_references": [],
+        "clinician_notes": "Template draft case awaiting formal clinical evaluation and ground-truth authoring by a qualified Wilson's Disease specialist."
+      }
+    }
+  ]
+}
+

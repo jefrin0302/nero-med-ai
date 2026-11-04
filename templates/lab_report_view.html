@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laboratory Report {{ report.report_number }} — {{ report.patient_name }} ({{ report.patient_id }})</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <style>
+    /* REPORT CONTAINER */
+    .report-sheet {
+      max-width: 900px;
+      margin: 30px auto;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      padding: 40px;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* LETTERHEAD */
+    .hospital-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    .hospital-title {
+      font-size: 24px;
+      font-weight: 900;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+    }
+    .hospital-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+    }
+    .report-title-badge {
+      text-align: right;
+    }
+    .report-tag {
+      background: #0f172a;
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+
+    /* DEMOGRAPHICS GRID */
+    .meta-box-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+    .meta-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .meta-label {
+      color: #64748b;
+      font-weight: 600;
+    }
+    .meta-val {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    /* TABLES */
+    .biomarker-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+    .biomarker-table th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 800;
+      text-align: left;
+      padding: 10px 14px;
+      border-top: 1px solid #cbd5e1;
+      border-bottom: 2px solid #cbd5e1;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .biomarker-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+    .biomarker-table tr:hover {
+      background: #f8fafc;
+    }
+
+    /* STATUS FLAGS */
+    .flag-normal {
+      color: #15803d;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .flag-high {
+      color: #b91c1c;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .flag-low {
+      color: #0369a1;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    /* SPECIMEN NOTES BOX */
+    .qc-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 12.5px;
+      color: #92400e;
+    }
+
+    /* SIGNATURE & LEGAL */
+    .report-footer {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 30px;
+    }
+    .signature-area {
+      text-align: right;
+    }
+    .sig-line {
+      width: 220px;
+      border-bottom: 1px solid #0f172a;
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    /* ACTION TOOLBAR */
+    .action-toolbar {
+      max-width: 900px;
+      margin: 20px auto 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 0 10px;
+    }
+
+    /* PRINT STYLES */
+    @media print {
+      body {
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .navbar-custom, .action-toolbar, .footer-custom {
+        display: none !important;
+      }
+      .report-sheet {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+      }
+      .hospital-header {
+        border-bottom: 2px solid black !important;
+      }
+      .biomarker-table th {
+        background: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body style="background: #f1f5f9; padding-bottom: 50px;">
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <a class="brand-logo" href="{{ url_for('home') }}">
+        🧬 NeuroMed AI
+      </a>
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('lab_import_page') }}">⬅ Lab Workstation</a></li>
+        {% if current_user.role in ('admin', 'clinician') %}
+        <li><a class="nav-link-item" href="{{ url_for('patient_history_view', patient_id=report.patient_id) }}">Patient History</a></li>
+        {% endif %}
+        <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }}</span></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- ACTION TOOLBAR (SCREEN ONLY) -->
+  <div class="action-toolbar">
+    <a href="{{ url_for('lab_import_page') }}" class="btn-secondary" style="text-decoration: none; font-size: 13px;">
+      ⬅ Return to Lab Workstation
+    </a>
+    <div style="display: flex; gap: 10px;">
+      {% if current_user.role in ('admin', 'clinician') %}
+      <a href="{{ url_for('patient_compare_view', patient_id=report.patient_id, type='lab') }}" class="btn-secondary" style="text-decoration: none; font-size: 13px;">
+        ⚖️ Compare Patient Reports
+      </a>
+      {% endif %}
+      <button type="button" class="btn-prime" onclick="window.print()" style="padding: 10px 20px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+        🖨️ Print / Save as PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- PRINTABLE REPORT SHEET -->
+  <div class="report-sheet">
+
+    <!-- HOSPITAL LETTERHEAD -->
+    <div class="hospital-header">
+      <div>
+        <h1 class="hospital-title">
+          🧬 NeuroMed AI Pathology Services
+        </h1>
+        <div class="hospital-subtitle">
+          Department of Clinical Biochemistry & Diagnostic Medicine • CLIA / ISO-15189 Accredited
+        </div>
+      </div>
+      <div class="report-title-badge">
+        <span class="report-tag">Certified Pathology Report</span>
+        <div style="font-family: monospace; font-size: 13px; font-weight: 800; color: #4338ca; margin-top: 6px;">
+          #{{ report.report_number }}
+        </div>
+      </div>
+    </div>
+
+    <!-- PATIENT & SPECIMEN DEMOGRAPHICS -->
+    <div class="meta-box-grid">
+      <div class="meta-col">
+        <div class="meta-row">
+          <span class="meta-label">Patient Full Name:</span>
+          <span class="meta-val">{{ report.patient_name }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Medical Record (Patient ID):</span>
+          <span class="meta-val" style="font-family: monospace;">{{ report.patient_id }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Age / Biological Sex:</span>
+          <span class="meta-val">{% if report.age %}{{ report.age|int }} Yrs{% else %}—{% endif %} / {{ report.sex or '—' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">BMI / Geographic Region:</span>
+          <span class="meta-val">{% if report.bmi %}{{ report.bmi }} kg/m²{% else %}—{% endif %} / {{ report.region or '—' }}</span>
+        </div>
+      </div>
+
+      <div class="meta-col">
+        <div class="meta-row">
+          <span class="meta-label">Specimen Collection Date:</span>
+          <span class="meta-val">{{ report.collection_date[:16] if report.collection_date else 'Recent' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Specimen Sample Type:</span>
+          <span class="meta-val">{{ report.sample_type or 'Venous Blood & 24h Urine' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Reporting Pathologist / Tech:</span>
+          <span class="meta-val">👤 {{ report.technician_name or 'Certified Technician' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Validation Status:</span>
+          <span class="meta-val" style="color: #15803d;">✓ {{ report.validation_status or 'Certified' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPECIMEN NOTES & QC -->
+    {% if report.specimen_notes %}
+    <div class="qc-box">
+      <strong>🔬 Specimen QC & Integrity Notes:</strong> {{ report.specimen_notes }}
+    </div>
+    {% endif %}
+
+    <!-- PANEL 1: COPPER METABOLISM -->
+    <h3 style="font-size: 14px; font-weight: 800; color: #b45309; text-transform: uppercase; margin: 20px 0 8px; letter-spacing: 0.5px;">
+      Panel 1: Copper Metabolism Profile (Diagnostic Markers)
+    </h3>
+    <table class="biomarker-table">
+      <thead>
+        <tr>
+          <th>Test Name / Biomarker</th>
+          <th>Measured Result</th>
+          <th>Reference Interval</th>
+          <th>Units</th>
+          <th>Clinical Flag</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Serum Ceruloplasmin</strong></td>
+          <td style="font-weight: 700;">{{ report.ceruloplasmin_level if report.ceruloplasmin_level is not none else '—' }}</td>
+          <td>20.0 – 40.0</td>
+          <td>mg/dL</td>
+          <td>
+            {% if report.ceruloplasmin_level is not none %}
+              {% if report.ceruloplasmin_level < 20.0 %}
+                <span class="flag-low">▼ LOW (Copper Depleted)</span>
+              {% elif report.ceruloplasmin_level > 40.0 %}
+                <span class="flag-high">▲ HIGH</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Total Serum Copper</strong></td>
+          <td style="font-weight: 700;">{{ report.copper_blood_serum if report.copper_blood_serum is not none else '—' }}</td>
+          <td>70.0 – 140.0</td>
+          <td>μg/dL</td>
+          <td>
+            {% if report.copper_blood_serum is not none %}
+              {% if report.copper_blood_serum < 70.0 %}
+                <span class="flag-low">▼ LOW</span>
+              {% elif report.copper_blood_serum > 140.0 %}
+                <span class="flag-high">▲ HIGH</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Free (Non-Ceruloplasmin) Serum Copper</strong></td>
+          <td style="font-weight: 700;">{{ report.free_copper_blood_serum if report.free_copper_blood_serum is not none else '—' }}</td>
+          <td>5.0 – 15.0</td>
+          <td>μg/dL</td>
+          <td>
+            {% if report.free_copper_blood_serum is not none %}
+              {% if report.free_copper_blood_serum > 15.0 %}
+                <span class="flag-high">▲ ELEVATED (Toxic Free Cu)</span>
+              {% elif report.free_copper_blood_serum < 5.0 %}
+                <span class="flag-low">▼ LOW</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>24-Hour Urinary Copper Excretion</strong></td>
+          <td style="font-weight: 700; color: #b91c1c;">{{ report.copper_urine if report.copper_urine is not none else '—' }}</td>
+          <td>&lt; 40.0</td>
+          <td>μg/24h</td>
+          <td>
+            {% if report.copper_urine is not none %}
+              {% if report.copper_urine > 100.0 %}
+                <span class="flag-high">▲▲ CRITICAL HIGH (&gt;100)</span>
+              {% elif report.copper_urine > 40.0 %}
+                <span class="flag-high">▲ ELEVATED</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- PANEL 2: HEPATIC FUNCTION -->
+    <h3 style="font-size: 14px; font-weight: 800; color: #047857; text-transform: uppercase; margin: 20px 0 8px; letter-spacing: 0.5px;">
+      Panel 2: Hepatic Function Panel (LFT & Coagulation)
+    </h3>
+    <table class="biomarker-table">
+      <thead>
+        <tr>
+          <th>Test Name / Biomarker</th>
+          <th>Measured Result</th>
+          <th>Reference Interval</th>
+          <th>Units</th>
+          <th>Clinical Flag</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Alanine Aminotransferase (ALT)</strong></td>
+          <td style="font-weight: 700;">{{ report.alt if report.alt is not none else '—' }}</td>
+          <td>7.0 – 56.0</td>
+          <td>U/L</td>
+          <td>
+            {% if report.alt is not none %}
+              {% if report.alt > 56.0 %}
+                <span class="flag-high">▲ ELEVATED</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Aspartate Aminotransferase (AST)</strong></td>
+          <td style="font-weight: 700;">{{ report.ast if report.ast is not none else '—' }}</td>
+          <td>10.0 – 40.0</td>
+          <td>U/L</td>
+          <td>
+            {% if report.ast is not none %}
+              {% if report.ast > 40.0 %}
+                <span class="flag-high">▲ ELEVATED</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Total Bilirubin</strong></td>
+          <td style="font-weight: 700;">{{ report.total_bilirubin if report.total_bilirubin is not none else '—' }}</td>
+          <td>0.2 – 1.2</td>
+          <td>mg/dL</td>
+          <td>
+            {% if report.total_bilirubin is not none %}
+              {% if report.total_bilirubin > 1.2 %}
+                <span class="flag-high">▲ ELEVATED</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Serum Albumin</strong></td>
+          <td style="font-weight: 700;">{{ report.albumin if report.albumin is not none else '—' }}</td>
+          <td>3.5 – 5.5</td>
+          <td>g/dL</td>
+          <td>
+            {% if report.albumin is not none %}
+              {% if report.albumin < 3.5 %}
+                <span class="flag-low">▼ LOW (Impaired Synthesis)</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Alkaline Phosphatase (ALP)</strong></td>
+          <td style="font-weight: 700;">{{ report.alkaline_phosphatase_alp if report.alkaline_phosphatase_alp is not none else '—' }}</td>
+          <td>44.0 – 147.0</td>
+          <td>U/L</td>
+          <td>
+            {% if report.alkaline_phosphatase_alp is not none %}
+              {% if report.alkaline_phosphatase_alp < 44.0 %}
+                <span class="flag-low">▼ UNUSUALLY LOW (WD Feature)</span>
+              {% elif report.alkaline_phosphatase_alp > 147.0 %}
+                <span class="flag-high">▲ HIGH</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Prothrombin Time / INR</strong></td>
+          <td style="font-weight: 700;">{{ report.prothrombin_time_inr if report.prothrombin_time_inr is not none else '—' }}</td>
+          <td>0.8 – 1.2</td>
+          <td>Ratio</td>
+          <td>
+            {% if report.prothrombin_time_inr is not none %}
+              {% if report.prothrombin_time_inr > 1.2 %}
+                <span class="flag-high">▲ COAGULOPATHY PROLONGED</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Gamma-Glutamyl Transferase (GGT)</strong></td>
+          <td style="font-weight: 700;">{{ report.gamma_glutamyl_transferase_ggt if report.gamma_glutamyl_transferase_ggt is not none else '—' }}</td>
+          <td>9.0 – 48.0</td>
+          <td>U/L</td>
+          <td>
+            {% if report.gamma_glutamyl_transferase_ggt is not none %}
+              {% if report.gamma_glutamyl_transferase_ggt > 48.0 %}
+                <span class="flag-high">▲ ELEVATED</span>
+              {% else %}
+                <span class="flag-normal">NORMAL</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- PANEL 3: CLINICAL SIGNS & GENETICS -->
+    <h3 style="font-size: 14px; font-weight: 800; color: #4338ca; text-transform: uppercase; margin: 20px 0 8px; letter-spacing: 0.5px;">
+      Panel 3: Clinical Findings, Neurological Manifestations & Genetics
+    </h3>
+    <table class="biomarker-table">
+      <thead>
+        <tr>
+          <th>Clinical Feature / Marker</th>
+          <th>Recorded Evaluation</th>
+          <th>Standard Reference</th>
+          <th>Interpretation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Kayser-Fleischer (KF) Rings</strong></td>
+          <td style="font-weight: 700;">
+            {% if report.kayser_fleischer_rings == 1 %}
+              <span style="color: #b91c1c;">● Present (Positive)</span>
+            {% elif report.kayser_fleischer_rings == 0 %}
+              <span style="color: #15803d;">Absent (Negative)</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>Absent</td>
+          <td>Pathognomonic corneal copper deposition on slit lamp examination</td>
+        </tr>
+        <tr>
+          <td><strong>Neurological Symptoms Score</strong></td>
+          <td style="font-weight: 700;">{{ report.neurological_symptoms_score if report.neurological_symptoms_score is not none else '—' }}</td>
+          <td>0.0 (No impairment)</td>
+          <td>Tremor, dystonia, dysarthria, or Parkinsonian motor signs (Scale 0-10)</td>
+        </tr>
+        <tr>
+          <td><strong>Psychiatric Manifestations</strong></td>
+          <td style="font-weight: 700;">
+            {% if report.psychiatric_symptoms == 1 %}Present{% elif report.psychiatric_symptoms == 0 %}Absent{% else %}—{% endif %}
+          </td>
+          <td>Absent</td>
+          <td>Affective disorder, personality changes, or behavioral disturbance</td>
+        </tr>
+        <tr>
+          <td><strong>Cognitive Function Score</strong></td>
+          <td style="font-weight: 700;">{{ report.cognitive_function_score if report.cognitive_function_score is not none else '—' }}</td>
+          <td>≥ 85.0 (Standard)</td>
+          <td>Standardized clinical cognitive evaluation battery (Scale 30-100)</td>
+        </tr>
+        <tr>
+          <td><strong>Family History of Wilson's Disease</strong></td>
+          <td style="font-weight: 700;">
+            {% if report.family_history == 1 %}Positive (1st Degree){% elif report.family_history == 0 %}Negative{% else %}—{% endif %}
+          </td>
+          <td>Negative</td>
+          <td>Known Wilson's Disease diagnosis in sibling or parent</td>
+        </tr>
+        <tr>
+          <td><strong>ATP7B Gene Mutation</strong></td>
+          <td style="font-weight: 700;">
+            {% if report.atb7b_gene_mutation == 1 %}
+              <span style="color: #b91c1c;">Confirmed Mutation Detected</span>
+            {% elif report.atb7b_gene_mutation == 0 %}
+              Not Detected
+            {% else %}—{% endif %}
+          </td>
+          <td>Not Detected</td>
+          <td>Pathogenic mutation on chromosome 13q14.3</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- CERTIFICATION FOOTER -->
+    <div class="report-footer">
+      <div>
+        <strong>Diagnostic Separation Notice:</strong><br />
+        This certified laboratory report records measured biochemistry values only.<br />
+        Risk calculation and treatment decisions are performed exclusively by authorized clinicians.
+      </div>
+      <div class="signature-area">
+        <div class="sig-line"></div>
+        <div><strong>{{ report.technician_name or 'Medical Laboratory Scientist' }}</strong></div>
+        <div style="font-size: 11px; color: #94a3b8;">Pathology & Laboratory Validation Desk</div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

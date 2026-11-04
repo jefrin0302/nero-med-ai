@@ -1,0 +1,213 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NeuroMed AI - Wilson's Disease Clinical RAG Benchmark Schema",
+  "description": "Schema definition for representative Wilson's Disease clinical evaluation benchmark datasets. Distinguishes engineering test metadata from clinician-certified ground truth.",
+  "type": "object",
+  "required": [
+    "benchmark_version",
+    "corpus_version",
+    "approved_guideline_documents",
+    "last_updated",
+    "description",
+    "cases"
+  ],
+  "properties": {
+    "benchmark_version": {
+      "type": "string",
+      "description": "Semantic version of this benchmark release."
+    },
+    "corpus_version": {
+      "type": "string",
+      "description": "Identifier of the guideline corpus snapshot."
+    },
+    "approved_guideline_documents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of approved medical PDF filenames that constitute the sole clinical evidence base."
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of latest modification (YYYY-MM-DD)."
+    },
+    "description": {
+      "type": "string",
+      "description": "Scope and purpose of this benchmark dataset."
+    },
+    "cases": {
+      "type": "array",
+      "description": "Collection of clinical benchmark evaluation cases.",
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "domain",
+          "domain_name",
+          "question_text",
+          "question_type",
+          "is_in_corpus",
+          "expected_evidence_facets",
+          "expected_answer_elements",
+          "clinician_evaluation"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "pattern": "^WD-BENCH-\\d{3}$",
+            "description": "Unique identifier formatted as WD-BENCH-XXX."
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "DOM-01",
+              "DOM-02",
+              "DOM-03",
+              "DOM-04",
+              "DOM-05",
+              "DOM-06",
+              "DOM-07",
+              "DOM-08",
+              "DOM-09",
+              "DOM-10"
+            ],
+            "description": "Clinical domain code (DOM-01 through DOM-10)."
+          },
+          "domain_name": {
+            "type": "string",
+            "description": "Human-readable clinical domain name."
+          },
+          "question_text": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Clinical question presented to the RAG system."
+          },
+          "question_type": {
+            "type": "string",
+            "enum": [
+              "single_fact",
+              "multipart",
+              "comparative",
+              "procedure",
+              "scoring_matrix",
+              "safety_warning",
+              "negative_control"
+            ],
+            "description": "Structural category of the clinical question."
+          },
+          "is_in_corpus": {
+            "type": "boolean",
+            "description": "True if the approved guidelines are expected to contain answers; False for out-of-corpus negative controls."
+          },
+          "expected_evidence_facets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "System retrieval facets expected to be covered in candidate retrieval."
+          },
+          "expected_answer_elements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Required structural answer elements that a complete clinical response must address."
+          },
+          "clinician_evaluation": {
+            "type": "object",
+            "required": [
+              "review_status",
+              "is_clinician_approved",
+              "reviewer_name",
+              "reviewer_affiliation",
+              "reviewed_at",
+              "clinician_reference_answer",
+              "critical_facts",
+              "acceptable_paraphrases",
+              "prohibited_claims",
+              "mandatory_source_page_references"
+            ],
+            "properties": {
+              "review_status": {
+                "type": "string",
+                "enum": [
+                  "draft_pending_clinician_review",
+                  "under_review",
+                  "clinician_approved",
+                  "rejected"
+                ],
+                "description": "Governance workflow status. Only 'clinician_approved' cases constitute ground truth."
+              },
+              "is_clinician_approved": {
+                "type": "boolean",
+                "description": "Strict boolean flag. True only after qualified clinician sign-off."
+              },
+              "reviewer_name": {
+                "type": ["string", "null"],
+                "description": "Full name and clinical credentials of the reviewing physician (e.g., 'Dr. Jane Doe, MD, FACG')."
+              },
+              "reviewer_affiliation": {
+                "type": ["string", "null"],
+                "description": "Clinical institution or department of the reviewing physician."
+              },
+              "reviewed_at": {
+                "type": ["string", "null"],
+                "description": "Date of clinical review completion (YYYY-MM-DD) or null if pending."
+              },
+              "clinician_reference_answer": {
+                "type": ["string", "null"],
+                "description": "Authoritative clinical reference answer authored or approved by the clinician. Null while draft pending review."
+              },
+              "critical_facts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of essential clinical propositions, numerical cutoffs, or rules that must be present."
+              },
+              "acceptable_paraphrases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Acceptable clinical phrasing variations or synonyms recognized by the clinician."
+              },
+              "prohibited_claims": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Contraindicated statements, unsafe medical advice, or known clinical misconceptions that must NOT appear."
+              },
+              "mandatory_source_page_references": {
+                "type": "array",
+                "description": "Exact guideline page references verified by the clinician to support this case.",
+                "items": {
+                  "type": "object",
+                  "required": ["pdf_filename", "acceptable_pages"],
+                  "properties": {
+                    "pdf_filename": {
+                      "type": "string"
+                    },
+                    "acceptable_pages": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              },
+              "clinician_notes": {
+                "type": ["string", "null"],
+                "description": "Optional clinical commentary, edge-case context, or qualification notes."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

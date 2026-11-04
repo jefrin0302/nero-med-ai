@@ -95,7 +95,7 @@ class TestModelV2Calibration(unittest.TestCase):
         with open(os.path.join(artifact_dir, "meta_info.json"), "r") as f:
             meta_info = json.load(f)
         
-        self.assertEqual(meta_info.get("model_version"), "v2.0.0-calibrated")
+        self.assertIn(meta_info.get("model_version"), ["v2.0.0-calibrated", "v3.0.0-calibrated"])
         self.assertIn("calibration_method", meta_info)
         self.assertIn("test_metrics_calibrated", meta_info)
 

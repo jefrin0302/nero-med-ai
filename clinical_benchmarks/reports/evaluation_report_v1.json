@@ -1,0 +1,1236 @@
+{
+  "evaluation_report_version": "1.0.0",
+  "benchmark_version": "1.0.0-draft",
+  "corpus_version": "approved_guidelines_4pdf_v1",
+  "generated_at": "2026-11-03T10:15:01.497847+00:00",
+  "governance_summary": {
+    "total_cases_evaluated": 10,
+    "clinician_approved_cases_count": 0,
+    "draft_cases_count": 10,
+    "mock_cases_count": 0,
+    "clinical_accuracy_claim_permitted": false,
+    "governance_notice": "All draft template cases are strictly excluded from clinical accuracy scores. Engineering metrics reflect retrieval, citation authenticity, and evidence-gap mechanics only."
+  },
+  "aggregate_metrics": {
+    "total_cases_evaluated": 10,
+    "retrieval_facet_coverage_mean": 0.525,
+    "citation_authenticity_mean": 0.78,
+    "claim_level_citation_support_mean": 0.05,
+    "unsupported_clinical_claim_rate_mean": 0.9778,
+    "negative_control_evidence_gap_accuracy": 1.0,
+    "false_evidence_gap_rate": 0.0,
+    "critical_fact_coverage_mean": null,
+    "prohibited_claim_violations_total": null
+  },
+  "domain_breakdown": {
+    "DOM-01": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 1.0,
+      "avg_citation_authenticity": 0.6,
+      "avg_claim_level_citation_support": 0.0,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-02": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 1.0,
+      "avg_citation_authenticity": 1.0,
+      "avg_claim_level_citation_support": 0.0,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-03": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 0.0,
+      "avg_citation_authenticity": 0.0,
+      "avg_claim_level_citation_support": null,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-04": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 0.25,
+      "avg_citation_authenticity": 1.0,
+      "avg_claim_level_citation_support": 0.0,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-05": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 0.0,
+      "avg_citation_authenticity": 1.0,
+      "avg_claim_level_citation_support": 0.0,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-06": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 1.0,
+      "avg_citation_authenticity": 0.6,
+      "avg_claim_level_citation_support": 0.0,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-07": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 1.0,
+      "avg_citation_authenticity": 0.8,
+      "avg_claim_level_citation_support": 0.2,
+      "avg_unsupported_clinical_claim_rate": 0.8889,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-08": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 0.5,
+      "avg_citation_authenticity": 0.8,
+      "avg_claim_level_citation_support": 0.2,
+      "avg_unsupported_clinical_claim_rate": 0.8889,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-09": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 0.5,
+      "avg_citation_authenticity": 1.0,
+      "avg_claim_level_citation_support": 0.0,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    },
+    "DOM-10": {
+      "case_count": 1,
+      "avg_retrieval_facet_coverage": 0.0,
+      "avg_citation_authenticity": 1.0,
+      "avg_claim_level_citation_support": null,
+      "avg_unsupported_clinical_claim_rate": 1.0,
+      "avg_critical_fact_coverage": null
+    }
+  },
+  "case_results": [
+    {
+      "case_id": "WD-BENCH-001",
+      "domain": "DOM-01",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 1.0,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 0.6,
+        "claim_level_citation_support": 0.0,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 1.0,
+          "expected_count": 3,
+          "covered_count": 3,
+          "expected": [
+            "hepatic_presentation",
+            "neurologic_signs",
+            "ophthalmic_signs"
+          ],
+          "covered": [
+            "hepatic_presentation",
+            "neurologic_signs",
+            "ophthalmic_signs"
+          ],
+          "missing": []
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 0.6,
+          "total_citations": 5,
+          "authentic_citations": 3,
+          "invalid_citations": [
+            {
+              "citation": "AASLD WD Guidelines.pdf, p. 31",
+              "reason": "page_out_of_bounds"
+            },
+            {
+              "citation": "AASLD WD Guidelines.pdf, p. 31",
+              "reason": "page_out_of_bounds"
+            }
+          ]
+        },
+        "claim_level_support_details": {
+          "score": 0.0,
+          "total_cited_sentences": 5,
+          "supported_count": 0,
+          "details": [
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3]\n\u2022 Kayser-Fleischer rings represent deposition of copper in the Des\u00e7emet 'sm e m ",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3]\n\u2022 Initial neurological presentation occurs in 40-60% of patients, with symptoms ",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 4]\n\u2022 Physical examina-tion should look for evidence of liver disease and neurologic",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 4"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 31]\n\u2022 Repeat examination for KF rings should be performed if there is a question of the patient's adherence because their",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 31"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 31]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 31"
+              ],
+              "is_supported": false
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 8,
+          "unsupported_claims": 8
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 The oldest reported patients were two siblings diagnosed in their eighth decade.16, Physical signs The clinical hallmark of WD is the Kayser-Fleischer ring, which is present in 95% of patients with and slightly over 50% of those without neurological sympt..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-002",
+      "domain": "DOM-02",
+      "question_type": "scoring_matrix",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 1.0,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 1.0,
+        "claim_level_citation_support": 0.0,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 1.0,
+          "expected_count": 4,
+          "covered_count": 4,
+          "expected": [
+            "clinical_and_kf_rings",
+            "biochemical_copper_and_ceruloplasmin",
+            "hepatic_copper_or_histology",
+            "atp7b_genetics_and_cutoff"
+          ],
+          "covered": [
+            "clinical_and_kf_rings",
+            "biochemical_copper_and_ceruloplasmin",
+            "hepatic_copper_or_histology",
+            "atp7b_genetics_and_cutoff"
+          ],
+          "missing": []
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 1.0,
+          "total_citations": 5,
+          "authentic_citations": 5,
+          "invalid_citations": []
+        },
+        "claim_level_support_details": {
+          "score": 0.0,
+          "total_cited_sentences": 5,
+          "supported_count": 0,
+          "details": [
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 5]\n\u2022 A new scoring system-Modified Leipzig score has been suggested with extra points being added for family history and s",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 5"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 2]\n\u2022 Serum ceruloplasmin and 24-h copper urinary excretion Extrahepatic features of WD Leipzig score \u22654 Le",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 2"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 6]\n\u2022 MODIFIED LEIPZIG SCORE-A NEW SCORING SYSTEM The Leipzig score of 199388 was mo",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 6"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 11]\n\u2022 A broadly modified version of the Leipzig score has recently been developed as a diagnostic scoring ",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 11"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 18]\n\nSources: NIH Wilson Disease.pdf, p.",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 18"
+              ],
+              "is_supported": false
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 11,
+          "unsupported_claims": 11
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 Diagnostic Scoring System for Wilson disease Test Parameter Score Typical clinical symptoms & signs Kayser-Fleischer rings Present 2 Absent 0 Neurologic manifestations 1 Severe 2 Mild 1 Absent 0 Serum ceruloplasmin Normal (>0. g/L) 0 0.1-0. g/L 1 <0. g/L ..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-003",
+      "domain": "DOM-03",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 0.0,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 0.0,
+        "claim_level_citation_support": null,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 0.0,
+          "expected_count": 2,
+          "covered_count": 0,
+          "expected": [
+            "thresholds_reference",
+            "diagnostic_accuracy_and_limitations"
+          ],
+          "covered": [],
+          "missing": [
+            "thresholds_reference",
+            "diagnostic_accuracy_and_limitations"
+          ]
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 0.0,
+          "total_citations": 0,
+          "authentic_citations": 0,
+          "invalid_citations": [
+            "MISSING_CITATIONS"
+          ],
+          "note": "In-corpus answer contained no citations."
+        },
+        "claim_level_support_details": {
+          "score": null,
+          "total_cited_sentences": 0,
+          "supported_count": 0,
+          "details": []
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 2,
+          "unsupported_claims": 2
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "No patient assessment data is currently loaded. When a patient evaluation is submitted, NeuroMed AI uses a stacking ensemble (SVM, Logistic Regression, and Bi-LSTM) to calculate consensus risk and SHAP feature attribution to explain how each biomarker contributed to the prediction."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-004",
+      "domain": "DOM-04",
+      "question_type": "procedure",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 0.25,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 1.0,
+        "claim_level_citation_support": 0.0,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 0.25,
+          "expected_count": 4,
+          "covered_count": 1,
+          "expected": [
+            "collection_procedure",
+            "laboratory_measurement",
+            "diagnostic_thresholds",
+            "treatment_monitoring"
+          ],
+          "covered": [
+            "collection_procedure"
+          ],
+          "missing": [
+            "laboratory_measurement",
+            "diagnostic_thresholds",
+            "treatment_monitoring"
+          ]
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 1.0,
+          "total_citations": 5,
+          "authentic_citations": 5,
+          "invalid_citations": []
+        },
+        "claim_level_support_details": {
+          "score": 0.0,
+          "total_cited_sentences": 5,
+          "supported_count": 0,
+          "details": [
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 4]\n\u2022 D-penicillamine Challenge Test After a baseline 24-h collection for copper assay, a second 24-h sample of urine is co",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 4"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 9]\n\u2022 It is an excellent test in symptomatic patients, but may be false negative in those who are asymptoma",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 9"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 9]\n\u2022 Urinary copper values should be five to ten times normal; if the values are lower, nonadherence may b",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 9"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 14]\n\u2022 Basal 24 -h urinary copper excretion Measuring the amount of copper excreted in the urine in a2 4 -h period may be v",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 14"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 8]\n\nSources: NIH Wilson Disease.pdf, p.",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 8"
+              ],
+              "is_supported": false
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 13,
+          "unsupported_claims": 13
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 The testing laboratory should be consulted regarding its trace element urine collection protocol prior to initiating urine specimen collection. Basal urinary copper excretion (without the use of chelating agents) is almost invariably elevated above 40 \u00b5g ..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-005",
+      "domain": "DOM-05",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 0.0,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 1.0,
+        "claim_level_citation_support": 0.0,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 0.0,
+          "expected_count": 2,
+          "covered_count": 0,
+          "expected": [
+            "atp7b_genetics_and_cutoff",
+            "pathogenesis_and_screening"
+          ],
+          "covered": [],
+          "missing": [
+            "atp7b_genetics_and_cutoff",
+            "pathogenesis_and_screening"
+          ]
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 1.0,
+          "total_citations": 5,
+          "authentic_citations": 5,
+          "invalid_citations": []
+        },
+        "claim_level_support_details": {
+          "score": 0.0,
+          "total_cited_sentences": 5,
+          "supported_count": 0,
+          "details": [
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 1]\n\u2022 OMIM Entries for Wilson Disease (View All in OMIM) 277900 WILSON DISEASE; WND ",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 1"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 21]\n\u2022 Wilson disease (WD; hepatolenticular degeneration) was first comprehensively described in 1912 by Kinnier Wilson as ",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 21"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 2]\n\u2022 The role of testing for ATP7B mutation or haplotype studies as-sumes importance if the affected individual is alive ",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 2"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 12]\n\u2022 Once both ATP7B pathogenic variants have been identified in an affected family member, carrier and p",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 12"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 2]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 2"
+              ],
+              "is_supported": false
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 11,
+          "unsupported_claims": 11
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 More than 2, distinct variants have been described in the ATP7B gene, from which over 800 have a confirmed role in disease pathogenesis. [EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 1]\n\u2022 OMIM Entries for Wilson Disease (View All in O..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-006",
+      "domain": "DOM-06",
+      "question_type": "comparative",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 1.0,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 0.6,
+        "claim_level_citation_support": 0.0,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 1.0,
+          "expected_count": 3,
+          "covered_count": 3,
+          "expected": [
+            "d_penicillamine",
+            "trientine",
+            "zinc_therapy"
+          ],
+          "covered": [
+            "d_penicillamine",
+            "trientine",
+            "zinc_therapy"
+          ],
+          "missing": []
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 0.6,
+          "total_citations": 5,
+          "authentic_citations": 3,
+          "invalid_citations": [
+            {
+              "citation": "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 18",
+              "reason": "page_out_of_bounds"
+            },
+            {
+              "citation": "AASLD WD Guidelines.pdf, p. 25",
+              "reason": "page_out_of_bounds"
+            }
+          ]
+        },
+        "claim_level_support_details": {
+          "score": 0.0,
+          "total_cited_sentences": 5,
+          "supported_count": 0,
+          "details": [
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\u2022 Patients receiving zinc salts can expe-rience neurological deterioration, tho",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\u2022 There are indications that zinc and trientine are associated with fewer side ",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 18]\n\u2022 Used since the 1950s as first-line therapy for Wilson disease , D-penicillami",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 18"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 14]\n\u2022 Accumulated clinical experience suggests that adverse effects due to D-penicillamine resolve when trientine is subst",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 14"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 25]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 25"
+              ],
+              "is_supported": false
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 9,
+          "unsupported_claims": 9
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 Zinc as first-line monotherapy showed a better tolerance profile than D-penicillamine in various presentations of WD.207,209,221, However, treatment failure was reported in symptomatic children with liver disease. [EASL-ERN Clinical Practice Guidelines on..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-007",
+      "domain": "DOM-07",
+      "question_type": "safety_warning",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 1.0,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 0.8,
+        "claim_level_citation_support": 0.2,
+        "unsupported_clinical_claim_rate": 0.8889,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 1.0,
+          "expected_count": 3,
+          "covered_count": 3,
+          "expected": [
+            "d_penicillamine",
+            "trientine",
+            "treatment_monitoring"
+          ],
+          "covered": [
+            "d_penicillamine",
+            "trientine",
+            "treatment_monitoring"
+          ],
+          "missing": []
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 0.8,
+          "total_citations": 5,
+          "authentic_citations": 4,
+          "invalid_citations": [
+            {
+              "citation": "AASLD WD Guidelines.pdf, p. 25",
+              "reason": "page_out_of_bounds"
+            }
+          ]
+        },
+        "claim_level_support_details": {
+          "score": 0.2,
+          "total_cited_sentences": 5,
+          "supported_count": 1,
+          "details": [
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 25]\n\u2022 Adverse effects on trientine seem to be less frequent than on D-penicillamine but still may include allergic reacti",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 25"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\u2022 D-Penicillamine use is associated with numerous adverse effects.",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 23]\n\u2022 Pyridoxine must be given along with D-penicillamine.",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 23"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 14]\n\u2022 In one study, trientine-2HCl was associated with a higher risk of neurologic worsening than D-penicillamine in patie",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 14"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15]\n\nSources: AASLD WD Guidelines.pdf, p.",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 15"
+              ],
+              "is_supported": true
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 0.8889,
+          "total_substantive_claims": 9,
+          "unsupported_claims": 8
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 Accumulated clinical experience suggests that adverse effects due to D-penicillamine resolve when trientine is substituted for D-penicillamine and do not recur. [AASLD WD Guidelines.pdf, p. 25]\n\u2022 Adverse effects on trientine seem to be less frequent than ..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-008",
+      "domain": "DOM-08",
+      "question_type": "procedure",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 0.5,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 0.8,
+        "claim_level_citation_support": 0.2,
+        "unsupported_clinical_claim_rate": 0.8889,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 0.5,
+          "expected_count": 2,
+          "covered_count": 1,
+          "expected": [
+            "treatment_monitoring",
+            "diagnostic_thresholds"
+          ],
+          "covered": [
+            "treatment_monitoring"
+          ],
+          "missing": [
+            "diagnostic_thresholds"
+          ]
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 0.8,
+          "total_citations": 5,
+          "authentic_citations": 4,
+          "invalid_citations": [
+            {
+              "citation": "AASLD WD Guidelines.pdf, p. 27",
+              "reason": "page_out_of_bounds"
+            }
+          ]
+        },
+        "claim_level_support_details": {
+          "score": 0.2,
+          "total_cited_sentences": 5,
+          "supported_count": 1,
+          "details": [
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 22]\n\u2022 Chelation therapy has a long track record of success as maintenance therapy, but adverse effects do cause discontin",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 22"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[AASLD WD Guidelines.pdf, p. 27]\n\u2022 Urinary excretion of zinc should be more than 2000 mg/day to ensure compliance and also to determine the quality of",
+              "citations": [
+                "AASLD WD Guidelines.pdf, p. 27"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 14]\n\u2022 Zinc is used as afirst-line drug in presymptomatic patients or symp-tomatic patients with neurologic",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 14"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 14]\n\u2022 There are insufficient data to prove the superiority of combination therapy but if it used, the 2 dr",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 14"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[clinical practice guidelines in WD.pdf, p. 15]\n\nSources: AASLD WD Guidelines.pdf, p.",
+              "citations": [
+                "clinical practice guidelines in WD.pdf, p. 15"
+              ],
+              "is_supported": true
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 0.8889,
+          "total_substantive_claims": 9,
+          "unsupported_claims": 8
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 Monitoring of therapy includes clinical examination and biochemical testing to demonstrate clinical improve-ment or stability, depending on whether the patient was FIGURE 5 Customizing Wilson disease (WD) treatment to the character of clinical disease: tr..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-009",
+      "domain": "DOM-09",
+      "question_type": "multipart",
+      "is_in_corpus": true,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 0.5,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 1.0,
+        "claim_level_citation_support": 0.0,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": null,
+        "false_evidence_gap_rate": 0.0
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 0.5,
+          "expected_count": 2,
+          "covered_count": 1,
+          "expected": [
+            "pediatric_presentation",
+            "treatment_monitoring"
+          ],
+          "covered": [
+            "treatment_monitoring"
+          ],
+          "missing": [
+            "pediatric_presentation"
+          ]
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 1.0,
+          "total_citations": 5,
+          "authentic_citations": 5,
+          "invalid_citations": []
+        },
+        "claim_level_support_details": {
+          "score": 0.0,
+          "total_cited_sentences": 5,
+          "supported_count": 0,
+          "details": [
+            {
+              "sentence": "[EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3]\n\u2022 For individuals who have more advanced liver disease or develop liver failure,",
+              "citations": [
+                "EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p. 3"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 13]\n\u2022 Adults often present with hepatic disease with or without concurrent neuropsychiatric disease.",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 13"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 3]\n\u2022 Note: Specific instances when Wilson disease should be considered is ALF with nonimmune hemolytic anemia or autoimmun",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 3"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 3]\n\u2022 Discontinuation of all treatment leads to hepatic and neurologic decompensation that is usually refractory to further",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 3"
+              ],
+              "is_supported": false
+            },
+            {
+              "sentence": "[NIH Wilson Disease.pdf, p. 13]\n\nSources: EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf, p.",
+              "citations": [
+                "NIH Wilson Disease.pdf, p. 13"
+              ],
+              "is_supported": false
+            }
+          ]
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 10,
+          "unsupported_claims": 10
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": null,
+          "applicable": false,
+          "status": "not_negative_control"
+        },
+        "false_evidence_gap_details": {
+          "score": 0.0,
+          "applicable": true,
+          "false_gap_occurred": false
+        },
+        "rag_reply_preview": "According to clinical practice guidelines:\n\u2022 Acute liver failure due to Wilson 's disease We de fine ALF due to WD as a first and acute presentation of liver disease with liver insuf ficiency indicated by increased in-ternational normalised ratio (INR >2 or when encephalopathy occurs INR >1.5), even..."
+      }
+    },
+    {
+      "case_id": "WD-BENCH-010",
+      "domain": "DOM-10",
+      "question_type": "negative_control",
+      "is_in_corpus": false,
+      "governance": {
+        "review_status": "draft_pending_clinician_review",
+        "is_clinician_approved": false,
+        "is_mock": false,
+        "clinical_accuracy_eligible": false
+      },
+      "metrics": {
+        "retrieval_facet_coverage": 0.0,
+        "critical_fact_coverage": null,
+        "citation_authenticity": 1.0,
+        "claim_level_citation_support": null,
+        "unsupported_clinical_claim_rate": 1.0,
+        "prohibited_claim_violation_count": null,
+        "negative_control_evidence_gap_accuracy": 1.0,
+        "false_evidence_gap_rate": null
+      },
+      "details": {
+        "retrieval_facet_details": {
+          "score": 0.0,
+          "expected_count": 1,
+          "covered_count": 0,
+          "expected": [
+            "direct_guideline_evidence"
+          ],
+          "covered": [],
+          "missing": [
+            "direct_guideline_evidence"
+          ]
+        },
+        "critical_fact_details": {
+          "score": null,
+          "status": "unavailable_pending_clinician_approval",
+          "covered_facts": [],
+          "missing_facts": [],
+          "reason": "Requires formal clinician sign-off. Draft cases excluded from clinical accuracy scores."
+        },
+        "citation_authenticity_details": {
+          "score": 1.0,
+          "total_citations": 0,
+          "authentic_citations": 0,
+          "invalid_citations": [],
+          "note": "Refusal / evidence gap correctly emitted without citations."
+        },
+        "claim_level_support_details": {
+          "score": null,
+          "total_cited_sentences": 0,
+          "supported_count": 0,
+          "details": []
+        },
+        "unsupported_claim_details": {
+          "score": 1.0,
+          "total_substantive_claims": 2,
+          "unsupported_claims": 2
+        },
+        "prohibited_claim_details": {
+          "status": "unavailable_pending_clinician_approval",
+          "violation_count": null,
+          "violations": [],
+          "reason": "Requires clinician approval of prohibited claims. Draft cases excluded."
+        },
+        "negative_control_details": {
+          "score": 1.0,
+          "applicable": true,
+          "gap_detected": true,
+          "has_gap_report": true,
+          "has_refusal_text": true
+        },
+        "false_evidence_gap_details": {
+          "score": null,
+          "applicable": false,
+          "status": "negative_control_case"
+        },
+        "rag_reply_preview": "The available clinical practice guidelines do not contain sufficient evidence to answer this specific question. Please consult a qualified gastroenterologist, hepatologist, or neurologist for individualized clinical guidance."
+      }
+    }
+  ]
+}

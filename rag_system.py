@@ -14,6 +14,10 @@ import re
 import math
 import time
 
+# Ensure offline operation by default for local embeddings and huggingface cache
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -42,6 +46,28 @@ APPROVED_PDFS = [
 
 DEFAULT_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
 
+# Configurable candidate retrieval parameters
+DEFAULT_SEMANTIC_TOP_K = int(os.environ.get("RAG_SEMANTIC_TOP_K", "15"))
+DEFAULT_BM25_TOP_K = int(os.environ.get("RAG_BM25_TOP_K", "15"))
+DEFAULT_FINAL_TOP_K = int(os.environ.get("RAG_FINAL_TOP_K", "6"))
+
+def clean_clinical_text(raw_text: str) -> str:
+    """
+    Cleans PyPDF text extraction artifacts, font encoding flaws,
+    and irregular dashes/replacement characters while preserving
+    medical terms, numbers, units, and clinical sentence structure.
+    """
+    if not raw_text:
+        return ""
+    t = raw_text.replace('\xa0', ' ').replace('\x0c', '\n').replace('\r\n', '\n').replace('\r', '\n')
+    t = re.sub(r'(\d+)\s*[\x15\ufffd\u2010\u2011\u2012\u2013\u2014\u2015]\s*(\d+)', r'\1-\2', t)
+    t = t.replace('\x15', '-').replace('\ufffd', '-')
+    t = t.replace('“', '"').replace('”', '"').replace('’', "'").replace('‘', "'")
+    t = t.replace('–', '-').replace('—', ' - ')
+    t = re.sub(r'[\x00-\x08\x0b\x0e-\x1f\x7f]', '', t)
+    t = re.sub(r'[ \t]+', ' ', t)
+    return t
+
 NO_DOCS_MSG = "I do not have access to any medical documents and cannot answer."
 
 CLARIFICATION_MSG = (
@@ -49,11 +75,86 @@ CLARIFICATION_MSG = (
     "diagnosis, treatment, laboratory tests, diet, or your patient report."
 )
 
+# Phase 4: Configurable Reranking & Diagnostic Density Scoring Weights
+# Purpose: Balances lexical matching, semantic vector similarity, subquery alignment,
+# and high-value clinical evidence density (diagnostic thresholds, criteria, mechanisms, warnings).
+RAG_WEIGHT_BM25 = float(os.environ.get("RAG_WEIGHT_BM25", "1.5"))
+RAG_WEIGHT_SEMANTIC = float(os.environ.get("RAG_WEIGHT_SEMANTIC", "2.0"))
+RAG_WEIGHT_SUBQUERY = float(os.environ.get("RAG_WEIGHT_SUBQUERY", "1.2"))
+RAG_WEIGHT_PROXIMITY = float(os.environ.get("RAG_WEIGHT_PROXIMITY", "3.5"))
+RAG_WEIGHT_DIAG_THRESHOLDS = float(os.environ.get("RAG_WEIGHT_DIAG_THRESHOLDS", "4.0"))
+RAG_WEIGHT_RECOMMENDATION = float(os.environ.get("RAG_WEIGHT_RECOMMENDATION", "3.0"))
+RAG_WEIGHT_CLINICAL_CRITERIA = float(os.environ.get("RAG_WEIGHT_CLINICAL_CRITERIA", "3.5"))
+RAG_WEIGHT_TREATMENT_MECH = float(os.environ.get("RAG_WEIGHT_TREATMENT_MECH", "3.0"))
+RAG_WEIGHT_CONTRAINDICATIONS = float(os.environ.get("RAG_WEIGHT_CONTRAINDICATIONS", "2.5"))
+RAG_WEIGHT_MONITORING = float(os.environ.get("RAG_WEIGHT_MONITORING", "2.5"))
+
 def _canonical_token(w: str) -> str:
-    """Normalize common clinical plurals, inflections, and medical synonyms."""
+    """
+    Normalizes clinical tokens, plurals, inflections, and medical synonyms
+    with strict protection for clinical terminology ending in -sis, -us, or proper medical names.
+    Unified across query parsing, BM25 indexing, and candidate reranking.
+    """
+    if not w:
+        return ""
     w = w.lower()
+
+    # 1. Exact medical synonyms and clinical inflections
     synonyms = {
+        # Diagnostic & scoring
+        "scoring": "score",
+        "scores": "score",
+        "scored": "score",
+        "score": "score",
+        "diagnosis": "diagnosis",
+        "diagnostic": "diagnosis",
+        "diagnostics": "diagnosis",
+        "diagnosing": "diagnosis",
+        "diagnosed": "diagnosis",
+        "diagnoses": "diagnosis",
+        "diagnose": "diagnosis",
+        "criteria": "criteria",
+        "criterion": "criteria",
+        "cutoff": "cutoff",
+        "cutoffs": "cutoff",
+        "threshold": "threshold",
+        "thresholds": "threshold",
+
+        # Wilson disease specific entities
+        "atp7b": "atp7b",
+        "atp7a": "atp7a",
+        "leipzig": "leipzig",
+        "ceruloplasmin": "ceruloplasmin",
+        "caeruloplasmin": "ceruloplasmin",
+        "kayser": "kayser",
+        "fleischer": "fleischer",
+        "coombs": "coombs",
+        "menkes": "menkes",
+        "wilson": "wilson",
+        "wilsons": "wilson",
+
+        # Drugs and therapy
+        "penicillamine": "penicillamine",
+        "trientine": "trientine",
+        "triethylenetetramine": "trientine",
+        "zinc": "zinc",
+        "chelator": "chelator",
+        "chelators": "chelator",
+        "chelation": "chelator",
+        "pyridoxine": "pyridoxine",
+        "metallothionein": "metallothionein",
+
+        # Bodily fluids & organs
         "urinary": "urine",
+        "urine": "urine",
+        "cupriuria": "urine",
+        "copper": "copper",
+        "hepatic": "liver",
+        "biopsy": "biopsy",
+        "biopsies": "biopsy",
+        "parenchymal": "parenchymal",
+
+        # General clinical terms
         "tests": "test",
         "testing": "test",
         "tested": "test",
@@ -90,7 +191,6 @@ def _canonical_token(w: str) -> str:
         "evaluated": "evaluate",
         "rings": "ring",
         "signs": "sign",
-        "biopsies": "biopsy",
         "organs": "organ",
         "children": "child",
         "pediatric": "child",
@@ -99,6 +199,15 @@ def _canonical_token(w: str) -> str:
     }
     if w in synonyms:
         return synonyms[w]
+
+    # 2. Protected clinical terms that must NEVER have suffixes stripped
+    if w.endswith("sis") or w.endswith("us") or w in {
+        "menkes", "versus", "status", "corpus", "species", "herpes", "diabetes",
+        "cirrhosis", "steatosis", "fibrosis", "sclerosis", "cholestasis", "hemolysis", "paralysis", "necrosis", "thrombosis", "crisis"
+    }:
+        return w
+
+    # 3. Rule-based inflections for non-protected words
     if len(w) > 4 and w.endswith("ies"):
         return w[:-3] + "y"
     if len(w) > 4 and w.endswith("es"):
@@ -110,6 +219,71 @@ def _canonical_token(w: str) -> str:
     if len(w) > 4 and w.endswith("ed"):
         return w[:-2]
     return w
+
+def compute_diagnostic_density_score(body: str, body_lower: str) -> dict:
+    """
+    Computes a transparent clinical information density score across 6 clinical axes:
+    1. Quantitative diagnostic thresholds & units.
+    2. Clinical criteria and consensus scoring systems.
+    3. Official guideline recommendation statements.
+    4. Pharmacological treatment mechanisms & comparisons.
+    5. Contraindications, safety warnings, and diagnostic limitations.
+    6. Clinical monitoring parameters & target ranges.
+    """
+    scores = {}
+
+    # 1. Quantitative diagnostic thresholds
+    units_pattern = r'\b\d+(?:\.\d+)?\s*(?:mg/d[lL]|µg/24\s*h|ug/24\s*h|µmol/24\s*h|umol/24\s*h|µg/g|ug/g|U/[lL]|%|points?|score|mg/day|mg/kg)\b'
+    unit_matches = len(re.findall(units_pattern, body))
+    cutoff_terms = any(w in body_lower for w in ["<10", "< 10", "<20", "< 20", "10-20", "20-40", ">100", "> 100", ">40", "> 40", "14 mg", "cutoff", "threshold", "reference range"])
+    thresh_score = 0.0
+    if unit_matches > 0:
+        thresh_score += min(unit_matches * 1.5, RAG_WEIGHT_DIAG_THRESHOLDS)
+    if cutoff_terms:
+        thresh_score += 2.0
+    scores["diagnostic_thresholds"] = min(thresh_score, RAG_WEIGHT_DIAG_THRESHOLDS + 1.0)
+
+    # 2. Clinical criteria & consensus scoring systems
+    crit_terms = ["leipzig", "consensus", "scoring system", "modified leipzig", "kayser", "kf ring", "slit-lamp", "slit lamp", "coombs"]
+    crit_count = sum(1 for t in crit_terms if t in body_lower)
+    scores["clinical_criteria"] = min(crit_count * 2.0, RAG_WEIGHT_CLINICAL_CRITERIA)
+
+    # 3. Guideline recommendations
+    rec_terms = ["we recommend", "guidance statement", "class i", "class ii", "level a", "level b", "first-line", "standard of care", "diagnostic algorithm"]
+    rec_count = sum(1 for t in rec_terms if t in body_lower)
+    scores["guideline_recommendations"] = min(rec_count * 2.0, RAG_WEIGHT_RECOMMENDATION)
+
+    # 4. Treatment mechanisms & comparisons
+    treat_terms = ["de-coppering", "copper absorption", "metallothionein", "chelation", "chelating", "triethylenetetramine", "d-penicillamine", "pyridoxine", "vitamin b6", "zinc acetate"]
+    treat_count = sum(1 for t in treat_terms if t in body_lower)
+    scores["treatment_mechanisms"] = min(treat_count * 1.5, RAG_WEIGHT_TREATMENT_MECH)
+
+    # 5. Contraindications & safety limitations
+    warn_terms = ["contraindicated", "adverse effect", "toxicity", "toxic", "deterioration", "treatment failure", "discontinuation", "false positive", "false negative", "acute-phase"]
+    warn_count = sum(1 for t in warn_terms if t in body_lower)
+    scores["contraindications_limitations"] = min(warn_count * 1.5, RAG_WEIGHT_CONTRAINDICATIONS)
+
+    # 6. Monitoring parameters
+    mon_terms = ["urinary copper excretion", "free copper", "non-ceruloplasmin", "compliance", "adherence", "routine monitoring", "treatment efficacy", "target excretion"]
+    mon_count = sum(1 for t in mon_terms if t in body_lower)
+    scores["monitoring_parameters"] = min(mon_count * 1.5, RAG_WEIGHT_MONITORING)
+
+    scores["total_density"] = round(sum(scores.values()), 2)
+    return scores
+
+def is_near_duplicate_passage(p_body: str, selected_bodies: list, threshold: float = 0.65) -> bool:
+    """Detects whether passage text is a near-duplicate of an already selected passage."""
+    tokens1 = set(re.findall(r'\b\w{4,}\b', p_body.lower()))
+    if not tokens1:
+        return False
+    for sb in selected_bodies:
+        tokens2 = set(re.findall(r'\b\w{4,}\b', sb.lower()))
+        if not tokens2:
+            continue
+        jaccard = len(tokens1 & tokens2) / max(1, len(tokens1 | tokens2))
+        if jaccard > threshold:
+            return True
+    return False
 
 def is_meaningless_query(user_question: str) -> bool:
     """
@@ -221,7 +395,7 @@ def is_meaningless_query(user_question: str) -> bool:
     return True
 
 def sanitize_bot_answer(text: str) -> str:
-    """
+    r"""
     Cleans formatting artifacts, internal headers, and raw markdown symbols:
     - Removes separator artifacts: \==\, \---\, ===, ---, ==
     - Strips internal question-bank title headers and metadata
@@ -972,7 +1146,7 @@ def chunk_clinical_text(
     chunk_index = 1
 
     for page_num, p_text in pages_to_process:
-        normalized_page = re.sub(r'[ \t]+', ' ', p_text).strip()
+        normalized_page = clean_clinical_text(p_text).strip()
         if not normalized_page:
             continue
 
@@ -1316,6 +1490,78 @@ def extract_document_preview(file_path: str, filename: str) -> dict:
     }
 
 
+def decompose_clinical_query(query: str, client=None, model: str = None) -> list:
+    """
+    Decomposes complex multi-faceted clinical questions into focused subqueries.
+    Preserves simple atomic questions without unnecessary decomposition.
+    Uses lightweight deterministic decomposition as the primary engine.
+    Ensures that decomposition NEVER introduces external or unsupported medical claims.
+    """
+    if not query or not query.strip():
+        return [query] if query else []
+
+    q_clean = query.strip()
+    q_lower = q_clean.lower()
+
+    # 1. Simple atomic queries should NOT be decomposed
+    words = [w for w in re.findall(r'\b\w+\b', q_lower) if w not in {"what", "is", "the", "in", "of", "for", "a", "an", "tell", "me", "about"}]
+    if len(words) <= 3 and not any(k in q_lower for k in [" and ", " vs ", " versus ", "difference", "compare", "between", "how is", "measured and interpreted"]):
+        return [q_clean]
+
+    if any(q_lower.startswith(prefix) for prefix in [
+        "which gene", "what gene", "where is atp7b", "who discovered",
+        "what is ceruloplasmin", "what is atp7b", "what are kayser", "what is kf"
+    ]) and " and " not in q_lower and " vs " not in q_lower:
+        return [q_clean]
+
+    # 2. Heuristic Clinical Pattern 1: 24-hour urinary copper measurement and interpretation
+    if ("urinary copper" in q_lower or "urine copper" in q_lower or "24-hour" in q_lower or "24 hour" in q_lower) and \
+       any(w in q_lower for w in ["measure", "measured", "interpret", "interpreted", "interpretation", "collection", "protocol", "threshold"]):
+        return [
+            "24-hour urine collection procedure and protocol for Wilson disease",
+            "laboratory measurement of copper in 24-hour urine sample",
+            "diagnostic thresholds reference values 24-hour urinary copper symptomatic asymptomatic",
+            "urinary copper excretion interpretation during chelation treatment monitoring targets"
+        ]
+
+    # 3. Heuristic Clinical Pattern 2: Comparative Treatment / Medication Therapy
+    if any(k in q_lower for k in ["difference", "differences", "compare", "comparison", "versus", " vs ", "between"]) and \
+       any(drug in q_lower for drug in ["penicillamine", "trientine", "zinc", "chelator", "chelation", "treatment", "therapy", "medication"]):
+        return [
+            "D-Penicillamine mechanism dosage adverse effects pyridoxine supplementation Wilson disease",
+            "Trientine triethylenetetramine mechanism dosage adverse effects Wilson disease",
+            "Zinc salts acetate sulphate mechanism copper absorption blocking maintenance Wilson disease",
+            "Comparison of chelators D-penicillamine versus Trientine versus Zinc first-line maintenance"
+        ]
+
+    # 4. Heuristic Clinical Pattern 3: Leipzig Scoring System breakdown and criteria
+    if "leipzig" in q_lower and any(w in q_lower for w in ["score", "scoring", "system", "criteria", "points", "importance", "diagnostic"]):
+        return [
+            "Leipzig consensus scoring system clinical criteria points Kayser-Fleischer rings neurological symptoms",
+            "Leipzig score biochemical parameters ceruloplasmin urinary copper liver copper",
+            "Leipzig score genetic analysis ATP7B mutation testing Coombs negative hemolytic anemia",
+            "Leipzig total score diagnostic cutoff established diagnosis probable unlikely"
+        ]
+
+    # 5. Heuristic Clinical Pattern 4: Ceruloplasmin role, interpretation, and diagnostic thresholds
+    if "ceruloplasmin" in q_lower and any(w in q_lower for w in ["role", "diagnos", "threshold", "level", "value", "interpret"]):
+        return [
+            "serum ceruloplasmin diagnostic threshold less than 10 mg/dL and 10 to 20 mg/dL Wilson disease",
+            "normal reference range serum ceruloplasmin 20 to 40 mg/dL",
+            "false positive false negative ceruloplasmin acute phase reactant hepatic failure pregnancy"
+        ]
+
+    # 6. Compound query split by conjunctions
+    conjunction_split = re.split(r'\b(?:and also|as well as|compared to|versus|\bvs\b|\band\b)\b', q_clean, flags=re.IGNORECASE)
+    if len(conjunction_split) >= 2:
+        parts = [p.strip() for p in conjunction_split if len(p.strip()) > 8]
+        if len(parts) >= 2:
+            return parts
+
+    # Default fallback: preserve the original query without alteration
+    return [q_clean]
+
+
 class MedicalRAGSystem:
     def __init__(self):
         self.use_langchain = False
@@ -1326,6 +1572,9 @@ class MedicalRAGSystem:
         self.passages = []
         self.qa_bank = []
         self.approved_docs = list(APPROVED_PDFS)
+        self._dense_embeddings = None
+        self._embed_model = None
+        self._last_retrieval_meta = {}
 
         self._sync_approved_docs_from_db()
         self._init_knowledge_base()
@@ -1542,11 +1791,20 @@ class MedicalRAGSystem:
                 persist_directory=PERSIST_DIR,
                 embedding_function=embeddings
             )
-            self.retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+            self.retriever = vectorstore.as_retriever(search_kwargs={"k": DEFAULT_SEMANTIC_TOP_K})
             self.use_langchain = True
             logger.info(f"RAG Initialized with ChromaDB VectorStore & HuggingFace Embeddings ({model_name}).")
         except Exception as e:
             logger.info("Running standalone high-performance clinical RAG engine.")
+
+        dense_path = os.path.join(PERSIST_DIR, "dense_embeddings.npy")
+        if os.path.exists(dense_path):
+            try:
+                import numpy as np
+                self._dense_embeddings = np.load(dense_path)
+                logger.info(f"Loaded {len(self._dense_embeddings)} precomputed dense embeddings.")
+            except Exception as e:
+                logger.warning(f"Could not load dense embeddings: {e}")
 
         # 3. Try initializing external LLM (Gemini / OpenAI)
         self._init_llm()
@@ -1575,14 +1833,15 @@ class MedicalRAGSystem:
                 logger.warning(f"Error loading guideline passages from {json_path}: {e}")
 
     def _build_bm25_index(self):
-        """Precomputes BM25 corpus statistics for fast, dependency-free hybrid lexical retrieval."""
+        """Precomputes BM25 corpus statistics with unified canonical tokenization for fast, dependency-free hybrid retrieval."""
         import collections
         self._bm25_doc_len = []
         self._bm25_df = collections.Counter()
         self._bm25_doc_tokens = []
         total_len = 0
         for _, _, _, body_lower in getattr(self, "_parsed_passages", []):
-            tokens = re.findall(r'[a-z0-9]+', body_lower)
+            raw_tokens = re.findall(r'[a-z0-9]+', body_lower)
+            tokens = [_canonical_token(t) for t in raw_tokens if len(t) > 1]
             doc_len = len(tokens)
             self._bm25_doc_len.append(doc_len)
             total_len += doc_len
@@ -1629,12 +1888,12 @@ class MedicalRAGSystem:
             pass
 
         # Check LangSmith tracing
-        if os.environ.get("LANGCHAIN_TRACING_V2") == "true" and os.environ.get("LANGCHAIN_API_KEY"):
-            project = os.environ.get("LANGCHAIN_PROJECT", "wilson-disease-rag")
+        if (os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true" or os.environ.get("LANGSMITH_TRACING", "").lower() == "true") and (os.environ.get("LANGCHAIN_API_KEY") or os.environ.get("LANGSMITH_API_KEY")):
+            project = os.environ.get("LANGSMITH_PROJECT") or os.environ.get("LANGCHAIN_PROJECT", "wilson-disease-rag")
             logger.info(f"LangSmith Tracing active (project: {project}).")
 
         # 2. Check Gemini via official google-genai SDK
-        gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        gemini_key = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()
         if gemini_key:
             try:
                 from google import genai
@@ -1714,22 +1973,26 @@ class MedicalRAGSystem:
         for pdf in doc_list:
             pdf_stem = pdf[:-4] if pdf.lower().endswith(".pdf") else pdf
             pattern = re.compile(
-                re.escape(pdf_stem) + r'(?:\.pdf)?(?:[,\s\|:\-\(\]\*]+)*(?:pp?\.?|pages?|page)\s*:?\s*([0-9\s,\-–and&]+)',
+                re.escape(pdf_stem) + r'(?:\.pdf)?(?:[,\s\|:\-\(\]\*]+)*(?:pages?|pp?\.?|\bp\b)\s*:?\s*([0-9\s,\-–&]|and)+',
                 re.IGNORECASE
             )
             for m in pattern.finditer(text):
-                clause = m.group(1)
-                page_nums = [int(n) for n in re.findall(r'\b\d+\b', clause)]
-                for p in page_nums:
+                nums = [int(n) for n in re.findall(r'\b\d+\b', m.group(0))]
+                for p in nums:
                     citations.append((pdf.lower(), p))
         return citations
 
     @classmethod
     def _validate_citations(cls, llm_reply: str, top_passages: list, approved_docs: list = None) -> bool:
         """
+        Phase 5: Strict Grounded Citation Validation.
         Validates that all source citations in the LLM reply match actual (source, page) pairs
-        present in the retrieved top passages. Rejects fabricated page numbers, unretrieved sources,
-        and bare PDF mentions without verified page citations.
+        present in the retrieved top passages. Rejects:
+        1. Fabricated or unapproved PDF filenames (including mixed valid + fabricated).
+        2. Unapproved documents referenced in Source/Sources clauses.
+        3. Fabricated or unretrieved page numbers.
+        4. Bare PDF mentions without verified page citations.
+        5. Empty or missing citations.
         """
         if not llm_reply or not llm_reply.strip() or not top_passages:
             return False
@@ -1745,13 +2008,39 @@ class MedicalRAGSystem:
         if not valid_pairs:
             return False
 
-        # 2. Extract citations from llm_reply
         doc_list = approved_docs or APPROVED_PDFS
+
+        # 2. Strict check: Reject any unapproved or fabricated PDF filename referenced anywhere in reply
+        for m in re.finditer(r'([A-Za-z0-9_\-\.\s]+?\.pdf)\b', llm_reply, flags=re.IGNORECASE):
+            referenced_file = m.group(1).strip()
+            matched = any(
+                referenced_file.lower() == app.lower() or referenced_file.lower().endswith(app.lower())
+                for app in doc_list
+            )
+            if not matched:
+                return False
+
+        # 3. Strict check: Reject any unapproved document in Source: / Sources: clauses
+        source_clauses = re.findall(r'(?:\[Source:\s*|Source:\s*|Sources:\s*)([^\n\]]+)', llm_reply, flags=re.IGNORECASE)
+        for clause in source_clauses:
+            items = re.split(r'[;\n]', clause)
+            for it in items:
+                it = it.strip()
+                if not it or it.startswith('http'):
+                    continue
+                has_approved = any(
+                    app.lower() in it.lower() or (app[:-4].lower() if app.lower().endswith(".pdf") else app.lower()) in it.lower()
+                    for app in doc_list
+                )
+                if not has_approved:
+                    return False
+
+        # 4. Extract citations for approved docs
         extracted_citations = cls._extract_citations(llm_reply, doc_list)
         if not extracted_citations:
             return False
 
-        # 3. Ensure any mentioned approved PDF has an extracted citation
+        # 5. Ensure any mentioned approved PDF has an extracted citation
         for pdf in doc_list:
             pdf_stem = pdf[:-4] if pdf.lower().endswith(".pdf") else pdf
             if pdf.lower() in llm_reply.lower() or pdf_stem.lower() in llm_reply.lower():
@@ -1759,18 +2048,642 @@ class MedicalRAGSystem:
                 if not pdf_cites:
                     return False
 
-        # 4. Ensure every extracted citation matches a valid (source, page) pair from retrieved passages
+        # 6. Ensure every extracted citation matches a valid (source, page) pair from retrieved passages
         for c in extracted_citations:
             if c not in valid_pairs:
                 return False
 
         return True
 
-    @traceable(name="rank_passages", run_type="retriever")
-    def _rank_passages_internal(self, query: str, top_n: int = 4) -> list:
+    def _get_embedding_model(self):
+        """Lazy loads SentenceTransformer embedding model."""
+        if not hasattr(self, "_embed_model") or self._embed_model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+                model_name = os.environ.get("RAG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+                self._embed_model = SentenceTransformer(model_name)
+            except Exception as e:
+                logger.info(f"SentenceTransformer not available: {e}")
+                self._embed_model = None
+        return self._embed_model
+
+    def _semantic_search(self, query: str, k: int = DEFAULT_SEMANTIC_TOP_K) -> list:
+        """Retrieves top-k candidate passage indices using dense semantic vector search."""
+        if not hasattr(self, "_dense_embeddings") or self._dense_embeddings is None:
+            dense_path = os.path.join(PERSIST_DIR, "dense_embeddings.npy")
+            if os.path.exists(dense_path):
+                try:
+                    import numpy as np
+                    self._dense_embeddings = np.load(dense_path)
+                except Exception:
+                    self._dense_embeddings = None
+            else:
+                self._dense_embeddings = None
+
+        if self._dense_embeddings is not None and len(self._dense_embeddings) == len(self.passages):
+            embed_model = self._get_embedding_model()
+            if embed_model:
+                try:
+                    import numpy as np
+                    q_emb = embed_model.encode(query, normalize_embeddings=True)
+                    sims = np.dot(self._dense_embeddings, q_emb)
+                    top_indices = np.argsort(sims)[::-1][:k]
+                    return [(int(idx), float(sims[idx])) for idx in top_indices if sims[idx] > 0.15]
+                except Exception as e:
+                    logger.warning(f"Dense vector retrieval error: {e}")
+        return []
+
+    def _bm25_search(self, query: str, k: int = DEFAULT_BM25_TOP_K) -> list:
+        """Retrieves top-k candidate passage indices using Okapi BM25 keyword matching."""
+        if not hasattr(self, "_bm25_num_docs") or self._bm25_num_docs == 0:
+            self._build_bm25_index()
+
+        stop_words = {
+            "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
+            "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
+            "many", "much", "can", "does", "do", "it", "for", "of", "with", "from", "by",
+            "according", "cited", "guideline", "guidelines", "practice", "clinical", "please",
+            "explain", "recommend", "recommended", "consideration", "prompt", "findings"
+        }
+        raw_query_words = [
+            _canonical_token(w) for w in re.findall(r'\b\w+\b', query.lower())
+            if w not in stop_words and len(w) > 2
+        ]
+        if not raw_query_words:
+            return []
+
+        scores = []
+        for doc_idx in range(self._bm25_num_docs):
+            s = self._compute_bm25_score(doc_idx, raw_query_words)
+            if s > 0.0:
+                scores.append((doc_idx, s))
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:k]
+
+    def _retrieve_hybrid_candidates(self, query: str, subqueries: list = None, semantic_k: int = DEFAULT_SEMANTIC_TOP_K, bm25_k: int = DEFAULT_BM25_TOP_K) -> tuple:
         """
-        Ranks clinical guideline passages using query-intent scoring, clinical concept expansion,
-        source quality filtering, and two-pass guideline diversification.
+        Retrieves candidate passage indices combining dense semantic retrieval
+        and Okapi BM25 lexical search across original query and subqueries.
+        Returns: (candidate_indices: set, semantic_count: int, bm25_count: int)
+        """
+        if not self.has_medical_documents() or not self.passages:
+            return set(), 0, 0
+
+        if not hasattr(self, "_parsed_passages") or not self._parsed_passages:
+            self._load_clinical_passages()
+        if not hasattr(self, "_bm25_num_docs"):
+            self._build_bm25_index()
+
+        queries_to_search = [query]
+        if subqueries:
+            for sq in subqueries:
+                if sq and sq not in queries_to_search:
+                    queries_to_search.append(sq)
+
+        candidate_indices = set()
+        semantic_total = 0
+        bm25_total = 0
+
+        # Semantic retrieval
+        self._candidate_semantic_scores = {}
+        for q in queries_to_search:
+            sem_hits = self._semantic_search(q, k=semantic_k)
+            for idx, sim in sem_hits:
+                candidate_indices.add(idx)
+                if idx not in self._candidate_semantic_scores or sim > self._candidate_semantic_scores[idx]:
+                    self._candidate_semantic_scores[idx] = float(sim)
+            semantic_total += len(sem_hits)
+
+        # BM25 keyword retrieval
+        for q in queries_to_search:
+            bm25_hits = self._bm25_search(q, k=bm25_k)
+            for idx, _ in bm25_hits:
+                candidate_indices.add(idx)
+            bm25_total += len(bm25_hits)
+
+        # Fallback if candidates pool is sparse
+        if len(candidate_indices) < 5:
+            fallback_bm25 = self._bm25_search(query, k=15)
+            for idx, _ in fallback_bm25:
+                candidate_indices.add(idx)
+
+        return candidate_indices, semantic_total, bm25_total
+
+    def check_retrieval_coverage(self, query: str, subqueries: list, candidate_indices: set) -> tuple:
+        """
+        Evaluates whether candidate passages cover all distinct clinical requirements of the question.
+        If a requirement is missing, executes targeted second-pass search and updates candidate pool.
+        Returns: (updated_candidate_indices: set, coverage_report: dict)
+        """
+        q_lower = query.lower()
+        coverage_report = {
+            "facets_expected": [],
+            "facets_covered": [],
+            "facets_missing": [],
+            "coverage_percentage": 100.0,
+            "second_pass_performed": False,
+            "evidence_gap": None
+        }
+
+        # 1. Urinary copper multi-part evaluation
+        if ("urinary copper" in q_lower or "urine copper" in q_lower or "24-hour" in q_lower or "24 hour" in q_lower) and \
+           any(w in q_lower for w in ["measure", "interpret", "collection", "threshold", "diagnostic", "monitoring"]):
+            expected = ["collection_procedure", "laboratory_measurement", "diagnostic_thresholds", "treatment_monitoring"]
+            coverage_report["facets_expected"] = expected
+
+            facet_hits = {f: False for f in expected}
+            for doc_idx in candidate_indices:
+                _, _, _, body_lower = self._parsed_passages[doc_idx]
+                if any(w in body_lower for w in ["collect", "collection", "container", "polyethylene", "acid", "washing", "plastic container", "24-h", "24-hour"]):
+                    facet_hits["collection_procedure"] = True
+                if any(w in body_lower for w in ["measured", "measurement", "spectrophotometry", "atomic absorption", "assay", "determination", "cu excretion"]):
+                    facet_hits["laboratory_measurement"] = True
+                if any(w in body_lower for w in ["threshold", ">100", "> 100", "100 µg", "100 ug", "40 µg", "40 ug", "symptomatic", "asymptomatic", "cutoff", "upper limit"]):
+                    facet_hits["diagnostic_thresholds"] = True
+                if any(w in body_lower for w in ["monitoring", "compliance", "adequate", "overtreatment", "under treatment", "target", "chelator", "penicillamine", "trientine"]):
+                    facet_hits["treatment_monitoring"] = True
+
+            for f in expected:
+                if facet_hits[f]:
+                    coverage_report["facets_covered"].append(f)
+                else:
+                    coverage_report["facets_missing"].append(f)
+
+            if coverage_report["facets_missing"]:
+                coverage_report["second_pass_performed"] = True
+                targeted_queries = {
+                    "collection_procedure": "24-hour urine collection protocol container acid washing Wilson disease",
+                    "laboratory_measurement": "measurement of copper in 24 hour urine atomic absorption spectrophotometry",
+                    "diagnostic_thresholds": "24 hour urinary copper diagnostic threshold 100 µg 40 µg symptomatic asymptomatic",
+                    "treatment_monitoring": "urinary copper excretion monitoring targets chelation therapy penicillamine trientine"
+                }
+                for missing_facet in coverage_report["facets_missing"]:
+                    t_query = targeted_queries.get(missing_facet)
+                    if t_query:
+                        for idx, _ in self._bm25_search(t_query, k=5):
+                            candidate_indices.add(idx)
+                        for idx, _ in self._semantic_search(t_query, k=5):
+                            candidate_indices.add(idx)
+
+                # Re-evaluate coverage
+                facet_hits = {f: False for f in expected}
+                for doc_idx in candidate_indices:
+                    _, _, _, body_lower = self._parsed_passages[doc_idx]
+                    if any(w in body_lower for w in ["collect", "collection", "container", "polyethylene", "acid", "washing", "plastic container", "24-h", "24-hour"]):
+                        facet_hits["collection_procedure"] = True
+                    if any(w in body_lower for w in ["measured", "measurement", "spectrophotometry", "atomic absorption", "assay", "determination", "cu excretion"]):
+                        facet_hits["laboratory_measurement"] = True
+                    if any(w in body_lower for w in ["threshold", ">100", "> 100", "100 µg", "100 ug", "40 µg", "40 ug", "symptomatic", "asymptomatic", "cutoff", "upper limit"]):
+                        facet_hits["diagnostic_thresholds"] = True
+                    if any(w in body_lower for w in ["monitoring", "compliance", "adequate", "overtreatment", "under treatment", "target", "chelator", "penicillamine", "trientine"]):
+                        facet_hits["treatment_monitoring"] = True
+
+                coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+                coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
+            coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
+            if coverage_report["facets_missing"]:
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish complete protocol data for these facets."
+
+        # 2. Treatment comparison evaluation
+        elif any(k in q_lower for k in ["difference", "differences", "compare", "comparison", "versus", " vs ", "between"]) and \
+             any(drug in q_lower for drug in ["penicillamine", "trientine", "zinc", "treatment", "therapy", "chelator"]):
+            expected = ["d_penicillamine", "trientine", "zinc_therapy"]
+            coverage_report["facets_expected"] = expected
+
+            facet_hits = {f: False for f in expected}
+            for doc_idx in candidate_indices:
+                _, _, _, body_lower = self._parsed_passages[doc_idx]
+                if "penicillamine" in body_lower:
+                    facet_hits["d_penicillamine"] = True
+                if "trientine" in body_lower:
+                    facet_hits["trientine"] = True
+                if "zinc" in body_lower:
+                    facet_hits["zinc_therapy"] = True
+
+            coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+            coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            if coverage_report["facets_missing"]:
+                coverage_report["second_pass_performed"] = True
+                targeted_queries = {
+                    "d_penicillamine": "D-Penicillamine dosage adverse effects pyridoxine Wilson disease",
+                    "trientine": "Trientine triethylenetetramine dosage chelating agent Wilson disease",
+                    "zinc_therapy": "Zinc acetate sulphate copper absorption blocker metallothionein Wilson disease"
+                }
+                for missing_facet in coverage_report["facets_missing"]:
+                    t_query = targeted_queries.get(missing_facet)
+                    if t_query:
+                        for idx, _ in self._bm25_search(t_query, k=5):
+                            candidate_indices.add(idx)
+                        for idx, _ in self._semantic_search(t_query, k=5):
+                            candidate_indices.add(idx)
+
+                facet_hits = {f: False for f in expected}
+                for doc_idx in candidate_indices:
+                    _, _, _, body_lower = self._parsed_passages[doc_idx]
+                    if "penicillamine" in body_lower:
+                        facet_hits["d_penicillamine"] = True
+                    if "trientine" in body_lower:
+                        facet_hits["trientine"] = True
+                    if "zinc" in body_lower:
+                        facet_hits["zinc_therapy"] = True
+                coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+                coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
+            coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
+            if coverage_report["facets_missing"]:
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish comparative data for these facets."
+
+        # 3. Ceruloplasmin diagnostic role evaluation
+        elif "ceruloplasmin" in q_lower and any(w in q_lower for w in ["role", "diagnos", "threshold", "level", "value", "interpret"]):
+            expected = ["thresholds_reference", "diagnostic_accuracy_and_limitations"]
+            coverage_report["facets_expected"] = expected
+
+            facet_hits = {f: False for f in expected}
+            for doc_idx in candidate_indices:
+                if doc_idx >= len(self._parsed_passages):
+                    continue
+                _, _, _, body_lower = self._parsed_passages[doc_idx]
+                if any(w in body_lower for w in ["<10", "< 10", "<20", "< 20", "10-20", "20-40", "14 mg", "threshold", "cutoff", "mg/dl"]):
+                    facet_hits["thresholds_reference"] = True
+                if any(w in body_lower for w in ["false", "screening", "acute phase", "pregnancy", "accuracy", "sensitivity", "specificity"]):
+                    facet_hits["diagnostic_accuracy_and_limitations"] = True
+
+            coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+            coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            if coverage_report["facets_missing"]:
+                coverage_report["second_pass_performed"] = True
+                targeted_queries = {
+                    "thresholds_reference": "serum ceruloplasmin diagnostic threshold 10 mg/dl 20 mg/dl 20-40 mg/dl normal reference",
+                    "diagnostic_accuracy_and_limitations": "ceruloplasmin false positive false negative acute phase reactant pregnancy liver failure"
+                }
+                for missing_facet in coverage_report["facets_missing"]:
+                    t_query = targeted_queries.get(missing_facet)
+                    if t_query:
+                        for idx, _ in self._bm25_search(t_query, k=5):
+                            candidate_indices.add(idx)
+                        for idx, _ in self._semantic_search(t_query, k=5):
+                            candidate_indices.add(idx)
+
+                facet_hits = {f: False for f in expected}
+                for doc_idx in candidate_indices:
+                    if doc_idx >= len(self._parsed_passages):
+                        continue
+                    _, _, _, body_lower = self._parsed_passages[doc_idx]
+                    if any(w in body_lower for w in ["<10", "< 10", "<20", "< 20", "10-20", "20-40", "14 mg", "threshold", "cutoff", "mg/dl"]):
+                        facet_hits["thresholds_reference"] = True
+                    if any(w in body_lower for w in ["false", "screening", "acute phase", "pregnancy", "accuracy", "sensitivity", "specificity"]):
+                        facet_hits["diagnostic_accuracy_and_limitations"] = True
+                coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+                coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
+            coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
+            if coverage_report["facets_missing"]:
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish reference or accuracy data for these facets."
+
+        # 4. Leipzig scoring system criteria evaluation
+        elif "leipzig" in q_lower and any(w in q_lower for w in ["score", "scoring", "system", "criteria", "points", "diagnostic"]):
+            expected = ["clinical_and_kf_rings", "biochemical_copper_and_ceruloplasmin", "hepatic_copper_or_histology", "atp7b_genetics_and_cutoff"]
+            coverage_report["facets_expected"] = expected
+
+            facet_hits = {f: False for f in expected}
+            for doc_idx in candidate_indices:
+                if doc_idx >= len(self._parsed_passages):
+                    continue
+                _, _, _, body_lower = self._parsed_passages[doc_idx]
+                if any(w in body_lower for w in ["kayser", "kf", "rings", "neurologic", "neuro", "coombs"]):
+                    facet_hits["clinical_and_kf_rings"] = True
+                if any(w in body_lower for w in ["ceruloplasmin", "urinary copper", "urine copper", "serum copper"]):
+                    facet_hits["biochemical_copper_and_ceruloplasmin"] = True
+                if any(w in body_lower for w in ["hepatic", "liver copper", "histology", "biopsy", "parenchymal"]):
+                    facet_hits["hepatic_copper_or_histology"] = True
+                if any(w in body_lower for w in ["mutation", "atp7b", "chromosome 13", "score", "points", "cutoff", ">= 4", ">=4"]):
+                    facet_hits["atp7b_genetics_and_cutoff"] = True
+
+            coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+            coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            if coverage_report["facets_missing"]:
+                coverage_report["second_pass_performed"] = True
+                targeted_queries = {
+                    "clinical_and_kf_rings": "Kayser Fleischer rings neurological symptoms Coombs negative hemolytic anemia Leipzig",
+                    "biochemical_copper_and_ceruloplasmin": "serum ceruloplasmin 24 hour urinary copper Leipzig score points",
+                    "hepatic_copper_or_histology": "liver copper concentration biopsy parenchymal copper Leipzig scoring",
+                    "atp7b_genetics_and_cutoff": "ATP7B mutation analysis Leipzig score total 4 points established diagnosis"
+                }
+                for missing_facet in coverage_report["facets_missing"]:
+                    t_query = targeted_queries.get(missing_facet)
+                    if t_query:
+                        for idx, _ in self._bm25_search(t_query, k=5):
+                            candidate_indices.add(idx)
+                        for idx, _ in self._semantic_search(t_query, k=5):
+                            candidate_indices.add(idx)
+
+                facet_hits = {f: False for f in expected}
+                for doc_idx in candidate_indices:
+                    if doc_idx >= len(self._parsed_passages):
+                        continue
+                    _, _, _, body_lower = self._parsed_passages[doc_idx]
+                    if any(w in body_lower for w in ["kayser", "kf", "rings", "neurologic", "neuro", "coombs"]):
+                        facet_hits["clinical_and_kf_rings"] = True
+                    if any(w in body_lower for w in ["ceruloplasmin", "urinary copper", "urine copper", "serum copper"]):
+                        facet_hits["biochemical_copper_and_ceruloplasmin"] = True
+                    if any(w in body_lower for w in ["hepatic", "liver copper", "histology", "biopsy", "parenchymal"]):
+                        facet_hits["hepatic_copper_or_histology"] = True
+                    if any(w in body_lower for w in ["mutation", "atp7b", "chromosome 13", "score", "points", "cutoff", ">= 4", ">=4"]):
+                        facet_hits["atp7b_genetics_and_cutoff"] = True
+                coverage_report["facets_covered"] = [f for f in expected if facet_hits[f]]
+                coverage_report["facets_missing"] = [f for f in expected if not facet_hits[f]]
+
+            cov_pct = (len(coverage_report["facets_covered"]) / max(1, len(expected))) * 100.0
+            coverage_report["coverage_percentage"] = round(cov_pct, 1)
+            coverage_report["is_complete"] = len(coverage_report["facets_missing"]) == 0
+            if coverage_report["facets_missing"]:
+                coverage_report["evidence_gap"] = f"Missing guideline evidence for: {', '.join(coverage_report['facets_missing'])}. The approved guidelines do not establish complete scoring data for these criteria."
+
+        # 5. Simple / atomic or general clinical queries
+        else:
+            expected = ["direct_guideline_evidence"]
+            coverage_report["facets_expected"] = expected
+
+            stop_words = {
+                "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
+                "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
+                "many", "much", "can", "does", "do", "it", "for", "of", "with", "from", "by",
+                "according", "cited", "guideline", "guidelines", "practice", "clinical", "please",
+                "explain", "recommend", "recommended", "consideration", "prompt", "findings"
+            }
+            key_words = [_canonical_token(w) for w in re.findall(r'\b\w+\b', q_lower) if w not in stop_words and len(w) > 2]
+            # Distinguish core substantive topic keys from ubiquitous disease domain anchors
+            substantive_keys = [w for w in key_words if w not in {"wilson", "disease", "diseases", "wd"}]
+            match_targets = substantive_keys if substantive_keys else key_words
+
+            has_match = False
+            for doc_idx in candidate_indices:
+                if doc_idx >= len(self._parsed_passages):
+                    continue
+                _, _, _, body_lower = self._parsed_passages[doc_idx]
+                if any(w in body_lower for w in match_targets):
+                    has_match = True
+                    break
+
+            if has_match:
+                coverage_report["facets_covered"] = ["direct_guideline_evidence"]
+                coverage_report["facets_missing"] = []
+                coverage_report["coverage_percentage"] = 100.0
+                coverage_report["is_complete"] = True
+                coverage_report["second_pass_performed"] = False
+                coverage_report["evidence_gap"] = None
+            else:
+                if match_targets:
+                    coverage_report["second_pass_performed"] = True
+                    t_query = " ".join(match_targets)
+                    for idx, _ in self._bm25_search(t_query, k=5):
+                        candidate_indices.add(idx)
+                    for idx, _ in self._semantic_search(t_query, k=5):
+                        candidate_indices.add(idx)
+
+                    for doc_idx in candidate_indices:
+                        if doc_idx >= len(self._parsed_passages):
+                            continue
+                        _, _, _, body_lower = self._parsed_passages[doc_idx]
+                        if any(w in body_lower for w in match_targets):
+                            has_match = True
+                            break
+
+                if has_match:
+                    coverage_report["facets_covered"] = ["direct_guideline_evidence"]
+                    coverage_report["facets_missing"] = []
+                    coverage_report["coverage_percentage"] = 100.0
+                    coverage_report["is_complete"] = True
+                    coverage_report["evidence_gap"] = None
+                else:
+                    coverage_report["facets_covered"] = []
+                    coverage_report["facets_missing"] = ["direct_guideline_evidence"]
+                    coverage_report["coverage_percentage"] = 0.0
+                    coverage_report["is_complete"] = False
+                    coverage_report["evidence_gap"] = "The available clinical practice guidelines do not contain evidence for this clinical query."
+
+        return candidate_indices, coverage_report
+
+    def _rerank_candidates_with_coverage(self, query: str, subqueries: list, candidate_indices: set, top_n: int = DEFAULT_FINAL_TOP_K) -> tuple:
+        """
+        Coverage-Preserving Reranking & Diagnostic Density Scoring:
+        1. Scores candidates using BM25, semantic cosine similarity, subquery relevance,
+           phrase proximity, and transparent diagnostic information density scoring.
+        2. Allocates guaranteed context slots for every covered clinical evidence facet.
+        3. Suppresses near-duplicate overlapping chunks and promotes source document & page diversity.
+        4. Rechecks coverage after selection to guarantee no essential evidence facet is dropped.
+        Returns: (selected_passages: list, post_coverage_report: dict)
+        """
+        if not candidate_indices:
+            empty_cov = {
+                "facets_expected": ["direct_guideline_evidence"],
+                "facets_covered": [],
+                "facets_missing": ["direct_guideline_evidence"],
+                "coverage_percentage": 0.0,
+                "is_complete": False,
+                "second_pass_performed": False,
+                "evidence_gap": "The available clinical practice guidelines do not contain evidence for this clinical query."
+            }
+            return [], empty_cov
+
+        query_clean = query.lower()
+        stop_words = {
+            "the", "is", "at", "which", "on", "a", "an", "and", "or", "in", "to", "what",
+            "how", "tell", "me", "about", "are", "based", "taken", "take", "done", "used",
+            "many", "much", "can", "does", "do", "it", "for", "of", "with", "from", "by",
+            "according", "cited", "guideline", "guidelines", "practice", "clinical", "please",
+            "explain", "recommend", "recommended", "consideration", "prompt", "findings"
+        }
+        raw_query_words = [
+            _canonical_token(w) for w in re.findall(r'\b\w+\b', query_clean)
+            if w not in stop_words and len(w) > 2
+        ]
+
+        sem_scores = getattr(self, "_candidate_semantic_scores", {})
+
+        scored_candidates = []
+        for doc_idx in candidate_indices:
+            if doc_idx >= len(self._parsed_passages):
+                continue
+            p, header, body, body_lower = self._parsed_passages[doc_idx]
+
+            # Quality and noise filtering: exclude unhelpful publisher front matter & pure bibliographies
+            is_front_matter = any(phrase in body_lower for phrase in [
+                "co-first authors", "guidance documents, developed by a panel of experts",
+                "practice guidelines committee", "all rights reserved", "all rights are reserved",
+                "published by elsevier", "reprint requests", "table of contents", "conflict of interest",
+                "terms and conditions", "copyright notice", "data mining, ai training"
+            ])
+            is_bibliography = (
+                body.count(" et al.") >= 2 or
+                bool(re.search(r'\[\d+\]\s+[A-Z][a-z]+ [A-Z]{1,2},', body)) or
+                bool(re.search(r'\b\d{2,4}\.\s+[A-Z][a-z]+', body)) or
+                bool(re.search(r'\b(?:J Pediatr|Hepatology|Lancet|Gastroenterology|Eur J Clin Nutr|Am J Clin Nutr|Clin Gastroenterol Hepatol)\b', body))
+            )
+            if is_front_matter or is_bibliography:
+                continue
+
+            # 1. Lexical BM25 score on original query
+            bm25_s = self._compute_bm25_score(doc_idx, raw_query_words)
+
+            # 2. Dense semantic similarity score
+            sem_s = sem_scores.get(doc_idx, 0.0)
+
+            # 3. Subquery alignment score
+            sub_score = 0.0
+            if subqueries:
+                for sq in subqueries:
+                    sq_words = [_canonical_token(w) for w in re.findall(r'\b\w+\b', sq.lower()) if w not in stop_words and len(w) > 2]
+                    sub_score = max(sub_score, self._compute_bm25_score(doc_idx, sq_words))
+
+            # 4. Phrase proximity bonus
+            prox_bonus = 0.0
+            for i in range(len(raw_query_words) - 1):
+                bigram = f"{raw_query_words[i]} {raw_query_words[i+1]}"
+                if bigram in body_lower:
+                    prox_bonus += RAG_WEIGHT_PROXIMITY
+
+            # 5. Diagnostic information density scoring
+            density_scores = compute_diagnostic_density_score(body, body_lower)
+            density_bonus = density_scores["total_density"]
+
+            # Composite weighted relevance score
+            final_score = (
+                (bm25_s * RAG_WEIGHT_BM25) +
+                (sem_s * RAG_WEIGHT_SEMANTIC) +
+                (sub_score * RAG_WEIGHT_SUBQUERY) +
+                prox_bonus +
+                density_bonus
+            )
+
+            scored_candidates.append((final_score, doc_idx, p, body, body_lower, header, density_scores))
+
+        if not scored_candidates:
+            return [], {}
+
+        scored_candidates.sort(key=lambda x: x[0], reverse=True)
+
+        # Multi-facet definitions
+        is_multipart_copper = ("urinary copper" in query_clean or "24-hour" in query_clean or "24 hour" in query_clean) and \
+                              any(w in query_clean for w in ["measure", "interpret", "collection", "threshold", "diagnostic"])
+        is_multipart_treatment = any(k in query_clean for k in ["difference", "compare", "versus", " vs ", "between"]) and \
+                                any(drug in query_clean for drug in ["penicillamine", "trientine", "zinc"])
+        is_ceruloplasmin_query = "ceruloplasmin" in query_clean and any(w in query_clean for w in ["role", "diagnos", "threshold", "level", "value"])
+        is_leipzig_query = "leipzig" in query_clean and any(w in query_clean for w in ["score", "scoring", "system", "criteria", "points", "diagnostic"])
+
+        selected_passages = []
+        selected_bodies = []
+        selected_indices = set()
+        seen_pages = set()
+
+        # Step A: Guaranteed slot allocation for distinct clinical facets
+        if is_multipart_copper:
+            facet_keywords = {
+                "collection": ["collect", "container", "polyethylene", "acid", "washing", "24-h", "24-hour"],
+                "measurement": ["measured", "measurement", "spectrophotometry", "atomic absorption", "assay"],
+                "thresholds": ["threshold", ">100", "> 100", "100 µg", "100 ug", "40 µg", "40 ug", "symptomatic", "asymptomatic"],
+                "monitoring": ["monitoring", "compliance", "adequate", "overtreatment", "under treatment", "target", "penicillamine", "trientine"]
+            }
+            for f_name, f_kws in facet_keywords.items():
+                for s, idx, p, b, b_low, hdr, d_s in scored_candidates:
+                    if idx not in selected_indices and any(kw in b_low for kw in f_kws):
+                        selected_indices.add(idx)
+                        selected_passages.append(p)
+                        selected_bodies.append(b)
+                        seen_pages.add(hdr)
+                        break
+
+        elif is_multipart_treatment:
+            drug_facets = {
+                "penicillamine": ["penicillamine", "pyridoxine"],
+                "trientine": ["trientine", "triethylenetetramine"],
+                "zinc": ["zinc", "metallothionein", "absorption"]
+            }
+            for d_name, d_kws in drug_facets.items():
+                for s, idx, p, b, b_low, hdr, d_s in scored_candidates:
+                    if idx not in selected_indices and any(kw in b_low for kw in d_kws):
+                        selected_indices.add(idx)
+                        selected_passages.append(p)
+                        selected_bodies.append(b)
+                        seen_pages.add(hdr)
+                        break
+
+        elif is_ceruloplasmin_query:
+            cp_facets = {
+                "thresholds": ["<10", "< 10", "<20", "< 20", "10-20", "20-40", "14 mg", "mg/dl", "cutoff", "threshold"],
+                "limitations": ["false", "screening", "acute phase", "pregnancy", "subnormal"]
+            }
+            for cp_name, cp_kws in cp_facets.items():
+                for s, idx, p, b, b_low, hdr, d_s in scored_candidates:
+                    if idx not in selected_indices and any(kw in b_low for kw in cp_kws):
+                        selected_indices.add(idx)
+                        selected_passages.append(p)
+                        selected_bodies.append(b)
+                        seen_pages.add(hdr)
+                        break
+
+        elif is_leipzig_query:
+            leipzig_facets = {
+                "clinical_and_kf": ["kayser", "kf", "rings", "neurologic", "neuro", "coombs"],
+                "biochemical": ["ceruloplasmin", "urinary copper", "urine copper", "serum copper"],
+                "hepatic": ["hepatic", "liver copper", "histology", "biopsy", "parenchymal"],
+                "genetics_cutoff": ["mutation", "atp7b", "chromosome 13", "score", "points", "cutoff", ">= 4", ">=4"]
+            }
+            for l_name, l_kws in leipzig_facets.items():
+                for s, idx, p, b, b_low, hdr, d_s in scored_candidates:
+                    if idx not in selected_indices and any(kw in b_low for kw in l_kws):
+                        selected_indices.add(idx)
+                        selected_passages.append(p)
+                        selected_bodies.append(b)
+                        seen_pages.add(hdr)
+                        break
+
+        # Step B: Fill remaining slots with diversity and near-duplicate suppression
+        for s, idx, p, b, b_low, hdr, d_s in scored_candidates:
+            if len(selected_passages) >= top_n:
+                break
+            if idx not in selected_indices:
+                # Page diversity check
+                if hdr not in seen_pages:
+                    # Near-duplicate chunk suppression
+                    if not is_near_duplicate_passage(b, selected_bodies, threshold=0.65):
+                        seen_pages.add(hdr)
+                        selected_indices.add(idx)
+                        selected_passages.append(p)
+                        selected_bodies.append(b)
+
+        # Step C: If slots remain, fill with next best non-duplicate candidates
+        if len(selected_passages) < top_n:
+            for s, idx, p, b, b_low, hdr, d_s in scored_candidates:
+                if len(selected_passages) >= top_n:
+                    break
+                if idx not in selected_indices:
+                    if not is_near_duplicate_passage(b, selected_bodies, threshold=0.75):
+                        selected_indices.add(idx)
+                        selected_passages.append(p)
+                        selected_bodies.append(b)
+
+        # Step D: Post-rerank coverage verification
+        _, post_coverage = self.check_retrieval_coverage(query, subqueries, selected_indices)
+
+        return selected_passages, post_coverage
+
+    @traceable(name="rank_passages", run_type="retriever")
+    def _rank_passages_internal(self, query: str, top_n: int = DEFAULT_FINAL_TOP_K) -> list:
+        """
+        Ranks clinical guideline passages using query decomposition, configurable candidate retrieval,
+        retrieval coverage checking, and coverage-preserving reranking.
         """
         if not self.has_medical_documents() or not self.passages:
             return []
@@ -1784,253 +2697,90 @@ class MedicalRAGSystem:
             "explain", "recommend", "recommended", "consideration", "prompt", "findings"
         }
         raw_query_words = [
-            w for w in re.findall(r'\b\w+\b', query_clean)
+            _canonical_token(w) for w in re.findall(r'\b\w+\b', query_clean)
             if w not in stop_words and len(w) > 2
         ]
         if not raw_query_words:
             return []
 
-        is_definition_query = any(phrase in query_clean for phrase in ["what is wilson", "what is wilson s", "explain wilson", "what is the definition", "define wilson"])
-        is_copper_accum_query = any(phrase in query_clean for phrase in ["copper accumulation", "copper accumulate", "accumulates in", "accumulation of copper"])
-        is_pediatric_query = any(w in query_clean for w in ["children", "child", "pediatric", "infant", "adolescent", "young"])
-        is_monitoring_query = (
-            any(w in query_clean for w in ["monitoring", "interval", "intervals", "frequency", "schedule", "surveillance"]) and
-            any(w in query_clean for w in ["chelator", "chelation", "therapy", "treatment", "penicillamine", "trientine", "zinc"])
-        )
-
         if not hasattr(self, "_parsed_passages") or not self._parsed_passages:
-            parsed = []
-            for p in self.passages:
-                header = ""
-                body = p
-                if p.startswith("[Source:") and "\n" in p:
-                    header, body = p.split("\n", 1)
-                norm_body = self._normalize_passage_text(body)
-                parsed.append((p, header, norm_body, norm_body.lower()))
-            self._parsed_passages = parsed
+            self._load_clinical_passages()
             self._build_bm25_index()
         elif not hasattr(self, "_bm25_num_docs"):
             self._build_bm25_index()
 
-        # Guard: Reject out-of-domain queries where core substantive terms are absent from the clinical guideline corpus
+        # Guard: Reject out-of-domain queries where substantive terms are absent from guideline corpus
         if hasattr(self, "_bm25_df") and self._bm25_df:
             missing_terms = [w for w in raw_query_words if self._bm25_df.get(w, 0) == 0]
-            if len(missing_terms) >= 2 or (len(raw_query_words) >= 3 and (len(missing_terms) / len(raw_query_words)) >= 0.25):
+            domain_anchors = {"wilson", "disease", "diseases", "wd", "patient", "patients", "individual", "individuals", "case", "cases", "clinical", "protocol", "procedure"}
+            subject_terms = [w for w in raw_query_words if w not in domain_anchors]
+            missing_subject_terms = [w for w in subject_terms if self._bm25_df.get(w, 0) == 0]
+
+            is_out_of_domain = (
+                len(missing_terms) >= 2 or
+                (len(raw_query_words) >= 3 and (len(missing_terms) / len(raw_query_words)) >= 0.25) or
+                (len(subject_terms) > 0 and len(missing_subject_terms) > 0 and (
+                    len(subject_terms) <= 3 or
+                    (len(missing_subject_terms) / len(subject_terms)) >= 0.25
+                ))
+            )
+            if is_out_of_domain:
+                self._last_retrieval_meta = {
+                    "original_query": query,
+                    "subqueries": [query],
+                    "semantic_candidates_count": 0,
+                    "bm25_candidates_count": 0,
+                    "merged_candidates_count": 0,
+                    "final_passages_count": 0,
+                    "evidence_coverage": {
+                        "facets_expected": ["direct_guideline_evidence"],
+                        "facets_covered": [],
+                        "facets_missing": ["direct_guideline_evidence"],
+                        "coverage_percentage": 0.0,
+                        "is_complete": False,
+                        "second_pass_performed": False,
+                        "evidence_gap": "The available clinical practice guidelines do not contain evidence for this query."
+                    }
+                }
                 return []
 
-        scored = []
-        for doc_idx, (p, header, body, body_lower) in enumerate(self._parsed_passages):
+        # 1. Query decomposition
+        subqueries = decompose_clinical_query(query)
 
-            # 1. Front-matter / glossary / bibliography detection
-            is_acronym_glossary = body.count(";") >= 4 and any(w in body for w in ["FDA", "INR", "MELD", "UWDRS", "co-first authors", "HCC"])
-            is_front_matter = any(phrase in body_lower for phrase in [
-                "co-first authors", "guidance documents, developed by a panel of experts",
-                "practice guidelines committee", "all rights reserved", "all rights are reserved",
-                "published by elsevier", "reprint requests", "table of contents", "conflict of interest",
-                "terms and conditions", "copyright notice", "data mining, ai training"
-            ])
-            is_bibliography = (
-                body.count(" et al.") >= 2 or
-                bool(re.search(r'\[\d+\]\s+[A-Z][a-z]+ [A-Z]{1,2},', body)) or
-                bool(re.search(r'\b\d{2,4}\.\s+[A-Z][a-z]+', body)) or
-                bool(re.search(r'\b(?:J Pediatr|Hepatology|Lancet|Gastroenterology|Eur J Clin Nutr|Am J Clin Nutr|Clin Gastroenterol Hepatol)\b', body))
-            )
-            is_raw_table = len(re.findall(r'\b\d+[-–]\d+\b', body)) >= 4 or "score bilirubin" in body_lower or "table 10" in body_lower
+        # 2. Hybrid candidate retrieval (Semantic + BM25)
+        candidates, sem_count, bm25_count = self._retrieve_hybrid_candidates(
+            query, subqueries,
+            semantic_k=DEFAULT_SEMANTIC_TOP_K,
+            bm25_k=DEFAULT_BM25_TOP_K
+        )
 
-            # 2. Token overlap with clinical concept expansions
-            score = 0.0
-            matched_distinct = 0
-            for w in raw_query_words:
-                w_weight = 0.5 if w in ["wilson", "disease", "patient", "patients"] else 3.0
-                cnt = body_lower.count(w)
-                if w in ["chelator", "chelation"]:
-                    cnt += sum(body_lower.count(syn) for syn in ["chelator", "chelation", "chelating", "penicillamine", "trientine"])
-                elif w in ["interval", "intervals"]:
-                    cnt += sum(body_lower.count(syn) for syn in ["interval", "intervals", "annually", "yearly", "twice per year", "twice yearly", "twice annually", "every 6 to 12 months", "every 6-12 months", "every 6 months", "6–12 months", "6-12 months"])
-                elif w in ["children", "child", "pediatric"]:
-                    cnt += sum(body_lower.count(syn) for syn in ["children", "child", "pediatric"])
-                elif w in ["findings", "finding"]:
-                    cnt += sum(body_lower.count(syn) for syn in ["finding", "findings", "manifestation", "manifestations", "presentation"])
+        # 3. Retrieval coverage checking & targeted second-pass search
+        candidates, coverage_report = self.check_retrieval_coverage(query, subqueries, candidates)
 
-                if cnt > 0:
-                    score += w_weight * (1.0 + min(cnt - 1, 3) * 0.4)
-                    matched_distinct += 1
+        # 4. Coverage-preserving candidate reranking & post-rerank coverage verification
+        final_passages, post_coverage = self._rerank_candidates_with_coverage(query, subqueries, candidates, top_n=top_n)
 
-            if matched_distinct == 0:
-                continue
+        # Save metadata for telemetry consumers (reflecting post-reranking verified evidence coverage)
+        self._last_retrieval_meta = {
+            "original_query": query,
+            "subqueries": subqueries,
+            "semantic_candidates_count": sem_count,
+            "bm25_candidates_count": bm25_count,
+            "merged_candidates_count": len(candidates),
+            "final_passages_count": len(final_passages),
+            "evidence_coverage": post_coverage if post_coverage else coverage_report
+        }
 
-            coverage = matched_distinct / len(raw_query_words)
-            score *= (0.5 + 1.5 * coverage)
+        return final_passages
 
-            # Okapi BM25 contribution (hybrid lexical-semantic scoring)
-            bm25_val = self._compute_bm25_score(doc_idx, raw_query_words)
-            score += 2.0 * bm25_val
-
-            # 3. Penalize boilerplate, glossary, and bibliography
-            if is_acronym_glossary:
-                score -= 30.0
-            if is_front_matter:
-                score -= 30.0
-            if is_bibliography:
-                score -= 35.0
-            if is_raw_table:
-                score -= 30.0
-
-            # 4. Intent-aware boosts
-            if is_definition_query:
-                if any(copula in body_lower for copula in ["autosomal recessive", "inborn error of copper", "disorder of copper metabolism", "defect in the atp7b", "genetic defect"]):
-                    score += 18.0
-                if "summary wilson" in body_lower or "summary: wilson" in body_lower or "summary wilson's" in body_lower:
-                    score += 10.0
-                if "hepatolenticular degeneration" in body_lower:
-                    score += 5.0
-
-            if is_copper_accum_query:
-                if "toxic hepatocellular copper accumulation" in body_lower or "copper accumulation" in body_lower or "accumulates in" in body_lower:
-                    score += 15.0
-                if "biliary excretion" in body_lower or "atp7b" in body_lower:
-                    score += 8.0
-
-            if is_pediatric_query:
-                if any(w in body_lower for w in ["children", "child", "pediatric"]):
-                    score += 10.0
-                if any(w in body_lower for w in ["hepatomegaly", "transaminases", "aminotransferase"]):
-                    score += 10.0
-                if ("asymptomatic" in body_lower and ("hepatomegaly" in body_lower or "aminotransferase" in body_lower or "transaminase" in body_lower or "liver" in body_lower)) or "incidental" in body_lower or "persistently increased" in body_lower or "persistently elevated" in body_lower:
-                    score += 12.0
-                if "ceruloplasmin" in body_lower and any(w in body_lower for w in ["threshold", "sensitivity", "14 mg", "20 mg"]):
-                    score += 8.0
-
-            if is_monitoring_query:
-                if any(w in body_lower for w in ["monitoring", "interval", "intervals", "annually", "yearly", "twice yearly", "twice annually", "twice per year", "every 6 to 12 months", "every 6-12 months", "6–12 months", "every 6 months"]):
-                    score += 12.0
-                if "urinary copper" in body_lower or "24-h" in body_lower or "24-hour" in body_lower:
-                    score += 8.0
-                if any(w in body_lower for w in ["complete blood count", "full blood count", "total blood count", "urinalysis", "urine analyses", "proteinuria", "liver biochemistries", "liver function tests", "renal profile", "renal function", "hepatic synthetic function", "inr"]):
-                    score += 12.0
-                if any(w in body_lower for w in ["guidance statement", "recommendation", "recommendations", "surveillance:", "monitoring on treatment"]):
-                    score += 8.0
-
-            if "ceruloplasmin" in query_clean:
-                if "ceruloplasmin" in body_lower:
-                    score += 10.0
-                if any(w in body_lower for w in ["glycoprotein", "synthesized in hepatocytes", "acute‐phase", "acute-phase", "apoceruloplasmin", "ferroxidase", "oxidase"]):
-                    score += 12.0
-
-            if any(w in query_clean for w in ["kayser", "fleischer", "kf ring", "kf rings"]):
-                if any(w in body_lower for w in ["kayser", "fleischer", "descemet", "cornea", "slit-lamp"]):
-                    score += 15.0
-
-            if any(w in query_clean for w in ["atp7b", "gene", "mutation"]):
-                if "atp7b" in body_lower:
-                    score += 12.0
-                if any(w in body_lower for w in ["p-type atpase", "transmembrane", "biliary excretion", "chromosome 13"]):
-                    score += 10.0
-
-            if "leipzig" in query_clean:
-                if "leipzig" in body_lower:
-                    score += 15.0
-
-            if any(w in query_clean for w in ["diet", "food", "foods", "eat", "eating", "nutrition"]):
-                if any(k in body_lower for k in ["dietary copper", "copper in the diet", "copper intake", "dietary cu", "restrict dietary", "foods with high concentration", "copper-restricted"]):
-                    score += 16.0
-                if any(k in body_lower for k in ["nuts", "liver", "chocolate", "chocolates", "shellfish", "organ meats", "drinking water", "rda"]):
-                    score += 10.0
-
-            if any(w in query_clean for w in ["urinary", "urine", "24-h", "24-hour", "cupriuria"]):
-                if any(k in body_lower for k in ["urinary copper", "24-h urinary", "24-hour urinary", "urine collection", "cupriuria"]):
-                    score += 15.0
-
-            if any(phrase in query_clean for phrase in ["copper based test", "tests for copper", "test for copper", "copper test", "copper tests", "copper biomarkers", "laboratory test"]):
-                if any(k in body_lower for k in ["ceruloplasmin", "urinary copper", "free copper", "non-ceruloplasmin", "hepatic copper", "copper metabolism"]):
-                    score += 12.0
-
-            if any(w in query_clean for w in ["trientine", "penicillamine", "chelator", "chelation", "zinc"]):
-                if any(k in body_lower for k in ["d-penicillamine", "trientine", "zinc acetate", "adverse", "side effect", "tolerance profile", "toxicity", "proteinuria", "pyridoxine"]):
-                    score += 12.0
-
-            min_cov = 0.50 if len(raw_query_words) <= 2 else (0.40 if len(raw_query_words) >= 6 else 0.30)
-            if score >= 8.0 and coverage >= min_cov:
-                scored.append((score, p, body, body_lower))
-
-        if not scored:
-            return []
-
-        # Stage 2: Cross-scoring candidate re-ranking (Phrase proximity & Quantitative Diagnostic Density)
-        scored.sort(key=lambda x: x[0], reverse=True)
-        top_candidates = scored[:15]
-        remaining_candidates = scored[15:]
-
-        reranked_top = []
-        for s, p, body, body_lower in top_candidates:
-            rerank_bonus = 0.0
-
-            # 1. Exact query n-gram / bigram proximity bonus
-            for i in range(len(raw_query_words) - 1):
-                bigram = f"{raw_query_words[i]} {raw_query_words[i+1]}"
-                if bigram in body_lower:
-                    rerank_bonus += 4.0
-
-            # 2. Quantitative diagnostic density bonus (Wilson disease thresholds)
-            unit_matches = len(re.findall(r'\b\d+(?:\.\d+)?\s*(?:mg/d[lL]|µg/24\s*h|ug/24\s*h|µmol/24\s*h|umol/24\s*h|µg/g|ug/g|U/[lL]|%|points?|score|mg/day)\b', body))
-            if unit_matches > 0:
-                rerank_bonus += min(unit_matches * 1.5, 6.0)
-
-            # 3. Clinical guideline recommendation statement marker
-            if any(rec in body_lower for rec in ["we recommend", "guidance statement", "class i", "level a", "level b", "diagnostic criteria", "first-line"]):
-                rerank_bonus += 3.0
-
-            reranked_top.append((s + rerank_bonus, p))
-
-        reranked_top.sort(key=lambda x: x[0], reverse=True)
-        scored = reranked_top + [(s, p) for s, p, _, _ in remaining_candidates]
-
-        best_score = scored[0][0]
-
-        # Two-pass selection for complex multi-guideline questions (pediatric and monitoring)
-        if is_monitoring_query or is_pediatric_query:
-            selected = []
-            seen_orgs = set()
-            # Pass 1: Select top passage per distinct guideline organization
-            for s, p in scored:
-                if s < 0.60 * best_score or s < 10.0:
-                    continue
-                header = p.split("\n", 1)[0]
-                m = re.match(r'\[Source:\s*([^|]+)', header)
-                org = self._get_guideline_display_name(m.group(1)) if m else "General"
-                if org not in seen_orgs:
-                    seen_orgs.add(org)
-                    selected.append(p)
-                if len(selected) >= top_n:
-                    break
-
-            # Pass 2: If space remains, fill with remaining highest scored passages
-            if len(selected) < top_n:
-                for s, p in scored:
-                    if p not in selected and (s >= 0.60 * best_score and s >= 10.0):
-                        selected.append(p)
-                    if len(selected) >= top_n:
-                        break
-            return selected
-
-        # Standard ranking up to top_n passages
-        results = [scored[0][1]]
-        for s, p in scored[1:]:
-            if len(results) >= top_n:
-                break
-            if s >= 0.70 * best_score and s >= 10.0:
-                results.append(p)
-
-        return results
-
-    def _synthesize_extractive_answer(self, user_question: str, top_passages: list) -> str:
+    def _synthesize_extractive_answer(self, user_question: str, top_passages: list, coverage_report: dict = None) -> str:
         """
-        Produces a concise, readable conversational explanation grounded in retrieved passages
-        without requiring an external LLM (Pathway B: Extractive Synthesis).
-        Keeps distinct guideline bodies (AASLD, EASL-ERN, INASL, NIH/GeneReviews) separate
-        for complex comparative clinical questions to avoid conflating different monitoring intervals
-        or recommendations.
-        If evidence is inadequate, honestly states that the documents lack sufficient evidence.
+        Phase 5: Grounded Clinical Answer Synthesis with Claim-Level Citations.
+        Produces an evidence-grounded clinical explanation strictly from retrieved passages.
+        - Associates each important clinical claim with supporting source and page citations: [source, p. page].
+        - Addresses every requested part of multipart clinical questions by matching expected facets.
+        - Honestly distinguishes guideline-supported statements from missing evidence with explicit Evidence Gap.
+        - Provides clean, deduplicated summary citations.
         """
         if not top_passages:
             return (
@@ -2049,13 +2799,8 @@ class MedicalRAGSystem:
         }
         q_words = set(re.findall(r'\b\w+\b', q_clean)) - stop_words
 
-        is_pediatric_query = any(w in q_clean for w in ["children", "child", "pediatric", "infant", "adolescent", "young"])
-        is_monitoring_query = (
-            any(w in q_clean for w in ["monitoring", "interval", "intervals", "frequency", "schedule", "surveillance"]) and
-            any(w in q_clean for w in ["chelator", "chelation", "therapy", "treatment", "penicillamine", "trientine", "zinc"])
-        )
-
-        guideline_data = {}
+        candidates = []
+        seen_hashes = set()
 
         for p in top_passages:
             header = ""
@@ -2066,165 +2811,156 @@ class MedicalRAGSystem:
             m = re.match(r'\[Source:\s*([^|]+)\|\s*Page:\s*(\d+)\]', header)
             if m:
                 src_file = m.group(1).strip()
-                page_num = m.group(2).strip()
-                citation_str = f"{src_file}, p. {page_num}"
+                page_num = int(m.group(2).strip())
                 org_name = self._get_guideline_display_name(src_file)
             else:
-                citation_str = "Clinical Practice Guidelines"
+                src_file = "Clinical Practice Guidelines"
+                page_num = 1
                 org_name = "Clinical Practice Guidelines"
 
-            if org_name not in guideline_data:
-                guideline_data[org_name] = {"sources": [], "sentences": []}
-            if citation_str not in guideline_data[org_name]["sources"]:
-                guideline_data[org_name]["sources"].append(citation_str)
-
             body = self._normalize_passage_text(body)
-            # Strip document title/preamble junk from start of body
-            body = re.sub(r'^(?:[A-Za-z\s\-–—:]*Guidelines[^\n*]*\*\s*(?:Summary\s*)?|Summary\s*:?\s*|TABLE\s+\d+\s+)', '', body, flags=re.IGNORECASE)
-            # Normalize periods followed by citations/reference numbers before sentence splitting
+            body = re.sub(r'^(?:[A-Za-z\s\-:]*Guidelines[^\n*]*\*\s*(?:Summary\s*)?|Summary\s*:?\s*|TABLE\s+\d+\s+)', '', body, flags=re.IGNORECASE)
             body = re.sub(r'([.!?])\d+\s+', r'\1 ', body)
-            if "•" in body:
-                body = body.replace("•", ". ")
 
             raw_sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z0-9])', body)
-            scored_sentences = []
-
             for raw_s in raw_sentences:
-                s_clean = re.sub(r'\[[^\]]*\]', '', raw_s) # remove bracketed references e.g. [1,2] or [Schilsky et al 2022b]
-                s_clean = re.sub(r'\s*\([Ll]o[Ee]\s*\d+[^)]*\)', '', s_clean) # remove (LoE 3, strong recommendation, consensus)
-                s_clean = re.sub(r'\s*\([Tt]able\s*\d+\s*\)', '', s_clean) # remove (Table 1 )
-                s_clean = re.sub(r'^\d+%\s*', '', s_clean) # remove voting percentages e.g. '100% ', '97% '
-                s_clean = re.sub(r'^(?:\(?\d+[\.\)]|\d+\.)\s+', '', s_clean) # remove leading list numbers e.g. '21. ', '1) ', '(2) '
-                s_clean = re.sub(r'^(?:\d+,\s*)+\d+[\s–\-]+', '', s_clean) # remove leading citation chains e.g. '200,456,457 '
-                s_clean = re.sub(r'^\d+[-–]\d+\s+', '', s_clean) # remove leading range citation numbers e.g. '17-19 ', '208-210 '
-                s_clean = re.sub(r',\d+\s+', ', ', s_clean) # comma citations e.g. ',200,456 '
-                s_clean = re.sub(r'^[,\s–\-:;]+', '', s_clean) # leading punctuation
-                # Remove stray leading reference numbers (e.g. '79 The best WD...') while preserving units ('24 h', '14 mg')
+                s_clean = re.sub(r'[\u26ac\u2022\u25cf\u25cb\u25a0\u25aa]', '', raw_s)
+                s_clean = re.sub(r'\[[^\]]*\]', '', s_clean)
+                s_clean = re.sub(r'\s*\([Ll]o[Ee]\s*\d+[^)]*\)', '', s_clean)
+                s_clean = re.sub(r'\s*\([Tt]able\s*\d+\s*\)', '', s_clean)
+                s_clean = re.sub(r'^\d+%\s*', '', s_clean)
+                s_clean = re.sub(r'^(?:\(?\d+[\.\)]|\d+\.)\s+', '', s_clean)
+                s_clean = re.sub(r'^(?:\d+,\s*)+\d+[\s\-]+', '', s_clean)
+                s_clean = re.sub(r'^\d+[-]\d+\s+', '', s_clean)
+                s_clean = re.sub(r',\d+\s+', ', ', s_clean)
+                s_clean = re.sub(r'^[,\s\-:;]+', '', s_clean)
+
                 m_lead = re.match(r'^(\d+)\s+([A-Za-z]+)', s_clean)
                 if m_lead and m_lead.group(2).lower() not in {'h', 'hr', 'hrs', 'hour', 'hours', 'd', 'day', 'days', 'wk', 'week', 'weeks', 'mo', 'month', 'months', 'yr', 'year', 'years', 'mg', 'g', 'kg', 'dl', 'ml', 'l', 'mmol', 'umol', 'lmol', 'points', 'percent'}:
                     s_clean = s_clean[len(m_lead.group(1)):].strip()
                 s_clean = re.sub(r'\s+', ' ', s_clean).strip()
 
-                # Require valid terminal punctuation
                 last_p = max(s_clean.rfind('.'), s_clean.rfind('!'), s_clean.rfind('?'))
                 if last_p != -1:
                     s_clean = s_clean[:last_p + 1].strip()
                 else:
                     continue
 
-                if s_clean.endswith(':'):
-                    continue
-                # Complete sentences start with a capital letter; discard cross-chunk broken fragments
-                if not s_clean or s_clean[0].islower():
+                if len(s_clean) < 25 or not s_clean[0].isupper() or s_clean.endswith(':'):
                     continue
 
                 s_lower = s_clean.lower()
-                if len(s_clean) < 30:
-                    continue
                 if any(s_lower.startswith(lead) for lead in ['guidance statement', 'guidance statements', 'practice guidance', 'table ', 'recommendation ', 'recommendations ']):
                     continue
                 if any(b in s_lower for b in ["all rights reserved", "elsevier b.v", "co-first authors", "reprint requests", "fda, food"]):
                     continue
                 if s_clean.count(";") >= 3 and any(w in s_clean for w in ["FDA", "INR", "MELD"]):
                     continue
-                if len(re.findall(r'\b\d+[-–]\d+\b', s_clean)) >= 3:
-                    continue
                 if any(lead in s_lower for lead in ["score bilirubin", "zinc salts d-penicillamine trientine", "king 's college wilson index"]):
                     continue
+
+                shash = s_clean[:50].lower()
+                if shash in seen_hashes:
+                    continue
+                seen_hashes.add(shash)
 
                 s_words = set(re.findall(r'\b\w+\b', s_lower))
                 overlap = len(q_words.intersection(s_words))
                 coverage = (overlap / len(q_words)) if q_words else 0
                 s_score = overlap * 2.0 + coverage * 4.0
 
+                # Quantitative diagnostic thresholds and units bonus
+                if any(k in s_lower for k in ["mg/dl", "mg/d", "g/l", "µg/24", "ug/24", "µmol", "umol", "<10", "< 10", "<20", "< 20", ">100", "> 100", ">40", "> 40", "10-20", "20-40", "14 mg", "10 mg", "20 mg"]):
+                    s_score += 8.0
+
+                # High value clinical entities
                 if any(cop in s_lower for cop in [
                     "is an autosomal recessive", "is an inborn error", "disorder of copper metabolism",
                     "characterized by", "toxic hepatocellular copper accumulation", "biliary excretion",
                     "glycoprotein", "synthesized in hepatocytes", "accounts for 90%", "descemet", "cornea",
                     "kayser-fleischer", "atp7b", "transmembrane", "p-type", "leipzig", "urinary copper",
                     "24-h urinary", "24-hour urinary", "cupriuria", "dietary copper", "copper intake",
-                    "nuts, soy, liver", "organ meats", "shellfish", "penicillamine", "trientine", "zinc acetate",
-                    "tolerance profile", "better tolerance"
+                    "penicillamine", "trientine", "zinc acetate", "tolerance profile", "better tolerance"
                 ]):
                     s_score += 6.0
 
-                if is_pediatric_query:
-                    if any(w in s_lower for w in ["hepatomegaly", "transaminases", "aminotransferase"]):
-                        s_score += 4.0
-                    if "asymptomatic" in s_lower and any(w in s_lower for w in ["hepatomegaly", "transaminases", "aminotransferase"]):
-                        s_score += 10.0
-                    if "incidentally" in s_lower or "incidental" in s_lower:
-                        s_score += 6.0
-                    if "persistently increased" in s_lower or "persistently elevated" in s_lower:
-                        s_score += 8.0
-                    if "ceruloplasmin" in s_lower and any(w in s_lower for w in ["threshold", "sensitivity", "14 mg", "20 mg"]):
-                        s_score += 8.0
-                    if any(w in s_lower for w in ["acute viral hepatitis", "autoimmune hepatitis", "steatosis", "chronic hepatitis", "acute liver failure", "splenomegaly", "alf"]):
-                        s_score += 6.0
+                candidates.append({
+                    "score": s_score,
+                    "text": s_clean,
+                    "src_file": src_file,
+                    "page": page_num,
+                    "org": org_name,
+                    "lower": s_lower
+                })
 
-                if is_monitoring_query:
-                    if any(w in s_lower for w in ["complete blood count", "full blood count", "total blood count", "urinalysis", "urine analyses", "proteinuria"]):
-                        s_score += 10.0
-                    if any(w in s_lower for w in ["liver biochemistries", "liver function tests", "liver profile", "hepatic synthetic function", "inr"]):
-                        s_score += 8.0
-                    if "renal profile" in s_lower or "renal function" in s_lower:
-                        s_score += 6.0
-                    if any(w in s_lower for w in ["24-h urinary copper", "24-hour urinary copper", "urinary copper excretion"]):
-                        s_score += 8.0
-                    if any(w in s_lower for w in ["at least twice per year", "twice per year", "twice annually", "twice yearly", "every 6 to 12 months", "6 –12 months", "6-12 months"]):
-                        s_score += 10.0
-                    if any(w in s_lower for w in ["at least annually", "measured yearly", "measured annually", "once annually"]):
-                        s_score += 8.0
-                    if any(w in s_lower for w in ["more frequent", "more frequently", "frequently", "nonadherence", "non-adherence", "dosage adjustments", "treatment initiation"]):
-                        s_score += 9.0
-
-                if s_score >= 4.0:
-                    scored_sentences.append((s_score, s_clean))
-
-            scored_sentences.sort(key=lambda x: x[0], reverse=True)
-            for sc, sent in scored_sentences:
-                if not any(sent[:45].lower() in existing[:45].lower() for existing in guideline_data[org_name]["sentences"]):
-                    guideline_data[org_name]["sentences"].append(sent)
-                if len(guideline_data[org_name]["sentences"]) >= (2 if (is_monitoring_query or is_pediatric_query) else 3):
-                    break
-
-        active_orgs = [org for org, data in guideline_data.items() if data["sentences"]]
-        if not active_orgs:
+        if not candidates:
             return (
                 "The available clinical practice guidelines do not contain sufficient evidence "
                 "to answer this specific question. Please consult a qualified gastroenterologist, "
                 "hepatologist, or neurologist for individualized clinical guidance."
             )
 
-        # Multi-guideline comparative attribution
-        if (is_monitoring_query or is_pediatric_query) and len(active_orgs) > 1:
-            lines = ["According to clinical practice guidelines:"]
-            for org in active_orgs:
-                data = guideline_data[org]
-                sources_str = "; ".join(data["sources"])
-                lines.append(f"\n{org} ({sources_str}):")
-                for sent in data["sentences"][:2]:
-                    lines.append(f"• {sent}")
-            return "\n".join(lines).strip()
+        candidates.sort(key=lambda x: x["score"], reverse=True)
+
+        selected = []
+        selected_texts = set()
+
+        # Multipart facet-guided sentence selection
+        expected_facets = coverage_report.get("facets_expected", []) if coverage_report else []
+        if expected_facets and expected_facets != ["direct_guideline_evidence"]:
+            facet_keywords = {
+                "collection_procedure": ["collect", "container", "polyethylene", "acid", "washing", "plastic", "24-h", "24-hour", "specimen"],
+                "laboratory_measurement": ["measured", "measurement", "spectrophotometry", "atomic absorption", "assay", "determination", "cu excretion", "circulation"],
+                "diagnostic_thresholds": ["threshold", ">100", "> 100", "100 µg", "100 ug", "40 µg", "40 ug", "symptomatic", "asymptomatic", "cutoff", "upper limit", "normal"],
+                "treatment_monitoring": ["monitoring", "compliance", "adequate", "target", "chelator", "penicillamine", "trientine", "overtreatment", "dose"],
+                "d_penicillamine": ["penicillamine", "d-penicillamine", "cuprimine", "depen", "pyridoxine", "vitamin b6"],
+                "trientine": ["trientine", "syprine", "cuprior", "teta", "triethylenetetramine"],
+                "zinc_therapy": ["zinc", "zinc acetate", "galzin", "wilzin", "absorption", "metallothionein"],
+                "clinical_and_kf_rings": ["kayser", "kf", "cornea", "slit-lamp", "ring", "rings", "neurologic", "tremor", "dystonia"],
+                "biochemical_copper_and_ceruloplasmin": ["ceruloplasmin", "serum copper", "free copper", "urinary copper", "24-h"],
+                "hepatic_copper_or_histology": ["liver copper", "hepatic copper", "dry weight", "biopsy", "parenchymal", "rhodanine"],
+                "atp7b_genetics_and_cutoff": ["atp7b", "mutation", "mutations", "chromosome 13", "exon", "allele", "score", "points", "total score", ">=4", ">= 4"],
+                "thresholds_reference": ["<10", "< 10", "<20", "< 20", "10-20", "20-40", "14 mg", "threshold", "cutoff", "mg/dl"],
+                "diagnostic_accuracy_and_limitations": ["false", "screening", "acute phase", "pregnancy", "accuracy", "sensitivity", "specificity"]
+            }
+
+            for f in expected_facets:
+                f_words = facet_keywords.get(f, [f])
+                for c in candidates:
+                    if c["text"][:50].lower() not in selected_texts:
+                        if any(w in c["lower"] for w in f_words):
+                            selected.append(c)
+                            selected_texts.add(c["text"][:50].lower())
+                            break
+
+        # Fill remaining slots up to 5 from top scored candidates
+        for c in candidates:
+            if len(selected) >= 5:
+                break
+            if c["text"][:50].lower() not in selected_texts:
+                selected.append(c)
+                selected_texts.add(c["text"][:50].lower())
+
+        lines = ["According to clinical practice guidelines:"]
+        all_sources = []
+
+        for item in selected:
+            s_cite = f"{item['src_file']}, p. {item['page']}"
+            if s_cite not in all_sources:
+                all_sources.append(s_cite)
+            lines.append(f"• {item['text']} [{s_cite}]")
+
+        if coverage_report and coverage_report.get("evidence_gap"):
+            lines.append(f"\nEvidence Gap: {coverage_report['evidence_gap']}")
+
+        lines.append("")
+        if len(all_sources) == 1:
+            lines.append(f"Source: {all_sources[0]}")
         else:
-            lines = ["According to the cited clinical practice guidelines:"]
-            all_sources = []
-            all_sentences = []
-            for org, data in guideline_data.items():
-                for s in data["sources"]:
-                    if s not in all_sources:
-                        all_sources.append(s)
-                for sent in data["sentences"]:
-                    if not any(sent[:45].lower() in ex[:45].lower() for ex in all_sentences):
-                        all_sentences.append(sent)
-            for sent in all_sentences[:3]:
-                lines.append(f"• {sent}")
-            lines.append("")
-            if len(all_sources) == 1:
-                lines.append(f"Source: {all_sources[0]}")
-            else:
-                lines.append("Sources: " + "; ".join(all_sources))
-            return "\n".join(lines).strip()
+            lines.append("Sources: " + "; ".join(all_sources))
+
+        return "\n".join(lines).strip()
+
 
     @traceable(name="retrieve_relevant_context", run_type="retriever")
     def retrieve_relevant_context(self, query):
@@ -2660,6 +3396,14 @@ Provide clear headings for:
                 retrieval_query = f"{user_question} ({recent_topic})"
 
         top_passages = self._rank_passages_internal(retrieval_query)
+        meta = getattr(self, "_last_retrieval_meta", {})
+        telemetry["original_query"] = user_question
+        telemetry["subqueries"] = meta.get("subqueries", [retrieval_query])
+        telemetry["semantic_candidates_count"] = meta.get("semantic_candidates_count", 0)
+        telemetry["bm25_candidates_count"] = meta.get("bm25_candidates_count", 0)
+        telemetry["merged_candidates_count"] = meta.get("merged_candidates_count", len(top_passages))
+        telemetry["final_passages_count"] = len(top_passages)
+        telemetry["evidence_coverage"] = meta.get("evidence_coverage", {})
         telemetry["retrieved_passages_count"] = len(top_passages)
         telemetry["retrieved_passages"] = [
             {"header": p.split("\n", 1)[0], "preview": p.split("\n", 1)[1][:150] if "\n" in p else p[:150]}
@@ -2685,15 +3429,21 @@ Provide clear headings for:
                 prompt = f"""You are a clinical decision-support AI assistant specialized in Wilson's Disease.
 {history_str}Answer the user's clinical question strictly using only the retrieved medical guideline context below.
 
-INSTRUCTIONS:
-1. Base your answer strictly and exclusively on the provided CONTEXT passages. Do NOT extrapolate, speculate, or invent facts or references.
+STRUCTURE YOUR CLINICAL ANSWER CLEARLY WITH THE FOLLOWING SECTIONS (omit sections that do not apply to the question):
+• DIRECT ANSWER: Concise summary answering the core question.
+• PROCEDURE / MEASUREMENT: Exact specimen collection protocol, handling, and measurement methods (if applicable).
+• CLINICAL INTERPRETATION & DIAGNOSTIC THRESHOLDS: Specific reference ranges, diagnostic cutoffs, and units (e.g. µg/24h, mg/dL) described in the approved guidelines.
+• TREATMENT MONITORING: Target excretion values, monitoring intervals, or treatment adjustments (if applicable).
+• EVIDENCE GAP: If approved guidelines do not cover a specific aspect of the question, explicitly state the gap here rather than guessing or extrapolating.
+• SOURCES: Supporting citations directly from the [Source: <filename> | Page: <page>] headers, formatted as:
+Source: <exact_pdf_filename>, p. <page_number> (or "Sources: <pdf_1>, p. <page>; <pdf_2>, p. <page>").
+
+CRITICAL INSTRUCTIONS:
+1. Base your answer strictly and exclusively on the provided CONTEXT passages. Do NOT extrapolate, speculate, or invent facts, dosages, or references.
 2. If the retrieved context does not contain sufficient clinical evidence to answer the question, respond with:
 "The available clinical practice guidelines do not contain sufficient evidence to answer this specific question. Please consult a qualified gastroenterologist, hepatologist, or neurologist for individualized clinical guidance."
-3. At the end of your answer, include the supporting source and page citations taken directly from the [Source: <filename> | Page: <page>] headers of the passages used, formatted as:
-Source: <exact_pdf_filename>, p. <page_number>
-(or "Sources: <pdf_1>, p. <page>; <pdf_2>, p. <page>" for multiple sources).
-4. Do NOT use markdown asterisks (**) or bullet hyphens (-). Use clear sentences or clean bullet points (•).
-5. Do NOT repeat or echo the question in your output. Provide only the concise clinical answer and citation.
+3. Do NOT use markdown asterisks (**) or bullet hyphens (-). Use clear sentences or clean bullet points (•).
+4. Do NOT repeat or echo the question in your output. Provide only the structured clinical answer and citations.
 
 CONTEXT PASSAGES:
 {context}
@@ -2708,7 +3458,13 @@ CLINICAL ANSWER:"""
                 if llm_reply and llm_reply.strip():
                     if self._validate_citations(llm_reply, top_passages, approved_list):
                         cites = self._extract_citations(llm_reply, approved_list)
-                        telemetry["sources_cited"] = [{"source": c[0], "page": c[1]} for c in cites]
+                        seen_c = set()
+                        dedup_c = []
+                        for c in cites:
+                            if (c[0], c[1]) not in seen_c:
+                                seen_c.add((c[0], c[1]))
+                                dedup_c.append({"source": c[0], "page": c[1]})
+                        telemetry["sources_cited"] = dedup_c
                         return _finish(llm_reply, "gemini", cit_valid=1)
                     logger.warning("Gemini response missing or contains unverified citation; falling back to extractive synthesis.")
                     telemetry["fallback_reason"] = "unverified_citation"
@@ -2753,16 +3509,27 @@ CLINICAL ANSWER:"""
                 logger.warning(f"LLM chat generation failed: {e}")
 
         # Grounded extractive conversational synthesis from retrieved guidelines
-        synthesized_reply = self._synthesize_extractive_answer(user_question, top_passages)
+        synthesized_reply = self._synthesize_extractive_answer(user_question, top_passages, coverage_report=meta.get('evidence_coverage'))
         cites = self._extract_citations(synthesized_reply, approved_list)
         if cites:
-            telemetry["sources_cited"] = [{"source": c[0], "page": c[1]} for c in cites]
+            seen_c = set()
+            dedup_c = []
+            for c in cites:
+                if (c[0], c[1]) not in seen_c:
+                    seen_c.add((c[0], c[1]))
+                    dedup_c.append({"source": c[0], "page": c[1]})
+            telemetry["sources_cited"] = dedup_c
         else:
             extracted_headers = []
+            seen_h = set()
             for p in top_passages:
                 m = re.search(r'\[Source:\s*([^|]+?)\s*\|\s*Page:\s*(\d+)\s*\]', p.split("\n", 1)[0])
                 if m:
-                    extracted_headers.append({"source": m.group(1).strip(), "page": int(m.group(2).strip())})
+                    s_name = m.group(1).strip()
+                    s_page = int(m.group(2).strip())
+                    if (s_name, s_page) not in seen_h:
+                        seen_h.add((s_name, s_page))
+                        extracted_headers.append({"source": s_name, "page": s_page})
             telemetry["sources_cited"] = extracted_headers
 
         cit_valid = 0 if telemetry.get("fallback_reason") else 1
@@ -2776,4 +3543,3 @@ CLINICAL ANSWER:"""
         """
         reply, _ = self.ask_chatbot_with_telemetry(user_question, patient_context=patient_context, chat_history=chat_history)
         return reply
-

@@ -5,11 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Longitudinal Comparison Matrix — {{ patient.patient_name }} ({{ patient.patient_id }})</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   <style>
     .compare-container {
-      max-width: 1100px;
+      max-width: 1380px;
       margin: 24px auto;
-      padding: 0 16px;
+      padding: 0 24px;
     }
 
     .compare-header {
@@ -159,18 +167,55 @@
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI
-      </a>
-      <ul class="nav-links">
-        {% if current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
         {% endif %}
-        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('patient_history_view', patient_id=patient.patient_id) }}">Patient Timeline</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Assessment</a></li>
-        <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }}</span></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_history_view', patient_id=patient.patient_id) }}"><i data-lucide="history"></i> Patient Timeline</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
       </ul>
+
+      <div class="nav-right-actions">
+        <!-- THEME TOGGLE BUTTON -->
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        {% if current_user.is_authenticated %}
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.username }}</span>
+          <span style="opacity: 0.4;">|</span>
+          <span class="role-text">{{ 'Dept. Head' if current_user.role == 'admin' else ('Lab Spec.' if current_user.role == 'lab_staff' else 'Clinician') }}</span>
+        </span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="nav-btn-logout" title="Sign Out">
+            <i data-lucide="log-out"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+        {% else %}
+        <a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">
+          <i data-lucide="lock"></i>
+          <span>Sign In</span>
+        </a>
+        {% endif %}
+
+        <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -178,12 +223,12 @@
 
     <!-- BREADCRUMB / ACTION BAR -->
     <div class="filter-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-      <a href="{{ url_for('patient_history_view', patient_id=patient.patient_id) }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
-        ⬅ Back to Patient Timeline
+      <a href="{{ url_for('patient_history_view', patient_id=patient.patient_id) }}" class="btn-secondary" style="font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+        <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i> Back to Patient Timeline
       </a>
       <div style="display: flex; gap: 10px;">
         <button type="button" class="btn-prime" onclick="window.print()" style="padding: 8px 18px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
-          🖨️ Print Comparison Matrix
+          <i data-lucide="printer" style="width: 14px; height: 14px;"></i> Print Comparison Matrix
         </button>
       </div>
     </div>
@@ -334,7 +379,7 @@
     <div class="synthesis-card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
         <div style="font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-          🩺 Physician Longitudinal Assessment & Therapeutic Synthesis
+          <i data-lucide="stethoscope" style="width: 16px; height: 16px; color: var(--primary);"></i> Physician Longitudinal Assessment &amp; Therapeutic Synthesis
         </div>
         <div style="font-size: 12px; color: #64748b;">
           Improved Biomarkers: <strong style="color: #15803d;">{{ comparison.improved_count }}</strong> • Elevated: <strong style="color: #b91c1c;">{{ comparison.worsened_count }}</strong>
@@ -348,8 +393,8 @@
     <!-- SIDE-BY-SIDE MATRIX TABLE -->
     <div class="matrix-table-card">
       <div style="padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="font-size: 16px; font-weight: 800; color: var(--dark); margin: 0;">
-          📊 Parameter Trajectory & Delta (Δ) Comparison Table
+        <h2 style="font-size: 16px; font-weight: 800; color: var(--dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="table" style="width: 16px; height: 16px; color: var(--primary);"></i> Parameter Trajectory &amp; Delta (&Delta;) Comparison Table
         </h2>
         <span style="font-size: 12px; color: #64748b;">
           Δ = Follow-up (Period 2) − Baseline (Period 1)
@@ -411,5 +456,8 @@
     <p>© 2026 NeuroMed AI — Wilson's Disease Longitudinal Comparison Subsystem</p>
   </footer>
 
+  <script>
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  </script>
 </body>
 </html>

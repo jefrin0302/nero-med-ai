@@ -3,318 +3,97 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NeuroMed AI — Clinical Test Form & Lab Import</title>
+  <title>NeuroMed AI — Clinical Decision Support & Diagnostic Intake</title>
+  
+  <meta name="description" content="Hospital-Grade Clinical Decision Support System for Wilson's Disease Early Diagnostic Stratification & Stacking Ensemble Evaluation." />
+  
+  <!-- Modern Theme CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   
   <!-- PWA Progressive Web App Meta -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#1e1b4b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Wilson AI" />
+  <meta name="apple-mobile-web-app-title" content="NeuroMed AI" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
   <script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
 
-  <style>
-    /* Patient Identification & Lab Import Enhancements */
-    .patient-identity-card {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 244, 255, 0.85));
-      border: 1px solid rgba(99, 102, 241, 0.25);
-      border-radius: var(--radius-md);
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.06);
-    }
-
-    .lab-import-card {
-      background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92));
-      border: 1.5px dashed rgba(99, 102, 241, 0.35);
-      border-radius: var(--radius-md);
-      padding: 22px;
-      margin-bottom: 24px;
-      transition: all 0.25s ease;
-    }
-
-    .lab-import-card:hover {
-      border-color: var(--primary);
-      box-shadow: 0 10px 28px rgba(79, 70, 229, 0.08);
-    }
-
-    .patient-id-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      background: rgba(79, 70, 229, 0.12);
-      color: var(--primary);
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    .alert-banner {
-      padding: 12px 18px;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      font-weight: 500;
-      margin-top: 14px;
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .alert-banner.success {
-      display: flex;
-      background: #ecfdf5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-    }
-
-    .alert-banner.error {
-      display: flex;
-      background: #fef2f2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-
-    .alert-banner.info {
-      display: flex;
-      background: #eff6ff;
-      color: #1e40af;
-      border: 1px solid #bfdbfe;
-    }
-
-    /* Modal Styling */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(15, 23, 42, 0.7);
-      backdrop-filter: blur(6px);
-      z-index: 2000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .modal-card {
-      background: #ffffff;
-      border-radius: var(--radius-lg);
-      max-width: 820px;
-      width: 100%;
-      max-height: 90vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
-      animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      overflow: hidden;
-    }
-
-    @keyframes modalFadeIn {
-      from { opacity: 0; transform: scale(0.96) translateY(10px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
-    .modal-header {
-      padding: 20px 26px;
-      border-bottom: 1px solid #e2e8f0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #f8fafc;
-    }
-
-    .modal-body {
-      padding: 24px 26px;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    .modal-footer {
-      padding: 16px 26px;
-      border-top: 1px solid #e2e8f0;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 12px;
-      background: #f8fafc;
-    }
-
-    .stat-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .stat-chip-green {
-      background: #d1fae5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-    }
-
-    .stat-chip-yellow {
-      background: #fef3c7;
-      color: #92400e;
-      border: 1px solid #fde68a;
-    }
-
-    .stat-chip-red {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-
-    .preview-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      margin-top: 12px;
-    }
-
-    .preview-table th {
-      background: #f1f5f9;
-      color: #475569;
-      font-weight: 700;
-      text-align: left;
-      padding: 10px 14px;
-      border-bottom: 2px solid #cbd5e1;
-    }
-
-    .preview-table td {
-      padding: 9px 14px;
-      border-bottom: 1px solid #f1f5f9;
-      color: var(--text-main);
-    }
-
-    .preview-table tr:hover td {
-      background: #f8fafc;
-    }
-
-    .field-status-badge {
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .status-ok { background: #dcfce7; color: #15803d; }
-    .status-missing { background: #fef3c7; color: #b45309; }
-    .status-rejected { background: #fee2e2; color: #b91c1c; }
-
-    .btn-action-small {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-decoration: none;
-    }
-
-    .btn-action-primary {
-      background: var(--primary);
-      color: #ffffff;
-    }
-    .btn-action-primary:hover {
-      background: var(--primary-hover);
-    }
-
-    .btn-action-secondary {
-      background: #ffffff;
-      color: var(--text-main);
-      border: 1px solid #cbd5e1;
-    }
-    .btn-action-secondary:hover {
-      background: #f8fafc;
-      border-color: #94a3b8;
-    }
-
-    .drag-drop-area {
-      border: 2px dashed #cbd5e1;
-      border-radius: var(--radius-sm);
-      padding: 24px;
-      text-align: center;
-      background: #ffffff;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .drag-drop-area.dragover {
-      border-color: var(--primary);
-      background: rgba(79, 70, 229, 0.04);
-    }
-
-    .template-link {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 13px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .template-link:hover {
-      text-decoration: underline;
-    }
-  </style>
+  <!-- Early Theme Init to avoid FOUC -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 </head>
 <body>
 
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI
-      </a>
-
-      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
-        ☰
-      </button>
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
 
       <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
         {% if current_user.is_authenticated %}
-        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+          {% if current_user.role == 'admin' %}
+          <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
+          {% endif %}
         {% endif %}
-        {% if current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+        {% if current_user.is_authenticated and current_user.role in ('admin', 'clinician') %}
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
         {% endif %}
-        <li><a class="nav-link-item active" href="{{ url_for('about') }}">Clinical Test</a></li>
-        {% if current_user.role in ('admin', 'clinician') %}
-        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
-        {% endif %}
-        {% if current_user.is_authenticated %}
-        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ 'Lab Staff' if current_user.role == 'lab_staff' else ('Chief Doctor' if current_user.role == 'admin' else 'Clinician') }})</span></li>
-        <li>
-          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
-          </form>
-        </li>
-        {% else %}
-        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
-        {% endif %}
-        <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
       </ul>
+
+      <div class="nav-right-actions">
+        <!-- THEME TOGGLE BUTTON -->
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        {% if current_user.is_authenticated %}
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.username }}</span>
+          <span style="opacity: 0.4;">|</span>
+          <span class="role-text">{{ 'Dept. Head' if current_user.role == 'admin' else ('Lab Spec.' if current_user.role == 'lab_staff' else 'Clinician') }}</span>
+        </span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="nav-btn-logout" title="Sign Out">
+            <i data-lucide="log-out"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+        {% else %}
+        <a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">
+          <i data-lucide="lock"></i>
+          <span>Sign In</span>
+        </a>
+        {% endif %}
+
+        <button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none;">
+          <i data-lucide="smartphone"></i>
+          <span>Install App</span>
+        </button>
+
+        <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -322,24 +101,25 @@
   <main class="main-wrapper">
 
     <!-- PAGE HEADER -->
-    <div class="card-glass">
+    <div class="card-glass" style="margin-bottom: 20px;">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
-          <h1 style="font-size: 28px; font-weight: 800; color: var(--dark); margin-bottom: 6px;">
-            🧪 Wilson's Disease Clinical Diagnostic Form
+          <h1 style="font-size: 26px; font-weight: 800; color: var(--dark); margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+            <i data-lucide="microscope" style="color: var(--primary); width: 28px; height: 28px;"></i>
+            <span>Wilson's Disease Clinical Diagnostic Assessment</span>
           </h1>
-          <p style="font-size: 15px; color: var(--text-muted);">
-            Manage patient records, import laboratory findings, or fill clinical parameters for multi-model AI risk prediction, SHAP attribution, and RAG guidance.
+          <p style="font-size: 14px; color: var(--text-muted);">
+            Hospital-grade decision support platform evaluating 23 multi-organ biomarkers with a 4-Model Stacking Ensemble (XGBoost, Logistic Regression, Random Forest, SVM), local SHAP attribution, and Leipzig consensus scoring.
           </p>
         </div>
 
         <!-- QUICK PRESET BUTTONS -->
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button type="button" class="btn-secondary btn-preset-healthy" onclick="fillHealthySample()">
-            🟢 Quick Fill: Healthy Sample
+            <i data-lucide="check-circle-2"></i> Healthy Sample
           </button>
           <button type="button" class="btn-secondary btn-preset-wilson" onclick="fillWilsonSample()">
-            🔴 Quick Fill: High-Risk Wilson
+            <i data-lucide="alert-triangle"></i> High-Risk Wilson
           </button>
         </div>
       </div>
@@ -348,7 +128,7 @@
     <!-- NOTIFICATION ALERT BANNER -->
     <div id="patientStatusAlert" class="alert-banner" role="alert">
       <span id="alertMessage">Notification</span>
-      <button type="button" onclick="dismissAlert()" style="background: none; border: none; font-size: 16px; cursor: pointer; color: inherit;">✕</button>
+      <button type="button" onclick="dismissAlert()" style="background: none; border: none; font-size: 16px; cursor: pointer; color: inherit;" aria-label="Dismiss">&times;</button>
     </div>
 
     <!-- FAST-TRACK LAB REPORT IMPORT CARD -->
@@ -356,27 +136,28 @@
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <h2 style="font-size: 18px; font-weight: 800; color: var(--dark); margin: 0;">
-              📁 Fast-Track Laboratory Report Import (CSV / JSON / PDF / Word)
+            <h2 style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="file-up" style="color: var(--primary);"></i>
+              <span>Fast-Track Laboratory Report Import (CSV / JSON / PDF / Word)</span>
             </h2>
             <span class="patient-id-badge">Max 2 MB</span>
           </div>
           <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
-            Upload patient biochemistry panel or clinical records (.csv, .json, .pdf, or Word .docx/.doc) to auto-populate form fields. Imported data is reviewed before submission and never runs prediction automatically.
+            Upload patient biochemistry panel or clinical records (.csv, .json, .pdf, .docx, or .doc) to automatically map and populate form fields.
           </p>
         </div>
 
         <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
           <a href="/api/sample_template?format=csv" class="template-link" download="wilson_lab_template.csv">
-            📥 Sample CSV Template
+            <i data-lucide="download"></i> Sample CSV
           </a>
-          <span style="color: #cbd5e1;">|</span>
+          <span style="color: var(--border);">|</span>
           <a href="/api/sample_template?format=json" class="template-link" download="wilson_lab_template.json">
-            📥 Sample JSON Template
+            <i data-lucide="download"></i> Sample JSON
           </a>
-          <span style="color: #cbd5e1;">|</span>
+          <span style="color: var(--border);">|</span>
           <a href="/api/sample_template?format=docx" class="template-link" download="wilson_lab_template.docx">
-            📥 Sample Word Template
+            <i data-lucide="download"></i> Sample Word
           </a>
         </div>
       </div>
@@ -384,266 +165,492 @@
       <!-- UPLOAD DROP ZONE & CONTROLS -->
       <div style="display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 260px;">
-          <input type="file" id="labFileInput" accept=".csv,.json,.pdf,.docx,.doc" style="width: 100%; font-size: 14px; padding: 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: var(--radius-sm);" />
+          <input type="file" id="labFileInput" accept=".csv,.json,.pdf,.docx,.doc" class="form-control-custom" />
         </div>
-        <button type="button" id="btnUploadLabFile" class="btn-action-small btn-action-primary" onclick="uploadAndInspectLabFile()" style="padding: 10px 20px;">
-          📤 Parse & Preview Laboratory Report
+        <button type="button" id="btnUploadLabFile" class="btn-action-small btn-action-primary" onclick="uploadAndInspectLabFile()" style="padding: 10px 20px; font-weight: 700;">
+          <i data-lucide="upload-cloud"></i> Parse &amp; Preview Report
         </button>
       </div>
       <div id="uploadStatusText" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; display: none;"></div>
     </div>
 
-    <!-- MAIN FORM -->
-    <div class="card-glass">
-      <form action="/submit" method="post" id="clinicalForm">
+    <!-- MAIN CLINICAL FORM WRAPPER -->
+    <div class="card-glass" id="formCardContainer">
+
+      <!-- MODE TOGGLE BAR: GUIDED STEPPER VS SINGLE-PAGE POWER MODE -->
+      <div class="stepper-mode-container">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 700; color: var(--dark); text-transform: uppercase; letter-spacing: 0.5px;">Intake Workflow Mode:</span>
+        </div>
+
+        <div class="mode-toggle-group" role="group" aria-label="Intake Workflow Mode">
+          <button type="button" id="btnModeStepper" class="btn-mode-toggle active" onclick="switchWorkflowMode('stepper')">
+            <i data-lucide="git-commit"></i> Guided 4-Stage Stepper
+          </button>
+          <button type="button" id="btnModeSinglePage" class="btn-mode-toggle" onclick="switchWorkflowMode('single')">
+            <i data-lucide="layout-grid"></i> Single-Page Power Mode
+          </button>
+        </div>
+      </div>
+
+      <!-- STEPPER NAVIGATION INDICATORS -->
+      <nav class="clinical-stepper-nav" aria-label="Assessment Progress" id="clinicalStepperNav">
+        <div class="stepper-step active" id="stepIndicator1" onclick="jumpToStep(1)">
+          <div class="stepper-step-number">1</div>
+          <div class="stepper-step-meta">
+            <span class="stepper-step-title">Demographics</span>
+            <span class="stepper-step-subtitle">Context &amp; Identity</span>
+          </div>
+        </div>
+
+        <div class="stepper-step" id="stepIndicator2" onclick="jumpToStep(2)">
+          <div class="stepper-step-number">2</div>
+          <div class="stepper-step-meta">
+            <span class="stepper-step-title">Copper Kinetics</span>
+            <span class="stepper-step-subtitle">Serum &amp; Urine</span>
+          </div>
+        </div>
+
+        <div class="stepper-step" id="stepIndicator3" onclick="jumpToStep(3)">
+          <div class="stepper-step-number">3</div>
+          <div class="stepper-step-meta">
+            <span class="stepper-step-title">Hepatic Panel</span>
+            <span class="stepper-step-subtitle">LFTs &amp; Coagulation</span>
+          </div>
+        </div>
+
+        <div class="stepper-step" id="stepIndicator4" onclick="jumpToStep(4)">
+          <div class="stepper-step-number">4</div>
+          <div class="stepper-step-meta">
+            <span class="stepper-step-title">Neuro-Ophthalmic</span>
+            <span class="stepper-step-subtitle">Phenotype &amp; Genetics</span>
+          </div>
+        </div>
+      </nav>
+
+      <!-- LIVE CLINICAL CALCULATORS BAR (DE RITIS & LEIPZIG PREVIEW) -->
+      <div class="live-calc-container" id="liveCalcContainer">
+        <!-- De Ritis Ratio Box -->
+        <div class="live-calc-box">
+          <div class="live-calc-header">
+            <span class="live-calc-title"><i data-lucide="activity"></i> De Ritis Ratio (AST/ALT)</span>
+            <span id="deRitisBadge" class="range-badge badge-info">Pending inputs</span>
+          </div>
+          <div class="live-calc-val" id="deRitisValue">—</div>
+          <div class="live-calc-desc" id="deRitisDesc">Enter AST and ALT to compute hepatocellular necrosis index.</div>
+        </div>
+
+        <!-- Leipzig Preliminary Estimator Box -->
+        <div class="live-calc-box" style="border-left-color: var(--secondary);">
+          <div class="live-calc-header">
+            <span class="live-calc-title"><i data-lucide="clipboard-check"></i> Leipzig Score Estimator</span>
+            <span id="leipzigBadge" class="range-badge badge-normal">0 / 4 points</span>
+          </div>
+          <div class="live-calc-val" id="leipzigValue">0 pts</div>
+          <div class="live-calc-desc" id="leipzigDesc">Accumulates points live from KF Rings, Ceruloplasmin, 24h Urine Copper, and ATP7B mutation.</div>
+        </div>
+      </div>
+
+      <!-- FORM ELEMENT (ACTION /submit, METHOD POST) -->
+      <form action="/submit" method="post" id="clinicalForm" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-        <!-- PATIENT IDENTITY SECTION -->
-        <div class="patient-identity-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <h2 style="font-size: 18px; font-weight: 800; color: var(--dark); margin: 0;">
-                👤 Patient Identification & Medical Records
-              </h2>
-              <span class="patient-id-badge">Identity Isolation Guaranteed</span>
-            </div>
-
-            <!-- BUTTONS: LOAD SAVED PATIENT / NEW ASSESSMENT -->
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button type="button" id="btnLoadPatient" class="btn-action-small btn-action-secondary" onclick="loadSelectedPatient()">
-                📂 Load Selected Patient
-              </button>
-              <button type="button" id="btnNewPatient" class="btn-action-small btn-action-primary" onclick="startNewAssessment()">
-                ➕ New Patient Assessment
-              </button>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-            <!-- Patient ID -->
-            <div class="form-group">
-              <label class="form-label" for="patientId">
-                Patient ID
-                <small style="color: var(--primary); font-weight: 600;">(Sequential / System Assigned)</small>
-              </label>
-              <input type="text" class="form-control-custom" id="patientId" name="patientId" value="{{ next_patient_id }}" readonly style="background: #f1f5f9; cursor: not-allowed; font-weight: 700; color: var(--primary);">
-              <small class="form-text" style="color: var(--text-muted); font-size: 11px; margin-top: 3px; display: block;">Auto-generated sequential record ID (e.g. NEUROMED001).</small>
-            </div>
-
-            <!-- Patient Name -->
-            <div class="form-group">
-              <label class="form-label" for="patientName">
-                Patient Full Name <span style="color: var(--danger);">*</span>
-              </label>
-              <input type="text" class="form-control-custom" id="patientName" name="patientName" placeholder="e.g. Eleanor Vance" required>
-              <small class="form-text" style="color: var(--text-muted); font-size: 11px; margin-top: 3px; display: block;">Required for clinical identification in generated reports.</small>
-            </div>
-
-            <!-- Select Existing Patient Dropdown -->
-            <div class="form-group">
-              <label class="form-label" for="selectExistingPatient">
-                Select Existing Patient
-                <small style="color: var(--text-muted);">(Optional Lookup)</small>
-              </label>
-              <select class="form-control-custom" id="selectExistingPatient" onchange="onExistingPatientDropdownChange()">
-                <option value="">-- Choose Existing Patient --</option>
-                {% if patients %}
-                  {% for p in patients %}
-                    <option value="{{ p.patient_id }}">
-                      {{ p.patient_id }} — {{ p.patient_name }} (Age {{ p.age if p.age else '-' }}, {{ p.sex if p.sex else '-' }})
-                    </option>
-                  {% endfor %}
-                {% endif %}
-              </select>
-              <small class="form-text" style="color: var(--text-muted); font-size: 11px; margin-top: 3px; display: block;">Select to load recorded demographics for reassessment.</small>
-            </div>
-          </div>
-
-          <!-- VERIFIED LAB REPORT IMPORT BANNER -->
-          <div id="labReportImportBanner" style="display: none; margin-top: 16px; padding: 14px 18px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div>
-              <div style="font-size: 13.5px; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px;">
-                🔬 Certified Pathology Lab Report Available
+        <!-- =========================================================
+             STAGE 1: PATIENT CONTEXT & DEMOGRAPHICS
+             ========================================================= -->
+        <section class="stepper-pane active" id="paneStep1" aria-labelledby="step1Header">
+          
+          <!-- PATIENT IDENTITY SECTION -->
+          <div class="patient-identity-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <h2 id="step1Header" style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="user-check" style="color: var(--primary);"></i>
+                  <span>Patient Identification &amp; Master Record Isolation</span>
+                </h2>
+                <span class="patient-id-badge">Identity Guarded</span>
               </div>
-              <div id="labReportBannerText" style="font-size: 12.5px; color: #3b82f6; margin-top: 2px;"></div>
+
+              <!-- BUTTONS: LOAD SAVED PATIENT / NEW ASSESSMENT -->
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" id="btnLoadPatient" class="btn-action-small btn-action-secondary" onclick="loadSelectedPatient()">
+                  <i data-lucide="folder-open"></i> Load Selected Patient
+                </button>
+                <button type="button" id="btnNewPatient" class="btn-action-small btn-action-primary" onclick="startNewAssessment()">
+                  <i data-lucide="user-plus"></i> New Patient Assessment
+                </button>
+              </div>
             </div>
-            <button type="button" class="btn-action-small btn-action-primary" onclick="autoFillFromLatestLabReport()" style="background: #2563eb; color: white; padding: 8px 16px; font-weight: 700;">
-              ⚡ 1-Click Import Biomarkers from Lab Report
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+              <!-- Patient ID -->
+              <div class="form-group">
+                <label class="form-label" for="patientId">
+                  <span>Patient ID</span>
+                  <small style="color: var(--primary); font-weight: 600;">(System Assigned)</small>
+                </label>
+                <input type="text" class="form-control-custom" id="patientId" name="patientId" value="{{ next_patient_id }}" readonly style="background: var(--table-stripe); cursor: not-allowed; font-weight: 700; color: var(--primary);">
+                <small style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">Unique sequential clinical identifier.</small>
+              </div>
+
+              <!-- Patient Name -->
+              <div class="form-group">
+                <label class="form-label" for="patientName">
+                  <span>Patient Full Name <strong style="color: var(--danger);">*</strong></span>
+                </label>
+                <input type="text" class="form-control-custom" id="patientName" name="patientName" placeholder="e.g. Eleanor Vance" required>
+                <div class="biomarker-feedback" id="feedback_patientName"></div>
+              </div>
+
+              <!-- Select Existing Patient Dropdown -->
+              <div class="form-group">
+                <label class="form-label" for="selectExistingPatient">
+                  <span>Select Existing Patient</span>
+                  <small style="color: var(--text-muted); font-weight: 500;">(Optional Lookup)</small>
+                </label>
+                <select class="form-control-custom" id="selectExistingPatient" onchange="onExistingPatientDropdownChange()">
+                  <option value="">-- Choose Existing Patient --</option>
+                  {% if patients %}
+                    {% for p in patients %}
+                      <option value="{{ p.patient_id }}">
+                        {{ p.patient_id }} — {{ p.patient_name }} (Age {{ p.age if p.age else '-' }}, {{ p.sex if p.sex else '-' }})
+                      </option>
+                    {% endfor %}
+                  {% endif %}
+                </select>
+                <small style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">Load saved demographics for reassessment.</small>
+              </div>
+            </div>
+
+            <!-- VERIFIED LAB REPORT IMPORT BANNER -->
+            <div id="labReportImportBanner" style="display: none; margin-top: 16px; padding: 14px 18px; background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-sm); justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <div style="font-size: 13.5px; font-weight: 800; color: var(--info-text); display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="file-check-2"></i> Certified Pathology Lab Report Available
+                </div>
+                <div id="labReportBannerText" style="font-size: 12.5px; color: var(--info); margin-top: 2px;"></div>
+              </div>
+              <button type="button" class="btn-action-small btn-action-primary" onclick="autoFillFromLatestLabReport()" style="padding: 8px 16px; font-weight: 700;">
+                <i data-lucide="zap"></i> 1-Click Import Biomarkers
+              </button>
+            </div>
+          </div>
+
+          <!-- DEMOGRAPHIC FIELDS -->
+          <div class="form-section-header">
+            <i data-lucide="user"></i> 1. Baseline Demographics &amp; Patient Vitals
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="inputAge">
+                <span>Age (Years) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">1–120 yr</span>
+              </label>
+              <input type="number" class="form-control-custom" id="inputAge" name="inputAge" placeholder="e.g. 24" min="1" max="120" required>
+              <div class="biomarker-feedback" id="feedback_inputAge"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputGender">
+                <span>Biological Sex <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputGender" name="inputGender" required>
+                <option value="">-- Select Sex --</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputGender"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputRegion">
+                <span>Region <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputRegion" name="inputRegion" required>
+                <option value="East">East</option>
+                <option value="North">North</option>
+                <option value="South">South</option>
+                <option value="West">West</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputRegion"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputSocioeconomicStatus">
+                <span>Socioeconomic Status <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputSocioeconomicStatus" name="inputSocioeconomicStatus" required>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputSocioeconomicStatus"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputBMI">
+                <span>BMI (kg/m²) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">18.5–24.9</span>
+              </label>
+              <input type="number" step="0.1" class="form-control-custom" id="inputBMI" name="inputBMI" placeholder="e.g. 22.5" min="10" max="65" required>
+              <div class="biomarker-feedback" id="feedback_inputBMI"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAlcoholUse">
+                <span>Alcohol Consumption History <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputAlcoholUse" name="inputAlcoholUse" required>
+                <option value="False">No (None / Occasional)</option>
+                <option value="True">Yes (Chronic / Significant)</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputAlcoholUse"></div>
+            </div>
+          </div>
+
+          <div class="stepper-nav-controls">
+            <div></div>
+            <button type="button" class="btn-prime" onclick="validateAndGoStep(1, 2)">
+              <span>Next: Copper Kinetics</span> <i data-lucide="arrow-right"></i>
             </button>
           </div>
-        </div>
-        
-        <div class="form-grid">
+        </section>
 
-          <!-- SECTION 1: DEMOGRAPHICS -->
-          <div class="form-section-header">
-            👤 1. Patient Demographics & Background
+        <!-- =========================================================
+             STAGE 2: COPPER KINETICS & BIOCHEMISTRY
+             ========================================================= -->
+        <section class="stepper-pane" id="paneStep2" aria-labelledby="step2Header">
+          <div class="form-section-header" id="step2Header">
+            <i data-lucide="flask-round"></i> 2. Copper Metabolism &amp; Serum Kinetics
+          </div>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 20px;">
+            Hallmark laboratory markers reflecting ATP7B dysfunction, systemic copper overload, and excretion dynamics.
+          </p>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="inputCeruloplasmin">
+                <span>Ceruloplasmin Level (mg/dL) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">20.0–40.0</span>
+              </label>
+              <input type="number" step="0.01" class="form-control-custom" id="inputCeruloplasmin" name="inputCeruloplasmin" placeholder="Normal: 20.0–40.0" required>
+              <div class="biomarker-feedback" id="feedback_inputCeruloplasmin"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputCopperBlood">
+                <span>Total Copper in Blood Serum (µg/dL) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">70.0–140.0</span>
+              </label>
+              <input type="number" step="0.01" class="form-control-custom" id="inputCopperBlood" name="inputCopperBlood" placeholder="Normal: 70.0–140.0" required>
+              <div class="biomarker-feedback" id="feedback_inputCopperBlood"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputFreeCopperBlood">
+                <span>Free Serum Copper (µg/dL) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">&lt;15.0</span>
+              </label>
+              <input type="number" step="0.01" class="form-control-custom" id="inputFreeCopperBlood" name="inputFreeCopperBlood" placeholder="Normal: &lt;15.0, Critical: &gt;25.0" required>
+              <div class="biomarker-feedback" id="feedback_inputFreeCopperBlood"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputCopperUrine">
+                <span>24-Hour Urinary Copper (µg/24h) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">&lt;40.0</span>
+              </label>
+              <input type="number" step="0.01" class="form-control-custom" id="inputCopperUrine" name="inputCopperUrine" placeholder="Normal: &lt;40.0, Wilson: &gt;100.0" required>
+              <div class="biomarker-feedback" id="feedback_inputCopperUrine"></div>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="inputAge">Age (Years)</label>
-            <input type="number" class="form-control-custom" id="inputAge" name="inputAge" placeholder="e.g. 24" min="1" max="120" required>
+          <div class="stepper-nav-controls">
+            <button type="button" class="btn-secondary" onclick="jumpToStep(1)">
+              <i data-lucide="arrow-left"></i> <span>Back: Demographics</span>
+            </button>
+            <button type="button" class="btn-prime" onclick="validateAndGoStep(2, 3)">
+              <span>Next: Hepatic Panel</span> <i data-lucide="arrow-right"></i>
+            </button>
+          </div>
+        </section>
+
+        <!-- =========================================================
+             STAGE 3: HEPATIC & METABOLIC PANEL
+             ========================================================= -->
+        <section class="stepper-pane" id="paneStep3" aria-labelledby="step3Header">
+          <div class="form-section-header" id="step3Header">
+            <i data-lucide="activity"></i> 3. Liver Function Tests (LFTs) &amp; Coagulation
+          </div>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 20px;">
+            Biochemical markers assessing hepatocellular necrosis, cholestasis, hepatic protein synthesis, and liver injury profile.
+          </p>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="inputALT">
+                <span>ALT — Alanine Aminotransferase (U/L) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">7.0–56.0</span>
+              </label>
+              <input type="number" step="0.1" class="form-control-custom" id="inputALT" name="inputALT" placeholder="Normal: 7–56 U/L" required>
+              <div class="biomarker-feedback" id="feedback_inputALT"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAST">
+                <span>AST — Aspartate Aminotransferase (U/L) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">10.0–40.0</span>
+              </label>
+              <input type="number" step="0.1" class="form-control-custom" id="inputAST" name="inputAST" placeholder="Normal: 10–40 U/L" required>
+              <div class="biomarker-feedback" id="feedback_inputAST"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputTotalBilirubin">
+                <span>Total Bilirubin (mg/dL) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">0.2–1.2</span>
+              </label>
+              <input type="number" step="0.01" class="form-control-custom" id="inputTotalBilirubin" name="inputTotalBilirubin" placeholder="Normal: 0.2–1.2 mg/dL" required>
+              <div class="biomarker-feedback" id="feedback_inputTotalBilirubin"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputAlbumin">
+                <span>Albumin (g/dL) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">3.5–5.5</span>
+              </label>
+              <input type="number" step="0.1" class="form-control-custom" id="inputAlbumin" name="inputAlbumin" placeholder="Normal: 3.5–5.5 g/dL" required>
+              <div class="biomarker-feedback" id="feedback_inputAlbumin"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputALP">
+                <span>ALP — Alkaline Phosphatase (U/L) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">44.0–147.0</span>
+              </label>
+              <input type="number" step="0.1" class="form-control-custom" id="inputALP" name="inputALP" placeholder="Normal: 44–147 U/L" required>
+              <div class="biomarker-feedback" id="feedback_inputALP"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputProthrombin">
+                <span>Prothrombin Time / INR <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">0.8–1.2</span>
+              </label>
+              <input type="number" step="0.01" class="form-control-custom" id="inputProthrombin" name="inputProthrombin" placeholder="Normal: 0.8–1.2" required>
+              <div class="biomarker-feedback" id="feedback_inputProthrombin"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputGGT">
+                <span>GGT — Gamma-Glutamyl Transferase (U/L) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">9.0–48.0</span>
+              </label>
+              <input type="number" step="0.1" class="form-control-custom" id="inputGGT" name="inputGGT" placeholder="Normal: 9–48 U/L" required>
+              <div class="biomarker-feedback" id="feedback_inputGGT"></div>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="inputGender">Sex</label>
-            <select class="form-control-custom" id="inputGender" name="inputGender" required>
-              <option value="">-- Select Sex --</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
+          <div class="stepper-nav-controls">
+            <button type="button" class="btn-secondary" onclick="jumpToStep(2)">
+              <i data-lucide="arrow-left"></i> <span>Back: Copper Kinetics</span>
+            </button>
+            <button type="button" class="btn-prime" onclick="validateAndGoStep(3, 4)">
+              <span>Next: Neuro-Ophthalmic &amp; Genetics</span> <i data-lucide="arrow-right"></i>
+            </button>
+          </div>
+        </section>
+
+        <!-- =========================================================
+             STAGE 4: NEURO-OPHTHALMIC & GENETICS
+             ========================================================= -->
+        <section class="stepper-pane" id="paneStep4" aria-labelledby="step4Header">
+          <div class="form-section-header" id="step4Header">
+            <i data-lucide="eye"></i> 4. Neurological, Ophthalmic &amp; Genetic Markers
+          </div>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 20px;">
+            Extrahepatic phenotypic manifestations including Kayser-Fleischer rings (+2 Leipzig points), motor symptoms, and genetic confirmation.
+          </p>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="inputKFR">
+                <span>Kayser-Fleischer (KF) Rings <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputKFR" name="inputKFR" required>
+                <option value="No">No (Slit-lamp examination negative)</option>
+                <option value="Yes">Yes (Descemet's membrane copper ring confirmed)</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputKFR"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputNeurological">
+                <span>Neurological Symptoms Score (0–10) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">0.0–10.0</span>
+              </label>
+              <input type="number" step="0.1" class="form-control-custom" id="inputNeurological" name="inputNeurological" placeholder="0.0 = Asymptomatic, &gt;2.0 = Tremor/Dysarthria" min="0" max="10" required>
+              <div class="biomarker-feedback" id="feedback_inputNeurological"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputPsychiatric">
+                <span>Psychiatric / Behavioral Symptoms <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputPsychiatric" name="inputPsychiatric" required>
+                <option value="No">No</option>
+                <option value="Yes">Yes (Depression, mood lability, psychosis)</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputPsychiatric"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputCognitive">
+                <span>Cognitive Function Score (30–100) <strong style="color: var(--danger);">*</strong></span>
+                <span class="range-hint">30.0–100.0</span>
+              </label>
+              <input type="number" step="0.1" min="30" max="100" class="form-control-custom" id="inputCognitive" name="inputCognitive" placeholder="Baseline intact: 90–100" required>
+              <div class="biomarker-feedback" id="feedback_inputCognitive"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputFamilyHistory">
+                <span>Family History of Wilson's Disease <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputFamilyHistory" name="inputFamilyHistory" required>
+                <option value="No">No known affected first-degree relatives</option>
+                <option value="Yes">Yes (Siblings / Parents affected)</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputFamilyHistory"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="inputGeneMutation">
+                <span>ATP7B Gene Mutation Analysis <strong style="color: var(--danger);">*</strong></span>
+              </label>
+              <select class="form-control-custom" id="inputGeneMutation" name="inputGeneMutation" required>
+                <option value="No">No / Not Detected (Wild-type)</option>
+                <option value="Yes">Yes (Pathogenic ATP7B mutation confirmed)</option>
+              </select>
+              <div class="biomarker-feedback" id="feedback_inputGeneMutation"></div>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="inputRegion">Region</label>
-            <select class="form-control-custom" id="inputRegion" name="inputRegion" required>
-              <option value="East">East</option>
-              <option value="North">North</option>
-              <option value="South">South</option>
-              <option value="West">West</option>
-            </select>
+          <div class="stepper-nav-controls">
+            <button type="button" class="btn-secondary" onclick="jumpToStep(3)">
+              <i data-lucide="arrow-left"></i> <span>Back: Hepatic Panel</span>
+            </button>
+            <button type="submit" id="btnSubmitAssessment" class="btn-prime" style="font-size: 16px; padding: 14px 36px;">
+              <i data-lucide="sparkles"></i> <span>RUN CLINICAL DIAGNOSTIC ASSESSMENT</span>
+            </button>
           </div>
+        </section>
 
-          <div class="form-group">
-            <label class="form-label" for="inputSocioeconomicStatus">Socioeconomic Status</label>
-            <select class="form-control-custom" id="inputSocioeconomicStatus" name="inputSocioeconomicStatus" required>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Low">Low</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputBMI">BMI (kg/m²)</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputBMI" name="inputBMI" placeholder="e.g. 22.5" min="10" max="65" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputAlcoholUse">Alcohol Use</label>
-            <select class="form-control-custom" id="inputAlcoholUse" name="inputAlcoholUse" required>
-              <option value="False">No</option>
-              <option value="True">Yes</option>
-            </select>
-          </div>
-
-          <!-- SECTION 2: COPPER BIOCHEMISTRY -->
-          <div class="form-section-header">
-            🧪 2. Copper Metabolism & Serum Biochemistry
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputCeruloplasmin">Ceruloplasmin Level (mg/dL)</label>
-            <input type="number" step="0.01" class="form-control-custom" id="inputCeruloplasmin" name="inputCeruloplasmin" placeholder="Normal: 20-40" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputCopperBlood">Copper in Blood Serum (µg/dL)</label>
-            <input type="number" step="0.01" class="form-control-custom" id="inputCopperBlood" name="inputCopperBlood" placeholder="e.g. 110" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputFreeCopperBlood">Free Serum Copper (µg/dL)</label>
-            <input type="number" step="0.01" class="form-control-custom" id="inputFreeCopperBlood" name="inputFreeCopperBlood" placeholder="Normal: <15" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputCopperUrine">24-Hour Urinary Copper (µg/24h)</label>
-            <input type="number" step="0.01" class="form-control-custom" id="inputCopperUrine" name="inputCopperUrine" placeholder="Normal: <40" required>
-          </div>
-
-          <!-- SECTION 3: LIVER FUNCTION TESTS -->
-          <div class="form-section-header">
-            🩺 3. Liver Function Tests (LFTs)
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputALT">ALT (U/L)</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputALT" name="inputALT" placeholder="e.g. 35" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputAST">AST (U/L)</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputAST" name="inputAST" placeholder="e.g. 40" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputTotalBilirubin">Total Bilirubin (mg/dL)</label>
-            <input type="number" step="0.01" class="form-control-custom" id="inputTotalBilirubin" name="inputTotalBilirubin" placeholder="e.g. 1.1" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputAlbumin">Albumin (g/dL)</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputAlbumin" name="inputAlbumin" placeholder="e.g. 4.2" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputALP">Alkaline Phosphatase ALP (U/L)</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputALP" name="inputALP" placeholder="e.g. 95" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputProthrombin">Prothrombin Time / INR</label>
-            <input type="number" step="0.01" class="form-control-custom" id="inputProthrombin" name="inputProthrombin" placeholder="e.g. 1.1" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputGGT">GGT (U/L)</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputGGT" name="inputGGT" placeholder="e.g. 45" required>
-          </div>
-
-          <!-- SECTION 4: NEURO & GENETICS -->
-          <div class="form-section-header">
-            👁️ 4. Neurological, Ophthalmic & Genetic Indicators
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputKFR">Kayser-Fleischer (KF) Rings</label>
-            <select class="form-control-custom" id="inputKFR" name="inputKFR" required>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputNeurological">Neurological Symptoms Score</label>
-            <input type="number" step="0.1" class="form-control-custom" id="inputNeurological" name="inputNeurological" placeholder="e.g. 5.0" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputPsychiatric">Psychiatric Symptoms</label>
-            <select class="form-control-custom" id="inputPsychiatric" name="inputPsychiatric" required>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputCognitive">Cognitive Function Score</label>
-            <input type="number" step="0.1" min="30" max="100" class="form-control-custom" id="inputCognitive" name="inputCognitive" placeholder="30 - 100" required>
-            <small class="form-text" style="color: var(--text-muted); font-size: 12px; margin-top: 4px; display: block;">The model uses a cognitive function scale of 30–100.</small>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputFamilyHistory">Family History</label>
-            <select class="form-control-custom" id="inputFamilyHistory" name="inputFamilyHistory" required>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inputGeneMutation">ATP7B Gene Mutation</label>
-            <select class="form-control-custom" id="inputGeneMutation" name="inputGeneMutation" required>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </div>
-
-        </div>
-
-        <div style="text-align: center; margin-top: 36px;">
-          <button type="submit" id="btnSubmitAssessment" class="btn-prime" style="font-size: 17px; padding: 14px 40px;">
-            ⚡ RUN CLINICAL DIAGNOSTIC ASSESSMENT
+        <!-- SINGLE-PAGE SUBMIT BAR (SHOWN ONLY IN POWER MODE) -->
+        <div class="single-page-submit-bar" style="display: none; text-align: center; margin-top: 36px; padding-top: 24px; border-top: 2px solid var(--border);">
+          <button type="submit" id="btnSubmitSinglePage" class="btn-prime" style="font-size: 16px; padding: 14px 44px;">
+            <i data-lucide="sparkles"></i> <span>RUN CLINICAL DIAGNOSTIC ASSESSMENT</span>
           </button>
         </div>
 
@@ -652,45 +659,82 @@
 
   </main>
 
+  <!-- DIAGNOSTIC PIPELINE PROGRESS MODAL (TASK 3) -->
+  <div id="diagnosticPipelineModal" class="pipeline-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pipelineTitle">
+    <div class="pipeline-modal-card">
+      <div class="pipeline-spinner-ring"></div>
+      <h2 id="pipelineTitle" class="pipeline-title">Clinical Diagnostic Intelligence Pipeline</h2>
+      <p class="pipeline-subtitle">Computing 4-Model Stacking Ensemble, Calibrated Meta-Probability &amp; SHAP Waterfall</p>
+      
+      <div class="pipeline-progress-track">
+        <div class="pipeline-progress-bar" id="pipelineProgressBar"></div>
+      </div>
+      
+      <div class="pipeline-steps-list">
+        <div class="pipeline-step-item active" id="pStep1">
+          <i data-lucide="check-circle" class="lucide"></i>
+          <span>1. Validating 23 Multi-Organ Biomarkers &amp; Physiological Bounds</span>
+        </div>
+        <div class="pipeline-step-item" id="pStep2">
+          <i data-lucide="loader" class="lucide"></i>
+          <span>2. Executing 4-Model Stacking Ensemble (XGB, LogReg, RF, SVM)</span>
+        </div>
+        <div class="pipeline-step-item" id="pStep3">
+          <i data-lucide="circle" class="lucide"></i>
+          <span>3. Computing Meta-Classifier Calibrated Probability &amp; Consensus</span>
+        </div>
+        <div class="pipeline-step-item" id="pStep4">
+          <i data-lucide="circle" class="lucide"></i>
+          <span>4. Generating SHAP Waterfall Local Feature Attribution</span>
+        </div>
+        <div class="pipeline-step-item" id="pStep5">
+          <i data-lucide="circle" class="lucide"></i>
+          <span>5. Synthesizing Leipzig Diagnostic Matrix &amp; Clinical Guidance</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- IMPORT PREVIEW MODAL -->
   <div id="labImportModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-card">
       <div class="modal-header">
         <div>
-          <h2 id="modalTitle" style="font-size: 20px; font-weight: 800; color: var(--dark); margin: 0;">
-            🧪 Laboratory Import Preview
+          <h2 id="modalTitle" style="font-size: 19px; font-weight: 800; color: var(--dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="clipboard-list" style="color: var(--primary);"></i>
+            <span>Laboratory Import Preview &amp; Verification</span>
           </h2>
           <p id="modalSubtitle" style="font-size: 13px; color: var(--text-muted); margin: 2px 0 0 0;">
-            Verify imported clinical findings before applying them to the diagnostic form.
+            Verify imported clinical findings before mapping them into the diagnostic form.
           </p>
         </div>
-        <button type="button" onclick="closeImportModal()" aria-label="Close" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1;">✕</button>
+        <button type="button" onclick="closeImportModal()" aria-label="Close" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
       </div>
 
       <div class="modal-body">
         <!-- Summary Chips -->
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;" id="modalStatChips">
-          <span class="stat-chip stat-chip-green" id="chipRecognized">✅ 0 Recognized</span>
-          <span class="stat-chip stat-chip-yellow" id="chipMissing">⚠️ 0 Missing</span>
-          <span class="stat-chip stat-chip-red" id="chipRejected" style="display: none;">❌ 0 Rejected</span>
+          <span class="stat-chip stat-chip-green" id="chipRecognized">0 Recognized</span>
+          <span class="stat-chip stat-chip-yellow" id="chipMissing">0 Missing</span>
+          <span class="stat-chip stat-chip-red" id="chipRejected" style="display: none;">0 Rejected</span>
         </div>
 
         <!-- Patient Info Card if detected in file -->
-        <div id="modalPatientBadge" style="display: none; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #3730a3;">
-          👤 <strong>Patient Found in File:</strong> <span id="modalPatientText">None</span>
+        <div id="modalPatientBadge" style="display: none; background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: var(--info-text);">
+          <i data-lucide="user"></i> <strong>Patient Found in File:</strong> <span id="modalPatientText">None</span>
         </div>
 
         <!-- Overwrite Warning Note -->
-        <div id="modalOverwriteWarning" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #92400e;">
-          ⚠️ <strong>Notice:</strong> Form fields already contain data. Applying this import will update populated fields with imported laboratory values.
+        <div id="modalOverwriteWarning" style="display: none; background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: var(--warning-text);">
+          <i data-lucide="alert-circle"></i> <strong>Notice:</strong> Form fields already contain data. Applying this import will overwrite existing fields with imported values.
         </div>
 
         <!-- Recognized Fields Table -->
         <div style="margin-bottom: 20px;">
-          <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 8px;">
+          <h3 style="font-size: 14.5px; font-weight: 700; color: var(--dark); margin-bottom: 8px;">
             Recognized Clinical Indicators (<span id="modalRecognizedCount">0</span>)
           </h3>
-          <div style="max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm);">
+          <div style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
             <table class="preview-table">
               <thead>
                 <tr>
@@ -709,11 +753,11 @@
 
         <!-- Missing Fields Container -->
         <div id="modalMissingContainer" style="margin-bottom: 18px;">
-          <h3 style="font-size: 14px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
-            ⚠️ Missing Clinical Indicators (<span id="modalMissingCount">0</span>)
+          <h3 style="font-size: 14px; font-weight: 700; color: var(--warning-text); margin-bottom: 6px;">
+            Missing Clinical Indicators (<span id="modalMissingCount">0</span>)
           </h3>
           <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
-            Missing laboratory indicators are strictly preserved as missing and will NOT be fabricated or zero-filled.
+            Missing indicators will remain unfilled for physician review and will not be artificially zero-filled.
           </p>
           <div id="modalMissingList" style="display: flex; flex-wrap: wrap; gap: 6px;">
             <!-- Badges -->
@@ -722,25 +766,25 @@
 
         <!-- Rejected Fields Container -->
         <div id="modalRejectedContainer" style="display: none; margin-bottom: 18px;">
-          <h3 style="font-size: 14px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
-            ❌ Rejected / Out-of-Bounds Indicators (<span id="modalRejectedCount">0</span>)
+          <h3 style="font-size: 14px; font-weight: 700; color: var(--danger-text); margin-bottom: 6px;">
+            Rejected / Out-of-Bounds Indicators (<span id="modalRejectedCount">0</span>)
           </h3>
-          <div id="modalRejectedList" style="font-size: 12px; color: #991b1b; background: #fee2e2; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid #fecaca;">
+          <div id="modalRejectedList" style="font-size: 12px; color: var(--danger-text); background: var(--danger-bg); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--danger-border);">
             <!-- Errors -->
           </div>
         </div>
 
-        <p style="font-size: 12px; color: var(--text-muted); margin: 0; background: #f8fafc; padding: 8px 12px; border-radius: 6px;">
-          ℹ️ <strong>Safety Protocol:</strong> Applying this import will populate the clinical form for review. It does <em>not</em> run the diagnostic prediction model until you press "Run Clinical Diagnostic Assessment".
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0; background: var(--table-stripe); padding: 8px 12px; border-radius: 6px;">
+          <i data-lucide="shield"></i> <strong>Safety Protocol:</strong> Applying this import populates form inputs for review. It does <em>not</em> run prediction until you press "Run Clinical Diagnostic Assessment".
         </p>
       </div>
 
       <div class="modal-footer">
         <button type="button" class="btn-action-small btn-action-secondary" onclick="closeImportModal()">
-          ✕ Cancel
+          Cancel
         </button>
         <button type="button" id="btnApplyImport" class="btn-action-small btn-action-primary" onclick="applyImportedDataToForm()">
-          ✅ Apply Values to Form
+          <i data-lucide="check"></i> Apply Values to Form
         </button>
       </div>
     </div>
@@ -748,13 +792,344 @@
 
   <!-- FOOTER -->
   <footer class="footer-custom">
-    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence &amp; Stacking Ensemble Decision Support System</p>
   </footer>
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    // State cache
-    let activeImportResult = null;
+    // --- THEME SWITCHER WITH LOCALSTORAGE PERSISTENCE ---
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('neuromed_theme', next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('themeIcon');
+      if (icon) {
+        icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    }
+
+    // --- STEPPER & WORKFLOW MODE SYSTEM ---
+    let currentStep = 1;
+    let workflowMode = 'stepper'; // 'stepper' or 'single'
+
+    function switchWorkflowMode(mode) {
+      workflowMode = mode;
+      const formCard = document.getElementById('formCardContainer');
+      const btnStepper = document.getElementById('btnModeStepper');
+      const btnSingle = document.getElementById('btnModeSinglePage');
+
+      if (mode === 'single') {
+        formCard.classList.add('single-page-mode');
+        btnSingle.classList.add('active');
+        btnStepper.classList.remove('active');
+      } else {
+        formCard.classList.remove('single-page-mode');
+        btnStepper.classList.add('active');
+        btnSingle.classList.remove('active');
+        jumpToStep(currentStep);
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function jumpToStep(stepNumber) {
+      if (workflowMode === 'single') return; // in single page mode, all are visible
+
+      currentStep = stepNumber;
+
+      // Update panes
+      for (let i = 1; i <= 4; i++) {
+        const pane = document.getElementById(`paneStep${i}`);
+        const indicator = document.getElementById(`stepIndicator${i}`);
+        if (pane) {
+          if (i === stepNumber) {
+            pane.classList.add('active');
+          } else {
+            pane.classList.remove('active');
+          }
+        }
+        if (indicator) {
+          if (i === stepNumber) {
+            indicator.classList.add('active');
+            indicator.classList.remove('completed');
+          } else if (i < stepNumber) {
+            indicator.classList.remove('active');
+            indicator.classList.add('completed');
+          } else {
+            indicator.classList.remove('active');
+            indicator.classList.remove('completed');
+          }
+        }
+      }
+
+      // Scroll smoothly to top of form card
+      const formCard = document.getElementById('formCardContainer');
+      if (formCard) {
+        formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function validateStepInputs(stepNumber) {
+      const pane = document.getElementById(`paneStep${stepNumber}`);
+      if (!pane) return true;
+
+      const inputs = pane.querySelectorAll('input[required], select[required]');
+      let allValid = true;
+      let firstInvalid = null;
+
+      inputs.forEach(inp => {
+        if (!inp.value || inp.value.trim() === '') {
+          allValid = false;
+          inp.style.borderColor = 'var(--danger)';
+          if (!firstInvalid) firstInvalid = inp;
+        } else {
+          inp.style.borderColor = '';
+        }
+      });
+
+      if (!allValid && firstInvalid) {
+        firstInvalid.focus();
+        showAlert(`Please complete all required fields in Step ${stepNumber} before continuing.`, 'error');
+        return false;
+      }
+      return true;
+    }
+
+    function validateAndGoStep(fromStep, toStep) {
+      if (validateStepInputs(fromStep)) {
+        jumpToStep(toStep);
+      }
+    }
+
+    // --- BIOMARKER REFERENCE RANGES & REAL-TIME VALIDATION ---
+    const BIOMARKER_METRICS = {
+      inputCeruloplasmin: { name: 'Ceruloplasmin', min: 20.0, max: 40.0, unit: 'mg/dL', lowDesc: 'Low (Wilson hallmark)', highDesc: 'Elevated' },
+      inputCopperBlood: { name: 'Serum Copper', min: 70.0, max: 140.0, unit: 'µg/dL', lowDesc: 'Low', highDesc: 'Elevated' },
+      inputFreeCopperBlood: { name: 'Free Copper', min: 0.0, max: 15.0, unit: 'µg/dL', lowDesc: 'Normal', highDesc: 'Elevated (>25 critical)' },
+      inputCopperUrine: { name: '24h Urine Copper', min: 0.0, max: 40.0, unit: 'µg/24h', lowDesc: 'Normal', highDesc: 'Elevated (>100 diagnostic)' },
+      inputALT: { name: 'ALT', min: 7.0, max: 56.0, unit: 'U/L', lowDesc: 'Normal', highDesc: 'Elevated (Hepatocellular injury)' },
+      inputAST: { name: 'AST', min: 10.0, max: 40.0, unit: 'U/L', lowDesc: 'Normal', highDesc: 'Elevated' },
+      inputTotalBilirubin: { name: 'Bilirubin', min: 0.2, max: 1.2, unit: 'mg/dL', lowDesc: 'Normal', highDesc: 'Elevated (Jaundice)' },
+      inputAlbumin: { name: 'Albumin', min: 3.5, max: 5.5, unit: 'g/dL', lowDesc: 'Hypoalbuminemia (Liver deficit)', highDesc: 'Dehydration' },
+      inputALP: { name: 'ALP', min: 44.0, max: 147.0, unit: 'U/L', lowDesc: 'Low (Often <40 in Wilson acute failure)', highDesc: 'Cholestasis' },
+      inputProthrombin: { name: 'INR', min: 0.8, max: 1.2, unit: '', lowDesc: 'Normal', highDesc: 'Coagulopathy' },
+      inputGGT: { name: 'GGT', min: 9.0, max: 48.0, unit: 'U/L', lowDesc: 'Normal', highDesc: 'Elevated (Biliary/Liver stress)' },
+      inputAge: { name: 'Age', min: 3.0, max: 90.0, unit: 'yr', lowDesc: 'Pediatric', highDesc: 'Geriatric' },
+      inputBMI: { name: 'BMI', min: 18.5, max: 24.9, unit: 'kg/m²', lowDesc: 'Underweight', highDesc: 'Overweight / Obese' },
+      inputCognitive: { name: 'Cognitive Score', min: 80.0, max: 100.0, unit: 'pts', lowDesc: 'Cognitive Deficit (<80)', highDesc: 'Intact' },
+      inputNeurological: { name: 'Neuro Score', min: 0.0, max: 1.0, unit: 'pts', lowDesc: 'Asymptomatic', highDesc: 'Symptomatic / Impairment' }
+    };
+
+    function validateBiomarkerInput(id) {
+      const el = document.getElementById(id);
+      const feedback = document.getElementById(`feedback_${id}`);
+      if (!el || !feedback) return;
+
+      const rule = BIOMARKER_METRICS[id];
+      if (!rule) return;
+
+      const val = parseFloat(el.value);
+      if (isNaN(val)) {
+        feedback.innerHTML = '';
+        return;
+      }
+
+      if (val >= rule.min && val <= rule.max) {
+        feedback.innerHTML = `<span class="range-badge badge-normal">Normal (${rule.min}–${rule.max} ${rule.unit})</span>`;
+      } else if (val < rule.min) {
+        feedback.innerHTML = `<span class="range-badge badge-low">Low: ${val} ${rule.unit} (&lt;${rule.min})</span>`;
+      } else {
+        feedback.innerHTML = `<span class="range-badge badge-high">High: ${val} ${rule.unit} (&gt;${rule.max})</span>`;
+      }
+    }
+
+    // --- LIVE CLINICAL CALCULATORS (DE RITIS & LEIPZIG ESTIMATOR) ---
+    function updateClinicalCalculators() {
+      // 1. De Ritis Ratio (AST / ALT)
+      const astEl = document.getElementById('inputAST');
+      const altEl = document.getElementById('inputALT');
+      const deRitisVal = document.getElementById('deRitisValue');
+      const deRitisBadge = document.getElementById('deRitisBadge');
+      const deRitisDesc = document.getElementById('deRitisDesc');
+
+      if (astEl && altEl && deRitisVal && deRitisBadge && deRitisDesc) {
+        const ast = parseFloat(astEl.value);
+        const alt = parseFloat(altEl.value);
+        if (!isNaN(ast) && !isNaN(alt) && alt > 0) {
+          const ratio = (ast / alt).toFixed(2);
+          deRitisVal.textContent = ratio;
+          if (ratio > 2.0) {
+            deRitisBadge.className = 'range-badge badge-high';
+            deRitisBadge.textContent = 'AST > 2x ALT (Necrosis/Acute)';
+            deRitisDesc.textContent = 'Severe hepatocellular necrosis / Wilson acute liver failure pattern (AST > 2.0x ALT).';
+          } else if (ratio < 1.0) {
+            deRitisBadge.className = 'range-badge badge-info';
+            deRitisBadge.textContent = 'ALT Predominant (< 1.0)';
+            deRitisDesc.textContent = 'Hepatocellular inflammation pattern typical of early metabolic injury.';
+          } else {
+            deRitisBadge.className = 'range-badge badge-normal';
+            deRitisBadge.textContent = 'Balanced Ratio (1.0–2.0)';
+            deRitisDesc.textContent = 'Intermediate aminotransferase distribution.';
+          }
+        } else {
+          deRitisVal.textContent = '—';
+          deRitisBadge.className = 'range-badge badge-info';
+          deRitisBadge.textContent = 'Pending inputs';
+          deRitisDesc.textContent = 'Enter AST and ALT to compute hepatocellular necrosis index.';
+        }
+      }
+
+      // 2. Leipzig Preliminary Score Estimator
+      let leipzigPoints = 0;
+      
+      // KF Rings (+2)
+      const kfrEl = document.getElementById('inputKFR');
+      if (kfrEl && kfrEl.value === 'Yes') leipzigPoints += 2;
+
+      // Ceruloplasmin: <10 => +2, 10-20 => +1
+      const ceruloEl = document.getElementById('inputCeruloplasmin');
+      if (ceruloEl && !isNaN(parseFloat(ceruloEl.value))) {
+        const cVal = parseFloat(ceruloEl.value);
+        if (cVal < 10.0) leipzigPoints += 2;
+        else if (cVal <= 20.0) leipzigPoints += 1;
+      }
+
+      // 24h Urine Copper: >100 => +2, 40-100 => +1
+      const urineEl = document.getElementById('inputCopperUrine');
+      if (urineEl && !isNaN(parseFloat(urineEl.value))) {
+        const uVal = parseFloat(urineEl.value);
+        if (uVal > 100.0) leipzigPoints += 2;
+        else if (uVal >= 40.0) leipzigPoints += 1;
+      }
+
+      // Neurologic symptoms: >2.0 => +2, >0.2 => +1
+      const neuroEl = document.getElementById('inputNeurological');
+      if (neuroEl && !isNaN(parseFloat(neuroEl.value))) {
+        const nVal = parseFloat(neuroEl.value);
+        if (nVal >= 2.0) leipzigPoints += 2;
+        else if (nVal > 0.3) leipzigPoints += 1;
+      }
+
+      // ATP7B Gene Mutation (+2)
+      const geneEl = document.getElementById('inputGeneMutation');
+      if (geneEl && geneEl.value === 'Yes') leipzigPoints += 2;
+
+      const leipzigVal = document.getElementById('leipzigValue');
+      const leipzigBadge = document.getElementById('leipzigBadge');
+      const leipzigDesc = document.getElementById('leipzigDesc');
+
+      if (leipzigVal && leipzigBadge && leipzigDesc) {
+        leipzigVal.textContent = `${leipzigPoints} pts`;
+        if (leipzigPoints >= 4) {
+          leipzigBadge.className = 'range-badge badge-high';
+          leipzigBadge.textContent = `${leipzigPoints}/4+ Definite Wilson`;
+          leipzigDesc.textContent = 'Score ≥ 4 establishes a confirmed diagnosis of Wilson\'s Disease by Leipzig Consensus.';
+        } else if (leipzigPoints >= 2) {
+          leipzigBadge.className = 'range-badge badge-low';
+          leipzigBadge.textContent = `${leipzigPoints}/4 Probable / Borderline`;
+          leipzigDesc.textContent = 'Score 2–3 indicates probable disease: further clinical workup recommended.';
+        } else {
+          leipzigBadge.className = 'range-badge badge-normal';
+          leipzigBadge.textContent = `${leipzigPoints}/4 Unlikely`;
+          leipzigDesc.textContent = 'Score 0–1 is clinically unlikely to represent symptomatic Wilson\'s Disease.';
+        }
+      }
+    }
+
+    // Attach real-time event listeners across all biomarker inputs
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize theme icon
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      updateThemeIcon(currentTheme);
+
+      // Initialize icons
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      // Bind input listeners
+      Object.keys(BIOMARKER_METRICS).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', () => {
+            validateBiomarkerInput(id);
+            updateClinicalCalculators();
+          });
+          el.addEventListener('change', () => {
+            validateBiomarkerInput(id);
+            updateClinicalCalculators();
+          });
+        }
+      });
+
+      ['inputKFR', 'inputPsychiatric', 'inputFamilyHistory', 'inputGeneMutation'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', updateClinicalCalculators);
+        }
+      });
+
+      // --- DIAGNOSTIC PIPELINE MODAL PROGRESS INTERCEPTION (TASK 3) ---
+      const form = document.getElementById('clinicalForm');
+      if (form) {
+        form.addEventListener('submit', (e) => {
+          // Check all 4 stages for valid required inputs
+          for (let s = 1; s <= 4; s++) {
+            if (!validateStepInputs(s)) {
+              e.preventDefault();
+              if (workflowMode === 'stepper') jumpToStep(s);
+              return false;
+            }
+          }
+
+          // Launch Clinical Progress Modal
+          const modal = document.getElementById('diagnosticPipelineModal');
+          const pBar = document.getElementById('pipelineProgressBar');
+          if (modal && pBar) {
+            modal.classList.add('active');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            // Progress bar and stage ticker
+            let progress = 15;
+            pBar.style.width = '15%';
+
+            const interval = setInterval(() => {
+              progress += 20;
+              if (progress <= 95) {
+                pBar.style.width = progress + '%';
+              }
+              if (progress >= 35) {
+                document.getElementById('pStep1')?.classList.add('completed');
+                document.getElementById('pStep2')?.classList.add('active');
+              }
+              if (progress >= 55) {
+                document.getElementById('pStep2')?.classList.add('completed');
+                document.getElementById('pStep3')?.classList.add('active');
+              }
+              if (progress >= 75) {
+                document.getElementById('pStep3')?.classList.add('completed');
+                document.getElementById('pStep4')?.classList.add('active');
+              }
+              if (progress >= 90) {
+                document.getElementById('pStep4')?.classList.add('completed');
+                document.getElementById('pStep5')?.classList.add('active');
+                clearInterval(interval);
+              }
+            }, 600);
+          }
+          // The form continues standard submission to /submit
+        });
+      }
+
+      // Close import modal on escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeImportModal();
+      });
+    });
 
     // --- ALERT BANNER UTILITIES ---
     function showAlert(message, type = 'info') {
@@ -772,7 +1147,6 @@
       if (banner) banner.style.display = 'none';
     }
 
-    // --- HTML ESCAPER (XSS DEFENSE) ---
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
       return String(str)
@@ -812,6 +1186,7 @@
         if (banner) banner.style.display = 'none';
         latestLabReportData = null;
       }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function autoFillFromLatestLabReport() {
@@ -851,7 +1226,11 @@
       if (r.family_history !== null && r.family_history !== undefined) document.getElementById('inputFamilyHistory').value = (r.family_history == 1 ? 'Yes' : 'No');
       if (r.atb7b_gene_mutation !== null && r.atb7b_gene_mutation !== undefined) document.getElementById('inputGeneMutation').value = (r.atb7b_gene_mutation == 1 ? 'Yes' : 'No');
 
-      showAlert(`✅ Successfully imported clinical biomarkers from Certified Laboratory Report #${r.report_number}. Review values and click Run Clinical Diagnostic Assessment.`, 'success');
+      // Trigger recalculations
+      Object.keys(BIOMARKER_METRICS).forEach(id => validateBiomarkerInput(id));
+      updateClinicalCalculators();
+
+      showAlert(`[SUCCESS] Successfully imported clinical biomarkers from Certified Laboratory Report #${r.report_number}. Review values and click Run Clinical Diagnostic Assessment.`, 'success');
     }
 
     function onExistingPatientDropdownChange() {
@@ -877,7 +1256,7 @@
       const originalText = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '⏳ Loading...';
+        btn.innerHTML = 'Loading...';
       }
 
       try {
@@ -904,6 +1283,8 @@
         }
 
         await checkForLatestLabReport(p.patient_id);
+        Object.keys(BIOMARKER_METRICS).forEach(id => validateBiomarkerInput(id));
+        updateClinicalCalculators();
 
         showAlert(`Successfully loaded patient profile: ${p.patient_name} (${p.patient_id}). Baseline demographics populated.`, 'success');
       } catch (err) {
@@ -921,7 +1302,7 @@
       const originalText = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '⏳ Assigning ID...';
+        btn.innerHTML = 'Assigning ID...';
       }
 
       try {
@@ -940,6 +1321,11 @@
         if (sel) sel.value = '';
         checkForLatestLabReport(null);
 
+        // Clear feedback badges
+        document.querySelectorAll('.biomarker-feedback').forEach(f => f.innerHTML = '');
+        updateClinicalCalculators();
+        jumpToStep(1);
+
         showAlert(`Started new patient assessment with ID: ${data.next_patient_id}. Please enter patient name and clinical indicators.`, 'info');
         const nameField = document.getElementById('patientName');
         if (nameField) nameField.focus();
@@ -954,6 +1340,8 @@
     }
 
     // --- LABORATORY DATA UPLOAD & INSPECT ---
+    let activeImportResult = null;
+
     async function uploadAndInspectLabFile() {
       const fileInput = document.getElementById('labFileInput');
       const file = fileInput && fileInput.files ? fileInput.files[0] : null;
@@ -963,7 +1351,6 @@
         return;
       }
 
-      // Client-side 2 MB check
       const MAX_BYTES = 2 * 1024 * 1024;
       if (file.size > MAX_BYTES) {
         showAlert(`File exceeds maximum permitted upload limit of 2 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB).`, 'error');
@@ -982,7 +1369,7 @@
       const statusText = document.getElementById('uploadStatusText');
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '⏳ Parsing & Validating...';
+        btn.innerHTML = 'Parsing & Validating...';
       }
       if (statusText) {
         statusText.style.display = 'block';
@@ -1032,18 +1419,16 @@
       const rejectedKeys = Object.keys(data.rejected_fields || {});
       const rejectedCount = rejectedKeys.length;
 
-      // Update stat chips
-      document.getElementById('chipRecognized').textContent = `✅ ${recognizedCount} Recognized`;
-      document.getElementById('chipMissing').textContent = `⚠️ ${missingCount} Missing`;
+      document.getElementById('chipRecognized').textContent = `${recognizedCount} Recognized`;
+      document.getElementById('chipMissing').textContent = `${missingCount} Missing`;
       const rejectedChip = document.getElementById('chipRejected');
       if (rejectedCount > 0) {
-        rejectedChip.textContent = `❌ ${rejectedCount} Rejected`;
+        rejectedChip.textContent = `${rejectedCount} Rejected`;
         rejectedChip.style.display = 'inline-flex';
       } else {
         rejectedChip.style.display = 'none';
       }
 
-      // Patient identity badge
       const pBadge = document.getElementById('modalPatientBadge');
       const pText = document.getElementById('modalPatientText');
       if (data.patient_name || data.patient_id) {
@@ -1053,12 +1438,10 @@
         pBadge.style.display = 'none';
       }
 
-      // Check if form currently has data
       const hasExistingData = checkIfFormHasData();
       const warnBox = document.getElementById('modalOverwriteWarning');
       if (warnBox) warnBox.style.display = hasExistingData ? 'block' : 'none';
 
-      // Populate recognized fields table
       const tbody = document.getElementById('modalRecognizedTableBody');
       tbody.innerHTML = '';
       document.getElementById('modalRecognizedCount').textContent = recognizedCount;
@@ -1080,14 +1463,13 @@
         const formTargetId = (data.canonical_to_form_id && data.canonical_to_form_id[canonName]) || CANONICAL_TO_FORM_IDS[canonName] || canonName;
         tr.innerHTML = `
           <td><strong>${escapeHtml(canonName)}</strong></td>
-          <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700;">${escapeHtml(String(val))}</code></td>
+          <td><code style="background: var(--table-stripe); padding: 2px 6px; border-radius: 4px; font-weight: 700;">${escapeHtml(String(val))}</code></td>
           <td style="color: var(--text-muted); font-size: 12px;"><code>#${escapeHtml(formTargetId)}</code></td>
           <td><span class="field-status-badge status-ok">Recognized</span></td>
         `;
         tbody.appendChild(tr);
       }
 
-      // Populate missing fields badges
       const missingList = document.getElementById('modalMissingList');
       missingList.innerHTML = '';
       document.getElementById('modalMissingCount').textContent = missingCount;
@@ -1099,7 +1481,6 @@
         missingList.appendChild(badge);
       });
 
-      // Populate rejected fields if any
       const rejContainer = document.getElementById('modalRejectedContainer');
       const rejList = document.getElementById('modalRejectedList');
       if (rejectedCount > 0) {
@@ -1111,6 +1492,7 @@
       }
 
       modal.classList.add('active');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function closeImportModal() {
@@ -1127,7 +1509,6 @@
       return false;
     }
 
-    // --- APPLY IMPORTED DATA TO CLINICAL FORM ---
     function applyImportedDataToForm() {
       if (!activeImportResult || !activeImportResult.form_field_map) {
         closeImportModal();
@@ -1142,14 +1523,12 @@
         if (el) {
           el.value = val;
           appliedCount++;
-          // Highlight effect
           el.style.transition = 'background-color 0.4s ease';
-          el.style.backgroundColor = 'rgba(79, 70, 229, 0.12)';
+          el.style.backgroundColor = 'var(--primary-light)';
           setTimeout(() => { el.style.backgroundColor = ''; }, 1200);
         }
       }
 
-      // Apply patient identity if in file
       if (activeImportResult.patient_name) {
         const nameEl = document.getElementById('patientName');
         if (nameEl) nameEl.value = activeImportResult.patient_name;
@@ -1160,9 +1539,13 @@
       }
 
       closeImportModal();
+
+      // Recalculate ranges and metrics
+      Object.keys(BIOMARKER_METRICS).forEach(id => validateBiomarkerInput(id));
+      updateClinicalCalculators();
+
       showAlert(`Successfully populated ${appliedCount} clinical and laboratory indicators into the diagnostic form. Please review and verify all fields before submitting.`, 'success');
       
-      // Scroll to form
       const formEl = document.getElementById('clinicalForm');
       if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -1177,10 +1560,10 @@
       document.getElementById('inputBMI').value = 22.4;
       document.getElementById('inputAlcoholUse').value = 'False';
       
-      document.getElementById('inputCeruloplasmin').value = 28.5; // Normal
-      document.getElementById('inputCopperBlood').value = 115.0;  // Normal
-      document.getElementById('inputFreeCopperBlood').value = 8.2;   // Normal (<15)
-      document.getElementById('inputCopperUrine').value = 24.5;      // Normal (<40)
+      document.getElementById('inputCeruloplasmin').value = 28.5;
+      document.getElementById('inputCopperBlood').value = 115.0;
+      document.getElementById('inputFreeCopperBlood').value = 8.2;
+      document.getElementById('inputCopperUrine').value = 24.5;
       
       document.getElementById('inputALT').value = 22.0;
       document.getElementById('inputAST').value = 25.0;
@@ -1197,6 +1580,8 @@
       document.getElementById('inputFamilyHistory').value = 'No';
       document.getElementById('inputGeneMutation').value = 'No';
 
+      Object.keys(BIOMARKER_METRICS).forEach(id => validateBiomarkerInput(id));
+      updateClinicalCalculators();
       showAlert('Populated healthy reference test sample. Ready for assessment.', 'info');
     }
 
@@ -1209,47 +1594,30 @@
       document.getElementById('inputBMI').value = 25.2;
       document.getElementById('inputAlcoholUse').value = 'False';
       
-      document.getElementById('inputCeruloplasmin').value = 8.4;    // Abnormally Low (<10)
-      document.getElementById('inputCopperBlood').value = 235.0;   // Abnormally High
-      document.getElementById('inputFreeCopperBlood').value = 48.5;  // Abnormally High (>25)
-      document.getElementById('inputCopperUrine').value = 145.0;    // Abnormally High (>100)
+      document.getElementById('inputCeruloplasmin').value = 8.4;
+      document.getElementById('inputCopperBlood').value = 235.0;
+      document.getElementById('inputFreeCopperBlood').value = 48.5;
+      document.getElementById('inputCopperUrine').value = 145.0;
       
-      document.getElementById('inputALT').value = 88.0;             // Elevated LFT
-      document.getElementById('inputAST').value = 95.0;             // Elevated LFT
-      document.getElementById('inputTotalBilirubin').value = 2.4;  // Elevated
+      document.getElementById('inputALT').value = 88.0;
+      document.getElementById('inputAST').value = 95.0;
+      document.getElementById('inputTotalBilirubin').value = 2.4;
       document.getElementById('inputAlbumin').value = 3.1;
       document.getElementById('inputALP').value = 135.0;
       document.getElementById('inputProthrombin').value = 1.35;
       document.getElementById('inputGGT').value = 110.0;
       
-      document.getElementById('inputKFR').value = 'Yes';            // Positive KF Rings
-      document.getElementById('inputNeurological').value = 6.8;     // High Neuro score
+      document.getElementById('inputKFR').value = 'Yes';
+      document.getElementById('inputNeurological').value = 6.8;
       document.getElementById('inputPsychiatric').value = 'Yes';
       document.getElementById('inputCognitive').value = 65.0;
       document.getElementById('inputFamilyHistory').value = 'Yes';
-      document.getElementById('inputGeneMutation').value = 'Yes';   // ATP7B positive
+      document.getElementById('inputGeneMutation').value = 'Yes';
 
+      Object.keys(BIOMARKER_METRICS).forEach(id => validateBiomarkerInput(id));
+      updateClinicalCalculators();
       showAlert('Populated high-risk Wilson Disease sample. Ready for assessment.', 'info');
     }
-
-    // --- FORM SUBMIT PROTECTION (DUPLICATE SUBMISSIONS) ---
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('clinicalForm');
-      if (form) {
-        form.addEventListener('submit', (e) => {
-          const btn = document.getElementById('btnSubmitAssessment');
-          if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '⏳ Computing Multi-Model Consensus & SHAP Attribution...';
-          }
-        });
-      }
-
-      // Close modal on escape key
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeImportModal();
-      });
-    });
 
     function toggleNavMenu() {
       const links = document.getElementById('main-nav-links');

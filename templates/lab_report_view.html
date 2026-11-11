@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Laboratory Report {{ report.report_number }} — {{ report.patient_name }} ({{ report.patient_id }})</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   <style>
     /* REPORT CONTAINER */
     .report-sheet {
@@ -211,32 +219,47 @@
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI
-      </a>
-      <ul class="nav-links">
-        <li><a class="nav-link-item" href="{{ url_for('lab_import_page') }}">⬅ Lab Workstation</a></li>
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('lab_import_page') }}"><i data-lucide="arrow-left"></i> Lab Workstation</a></li>
         {% if current_user.role in ('admin', 'clinician') %}
-        <li><a class="nav-link-item" href="{{ url_for('patient_history_view', patient_id=report.patient_id) }}">Patient History</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_history_view', patient_id=report.patient_id) }}"><i data-lucide="history"></i> Patient History</a></li>
         {% endif %}
-        <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }}</span></li>
       </ul>
+      <div class="nav-right-actions">
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        {% if current_user.is_authenticated %}
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.username }}</span>
+        </span>
+        {% endif %}
+      </div>
     </div>
   </header>
 
   <!-- ACTION TOOLBAR (SCREEN ONLY) -->
   <div class="action-toolbar">
-    <a href="{{ url_for('lab_import_page') }}" class="btn-secondary" style="text-decoration: none; font-size: 13px;">
-      ⬅ Return to Lab Workstation
+    <a href="{{ url_for('lab_import_page') }}" class="btn-secondary" style="text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+      <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i> Return to Lab Workstation
     </a>
     <div style="display: flex; gap: 10px;">
       {% if current_user.role in ('admin', 'clinician') %}
-      <a href="{{ url_for('patient_compare_view', patient_id=report.patient_id, type='lab') }}" class="btn-secondary" style="text-decoration: none; font-size: 13px;">
-        ⚖️ Compare Patient Reports
+      <a href="{{ url_for('patient_compare_view', patient_id=report.patient_id, type='lab') }}" class="btn-secondary" style="text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+        <i data-lucide="git-compare" style="width: 14px; height: 14px;"></i> Compare Patient Reports
       </a>
       {% endif %}
       <button type="button" class="btn-prime" onclick="window.print()" style="padding: 10px 20px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
-        🖨️ Print / Save as PDF
+        <i data-lucide="printer" style="width: 14px; height: 14px;"></i> Print / Save as PDF
       </button>
     </div>
   </div>
@@ -247,8 +270,9 @@
     <!-- HOSPITAL LETTERHEAD -->
     <div class="hospital-header">
       <div>
-        <h1 class="hospital-title">
-          🧬 NeuroMed AI Pathology Services
+        <h1 class="hospital-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="dna" style="width: 22px; height: 22px; color: var(--primary);"></i>
+          <span>NeuroMed AI Pathology Services</span>
         </h1>
         <div class="hospital-subtitle">
           Department of Clinical Biochemistry & Diagnostic Medicine • CLIA / ISO-15189 Accredited
@@ -294,11 +318,11 @@
         </div>
         <div class="meta-row">
           <span class="meta-label">Reporting Pathologist / Tech:</span>
-          <span class="meta-val">👤 {{ report.technician_name or 'Certified Technician' }}</span>
+          <span class="meta-val">{{ report.technician_name or 'Certified Technician' }}</span>
         </div>
         <div class="meta-row">
           <span class="meta-label">Validation Status:</span>
-          <span class="meta-val" style="color: #15803d;">✓ {{ report.validation_status or 'Certified' }}</span>
+          <span class="meta-val" style="color: #15803d;">[VERIFIED] {{ report.validation_status or 'Certified' }}</span>
         </div>
       </div>
     </div>
@@ -306,7 +330,7 @@
     <!-- SPECIMEN NOTES & QC -->
     {% if report.specimen_notes %}
     <div class="qc-box">
-      <strong>🔬 Specimen QC & Integrity Notes:</strong> {{ report.specimen_notes }}
+      <strong>Specimen QC &amp; Integrity Notes:</strong> {{ report.specimen_notes }}
     </div>
     {% endif %}
 
@@ -606,5 +630,12 @@
 
   </div>
 
+  <footer class="footer-custom">
+    <p>© 2026 NeuroMed AI — Certified Pathology &amp; Diagnostic Reporting Services</p>
+  </footer>
+
+  <script>
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  </script>
 </body>
 </html>

@@ -8,17 +8,29 @@
   <!-- Modern Theme CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
 
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <!-- PWA Progressive Web App Meta -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#1e1b4b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Wilson AI" />
+  <meta name="apple-mobile-web-app-title" content="NeuroMed AI" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
   <script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+
+  <!-- Early Theme Init to avoid FOUC -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 
   <style>
-    /* Table & Card Customizations */
+    /* Scoped Report Layout Customizations */
     .report-header {
       background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
       color: white;
@@ -26,276 +38,56 @@
       border-radius: var(--radius-lg);
       margin-bottom: 28px;
     }
-    .status-pill {
-      display: inline-block;
-      padding: 8px 18px;
-      border-radius: 30px;
-      font-weight: 800;
-      font-size: 15px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+
+    .model-consensus-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
     }
-    .status-positive {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fca5a5;
-    }
-    .status-negative {
-      background: #d1fae5;
-      color: #065f46;
-      border: 1px solid #6ee7b7;
-    }
-    .data-table-container {
-      background: white;
-      border-radius: var(--radius-md);
+
+    .model-consensus-card {
+      background: var(--card-bg);
       border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
       overflow: hidden;
-      margin-top: 16px;
-      box-shadow: var(--shadow-sm);
     }
-    .data-table {
+
+    .model-consensus-card.top-performer {
+      border-color: var(--success-border);
+      background: var(--success-bg);
+    }
+
+    .model-consensus-bar-track {
       width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 4px;
     }
-    .data-table th {
-      background: #f1f5f9;
-      color: #0f172a;
-      padding: 14px 18px;
-      font-weight: 700;
-      text-align: left;
-      border-bottom: 2px solid #e2e8f0;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+
+    .model-consensus-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 9999px;
     }
-    .data-table td {
-      padding: 12px 18px;
-      border-bottom: 1px solid #f1f5f9;
-      color: #334155;
+
+    .model-consensus-bar-fill.success {
+      background: var(--success);
     }
-    .data-table tr:nth-child(even) {
-      background: #f8fafc;
+
+    .model-consensus-bar-fill.warning {
+      background: var(--warning);
     }
-    .data-table tr:hover {
-      background: #f1f5f9;
-    }
-    .eval-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 12px;
-    }
-    .eval-normal { background: #d1fae5; color: #065f46; }
-    .eval-abnormal-high { background: #fee2e2; color: #991b1b; }
-    .eval-abnormal-low { background: #fef3c7; color: #92400e; }
-    .eval-neutral { background: #f1f5f9; color: #475569; }
-    .eval-warning { background: #fef3c7; color: #92400e; }
 
-    /* =========================================================
-       PRINT / PDF GENERATION STYLES (ISSUE-7)
-       ========================================================= */
-    @media print {
-      /* Remove web-only navigation and interactive controls */
-      .navbar-custom,
-      .web-action-controls,
-      .web-collapsible-controls,
-      .chat-btn-in-card,
-      .chevron-badge,
-      #chat-toggle,
-      #chat-widget,
-      .pwa-install-btn,
-      .btn-secondary,
-      .btn-prime,
-      footer.footer-custom {
-        display: none !important;
-      }
-
-      /* Clean page setup */
-      @page {
-        size: A4 portrait;
-        margin: 10mm 10mm 10mm 10mm;
-      }
-
-      body {
-        background: #ffffff !important;
-        color: #0f172a !important;
-        font-size: 11px !important;
-        line-height: 1.35 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-
-      .main-wrapper {
-        max-width: 100% !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-
-      /* Patient Identity Header */
-      #card-patient-identity {
-        display: block !important;
-        background: #f8fafc !important;
-        border: 1.5px solid #cbd5e1 !important;
-        padding: 12px 16px !important;
-        margin-bottom: 10px !important;
-        border-radius: 6px !important;
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-
-      /* Compact header */
-      .report-header {
-        background: #1e1b4b !important;
-        color: #ffffff !important;
-        padding: 14px 18px !important;
-        margin-bottom: 10px !important;
-        border-radius: 6px !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        page-break-after: avoid;
-        break-after: avoid;
-      }
-
-      .report-header h1 {
-        font-size: 20px !important;
-        margin-top: 2px !important;
-        margin-bottom: 3px !important;
-      }
-
-      .report-header p {
-        font-size: 10px !important;
-        margin-bottom: 0 !important;
-      }
-
-      .status-pill {
-        padding: 5px 12px !important;
-        font-size: 12px !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      /* Ensure all collapsible card bodies are always visible in print */
-      .collapsible-content {
-        display: block !important;
-        height: auto !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-      }
-
-      .card-glass {
-        background: #ffffff !important;
-        box-shadow: none !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
-        padding: 12px 14px !important;
-        margin-bottom: 10px !important;
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-
-      .section-title {
-        font-size: 14px !important;
-        margin-bottom: 8px !important;
-        page-break-after: avoid;
-        break-after: avoid;
-      }
-
-      #card-gauge,
-      #card-checklist,
-      #card-table,
-      #card-shap {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-
-      .risk-gauge-container {
-        margin-top: 6px !important;
-        gap: 12px !important;
-      }
-
-      .data-table-container {
-        box-shadow: none !important;
-        border: 1px solid #cbd5e1 !important;
-        margin-top: 6px !important;
-        overflow: visible !important;
-      }
-
-      .data-table {
-        font-size: 10px !important;
-        width: 100% !important;
-        border-collapse: collapse !important;
-      }
-
-      .data-table thead {
-        display: table-header-group;
-      }
-
-      .data-table tr {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-
-      .data-table th {
-        background: #f1f5f9 !important;
-        color: #0f172a !important;
-        padding: 6px 8px !important;
-        font-size: 9px !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      .data-table td {
-        padding: 5px 8px !important;
-        font-size: 10px !important;
-      }
-
-      .eval-badge {
-        font-size: 9px !important;
-        padding: 2px 5px !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      .integrity-notice {
-        display: block !important;
-        font-size: 10px !important;
-        padding: 6px 10px !important;
-        margin-bottom: 8px !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 4px !important;
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-
-      .clinical-disclaimer-box {
-        display: block !important;
-        font-size: 10px !important;
-        padding: 10px 14px !important;
-        margin-top: 12px !important;
-        border: 1.5px solid #94a3b8 !important;
-        border-radius: 6px !important;
-        background: #f8fafc !important;
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-
-      #shap-plot-container {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        padding: 8px !important;
-      }
-
-      .shap-plot-img {
-        max-width: 100% !important;
-        max-height: 420px !important;
-        width: auto !important;
-        margin: 0 auto;
-        display: block;
-        object-fit: contain !important;
-      }
+    .model-consensus-bar-fill.danger {
+      background: var(--danger);
     }
   </style>
 </head>
@@ -304,96 +96,141 @@
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI
-      </a>
-
-      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
-        ☰
-      </button>
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
 
       <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
         {% if current_user.is_authenticated %}
-        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
+          {% if current_user.role == 'admin' %}
+          <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
+          {% endif %}
         {% endif %}
-        {% if current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+        {% if current_user.is_authenticated and current_user.role in ('admin', 'clinician') %}
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
         {% endif %}
-        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        {% if current_user.role in ('admin', 'clinician') %}
-        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
-        {% endif %}
-        {% if current_user.is_authenticated %}
-        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ 'Lab Staff' if current_user.role == 'lab_staff' else ('Chief Doctor' if current_user.role == 'admin' else 'Clinician') }})</span></li>
-        <li>
-          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
-          </form>
-        </li>
-        {% else %}
-        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
-        {% endif %}
-        <li><button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none; background: rgba(99, 102, 241, 0.18); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 20px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; transition: all 0.2s ease;">📱 Install App</button></li>
       </ul>
+
+      <div class="nav-right-actions">
+        <!-- THEME TOGGLE BUTTON -->
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        {% if current_user.is_authenticated %}
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.username }}</span>
+          <span style="opacity: 0.4;">|</span>
+          <span class="role-text">{{ 'Dept. Head' if current_user.role == 'admin' else ('Lab Spec.' if current_user.role == 'lab_staff' else 'Clinician') }}</span>
+        </span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="nav-btn-logout" title="Sign Out">
+            <i data-lucide="log-out"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+        {% else %}
+        <a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">
+          <i data-lucide="lock"></i>
+          <span>Sign In</span>
+        </a>
+        {% endif %}
+
+        <button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none;">
+          <i data-lucide="smartphone"></i>
+          <span>Install App</span>
+        </button>
+
+        <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
     </div>
   </header>
 
   <!-- MAIN WRAPPER -->
   <main class="main-wrapper">
 
-    <!-- ACTION CONTROLS -->
+    <!-- HOSPITAL PRINT HEADER (VISIBLE ONLY ON PRINT) -->
+    <div class="print-hospital-header">
+      <div>
+        <div style="font-size: 21px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          <span><i data-lucide="dna" style="width: 20px; height: 20px; display: inline-block; vertical-align: middle;"></i> NeuroMed AI Hospital Clinical Intelligence</span>
+          <span style="font-size: 10px; padding: 2px 7px; background: #e0e7ff; color: #3730a3; border-radius: 4px; font-weight: 800;">CDSS REPORT</span>
+        </div>
+        <div style="font-size: 12px; color: #475569; margin-top: 3px;">
+          Certified Clinical Decision Support System — Division of Hepatology &amp; Neurogenetics
+        </div>
+      </div>
+      <div style="text-align: right; font-size: 11px; color: #475569; line-height: 1.5;">
+        <div><strong>Patient ID:</strong> {{ patient_id or 'NEUROMED-RECORD' }}</div>
+        <div><strong>Record Ref:</strong> REC-{{ assessment_id or '01' }}</div>
+        <div><strong>Assessment Date:</strong> {{ assessment_date or 'Recorded Today' }}</div>
+        <div><strong>Model:</strong> Stacking Ensemble {{ model_version or 'v2.0.0-calibrated' }}</div>
+      </div>
+    </div>
+
+    <!-- WEB ACTION BAR (BACK NAVIGATION & CERTIFIED PRINT EXPORT) -->
     <div class="web-action-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         {% if is_historical and patient_id %}
-        <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
-          ⬅ Back to Patient History
+        <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 13px;">
+          <i data-lucide="arrow-left"></i> Back to Patient History
         </a>
         {% else %}
-        <a href="{{ url_for('about') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
-          ⬅ Back to Clinical Form
+        <a href="{{ url_for('about') }}" class="btn-secondary" style="font-size: 13px;">
+          <i data-lucide="arrow-left"></i> Back to Clinical Form
         </a>
         {% endif %}
         {% if current_user.role in ('admin', 'clinician') %}
-        <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
-          🗂️ Patient Directory
+        <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="font-size: 13px;">
+          <i data-lucide="users"></i> Patient Directory
         </a>
         {% endif %}
       </div>
       
-      <button onclick="window.print()" class="btn-prime" style="font-size: 13px;" title="Print this report or save as PDF using your browser print dialog">
-        🖨️ Print Report / Save as PDF
+      <!-- TASK 4: CERTIFIED PRINT EXPORT BUTTON -->
+      <button onclick="window.print()" class="btn-prime" style="font-size: 13.5px; padding: 10px 22px; font-weight: 700;" title="Print official report or save as hospital PDF">
+        <i data-lucide="printer"></i> Export Certified Clinical Report
       </button>
     </div>
 
     <!-- PATIENT IDENTIFICATION & CLINICAL METADATA CARD -->
-    <div class="card-glass" id="card-patient-identity" style="margin-bottom: 24px; padding: 20px 26px; border-left: 6px solid var(--primary); background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);">
+    <div class="card-glass" id="card-patient-identity" style="margin-bottom: 24px; padding: 22px 26px; border-left: 6px solid var(--primary);">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
-            <span class="badge-patient-id" style="background: #ede9fe; color: #5b21b6; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-family: monospace; font-size: 13px; letter-spacing: 0.5px;">
+            <span class="badge-patient-id" style="background: var(--primary-light); color: var(--primary); padding: 4px 10px; border-radius: 6px; font-weight: 800; font-family: monospace; font-size: 13px; letter-spacing: 0.5px;">
               {{ patient_id or 'NEUROMED-RECORD' }}
             </span>
             <h2 class="patient-name-heading" style="font-size: 22px; font-weight: 800; color: var(--dark); margin: 0;">
               {{ patient_name or 'Anonymous Patient' }}
             </h2>
             {% if is_historical %}
-            <span class="badge-historical" style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
-              📜 Archived Assessment #{{ assessment_id }}
+            <span class="badge-historical" style="background: var(--warning-bg); color: var(--warning-text); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+              <i data-lucide="archive"></i> Archived Assessment #{{ assessment_id }}
             </span>
             {% elif assessment_id %}
-            <span class="badge-live" style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
-              ✨ New Saved Record #{{ assessment_id }}
+            <span class="badge-live" style="background: var(--success-bg); color: var(--success-text); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+              <i data-lucide="check-circle-2"></i> Saved Record #{{ assessment_id }}
             </span>
             {% else %}
-            <span class="badge-live" style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
-              ✨ Live Assessment
+            <span class="badge-live" style="background: var(--info-bg); color: var(--info-text); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+              <i data-lucide="sparkles"></i> Live Assessment
             </span>
             {% endif %}
           </div>
           <div style="font-size: 13px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap;">
-            <span><strong>Assessment Date:</strong> <span class="assessment-date-val">{{ assessment_date or 'Recorded Today' }}</span></span>
+            <span><i data-lucide="calendar"></i> <strong>Assessment Date:</strong> <span class="assessment-date-val">{{ assessment_date or 'Recorded Today' }}</span></span>
             {% if data and data.get('Age') %}<span><strong>Age:</strong> {{ data.Age | int }} yrs</span>{% endif %}
             {% if data and data.get('Sex') %}<span><strong>Sex:</strong> {{ data.Sex }}</span>{% endif %}
             {% if data and data.get('Region') %}<span><strong>Region:</strong> {{ data.Region }}</span>{% endif %}
@@ -403,8 +240,8 @@
 
         {% if patient_id and current_user.role in ('admin', 'clinician') %}
         <div class="web-collapsible-controls">
-          <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 12px; padding: 7px 14px; text-decoration: none;">
-            📋 Full Patient History
+          <a href="{{ url_for('patient_history_view', patient_id=patient_id) }}" class="btn-secondary" style="font-size: 12px; padding: 7px 14px;">
+            <i data-lucide="history"></i> Full Patient History
           </a>
         </div>
         {% endif %}
@@ -416,9 +253,9 @@
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
         <div>
           <span style="color: #a5b4fc; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">
-            CLINICAL RISK EVALUATION & DECISION SUPPORT REPORT
+            CLINICAL RISK EVALUATION &amp; DECISION SUPPORT REPORT
           </span>
-          <h1 style="font-size: 32px; font-weight: 800; margin-top: 4px; margin-bottom: 8px; letter-spacing: -0.5px;">
+          <h1 style="font-size: 30px; font-weight: 800; margin-top: 4px; margin-bottom: 8px; letter-spacing: -0.5px;">
             Wilson's Disease Clinical AI Assessment
           </h1>
           <p style="color: #cbd5e1; font-size: 14px;">
@@ -429,11 +266,11 @@
         <div>
           {% if "High" in prediction_text or "Positive" in prediction_text %}
           <div class="status-pill status-positive">
-            ⚠️ {{ prediction_text }}
+            <i data-lucide="alert-triangle"></i> {{ prediction_text }}
           </div>
           {% else %}
           <div class="status-pill status-negative">
-            💚 {{ prediction_text }}
+            <i data-lucide="check-circle-2"></i> {{ prediction_text }}
           </div>
           {% endif %}
         </div>
@@ -442,15 +279,15 @@
 
     <!-- COLLAPSIBLE CONTROLS TOOLBAR -->
     <div class="web-collapsible-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-      <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">
-        📑 Interactive Diagnostic Sections:
+      <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+        <i data-lucide="layers"></i> Interactive Diagnostic Sections:
       </span>
       <div style="display: flex; gap: 8px;">
-        <button type="button" onclick="expandAllCards()" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          📂 Expand All
+        <button type="button" onclick="expandAllCards()" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; border-radius: 20px;">
+          <i data-lucide="maximize-2"></i> Expand All
         </button>
-        <button type="button" onclick="collapseAllCards()" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          📁 Collapse All
+        <button type="button" onclick="collapseAllCards()" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; border-radius: 20px;">
+          <i data-lucide="minimize-2"></i> Collapse All
         </button>
       </div>
     </div>
@@ -458,19 +295,22 @@
     <!-- RISK GAUGE & METRIC DIAL -->
     <div class="card-glass collapsible-card" id="card-gauge">
       <div class="collapsible-trigger" onclick="toggleCard('card-gauge')">
-        <h2 class="section-title" style="margin-bottom: 0;">⚡ Statistical Model Estimate & Output Convergence</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">
+          <i data-lucide="gauge" style="color: var(--primary);"></i>
+          <span>Statistical Model Estimate &amp; Stacking Consensus</span>
+        </h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
       <div class="collapsible-content">
         {% if is_historical %}
-        <div class="integrity-notice" style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; margin-top: 12px; margin-bottom: 8px; border-radius: 4px; font-size: 12px; color: #1e293b; line-height: 1.5;">
-          🔒 <strong>Original Assessment Record:</strong> Displaying original stored ensemble prediction, calibrated probability, and constituent model breakdown recorded at assessment time (Model {{ model_version or 'v1.0.0' }}). Machine learning models were not re-executed.
+        <div class="integrity-notice" style="background: var(--info-bg); border-left: 4px solid var(--info); padding: 10px 14px; margin-top: 12px; margin-bottom: 8px; border-radius: 4px; font-size: 12px; color: var(--text-main); line-height: 1.5;">
+          <i data-lucide="lock"></i> <strong>Original Assessment Record:</strong> Displaying original stored ensemble prediction, calibrated probability, and constituent model breakdown recorded at assessment time (Model {{ model_version or 'v1.0.0' }}).
         </div>
         {% endif %}
 
-        <div style="background: #f8fafc; border-left: 4px solid #6366f1; padding: 10px 14px; margin-top: 12px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: #334155; line-height: 1.5;">
-          ℹ️ <strong>Clinical Distinction & Boundary:</strong> This probability represents statistical pattern alignment from a calibrated machine learning ensemble (<strong>{{ model_version or 'v2.0.0-calibrated' }}</strong>). It is <strong>NOT</strong> a measure of clinical certainty or medical diagnosis. Statistical model convergence must never be equated with clinical certainty. Clinical evaluation is conducted independently below via the validated Leipzig consensus scoring system.
+        <div style="background: var(--table-stripe); border-left: 4px solid var(--primary); padding: 10px 14px; margin-top: 12px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: var(--text-main); line-height: 1.5;">
+          <i data-lucide="info"></i> <strong>Clinical Distinction &amp; Boundary:</strong> This probability represents statistical pattern alignment from a calibrated machine learning ensemble (<strong>{{ model_version or 'v2.0.0-calibrated' }}</strong>). It is <strong>NOT</strong> a measure of clinical certainty or medical diagnosis. Clinical evaluation is conducted independently below via the validated Leipzig consensus scoring system.
         </div>
 
         <div class="risk-gauge-container" style="margin-top: 16px;">
@@ -478,7 +318,7 @@
           <!-- SVG Gauge Circle -->
           <div style="position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
             <svg width="160" height="160" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="10" />
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="10" />
               <circle cx="60" cy="60" r="50" fill="none"
                       stroke="{% if probability > 0.5 %}#ef4444{% else %}#10b981{% endif %}"
                       stroke-width="10"
@@ -497,24 +337,24 @@
           <!-- Metric Details -->
           <div style="max-width: 550px;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
-              <h3 style="font-size: 18px; font-weight: 700; color: var(--dark); margin: 0;">
+              <h3 style="font-size: 17px; font-weight: 700; color: var(--dark); margin: 0;">
                 Calibrated Stacking Ensemble Analysis
               </h3>
-              <span style="font-size: 11px; font-weight: 800; background: #ede9fe; color: #5b21b6; padding: 3px 8px; border-radius: 4px; font-family: monospace;">
+              <span style="font-size: 11px; font-weight: 800; background: var(--primary-light); color: var(--primary); padding: 3px 8px; border-radius: 4px; font-family: monospace;">
                 MODEL {{ model_version or 'v2.0.0-calibrated' }}
               </span>
             </div>
-            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6;">
-              The model probability score represents the meta-classifier's calibrated probability for Wilson Disease based on learned multi-marker patterns. An elevated statistical output reflects pattern similarity with disease profiles in training distributions, but does not substitute for clinical diagnostic confirmation.
+            <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6;">
+              The meta-classifier synthesizes predictions from 4 distinct base estimators via logistic meta-regression with RobustScaler and median imputation.
             </p>
 
-            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-              <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
+            <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+              <div style="background: var(--card-bg); padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
                 <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">CALIBRATED PROBABILITY</span>
                 <strong style="font-size: 18px; color: var(--dark);">{{ probability }}</strong>
               </div>
 
-              <div style="background: white; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
+              <div style="background: var(--card-bg); padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);">
                 <span style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block;">STATISTICAL PATTERN CONVERGENCE</span>
                 <strong style="font-size: 18px; color: {% if probability > 0.8 or probability < 0.2 %}var(--success){% else %}var(--warning){% endif %};">
                   {% if probability > 0.8 or probability < 0.2 %}Definite Statistical Convergence{% else %}Equivocal Statistical Convergence{% endif %}
@@ -522,39 +362,70 @@
               </div>
             </div>
 
+            <!-- TASK 4: ENSEMBLE MODEL VOTING BREAKDOWN CARDS -->
             {% if model_breakdown %}
-            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);">
-              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
-                🧬 Constituent Model Voting Consensus:
+            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border);">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                <i data-lucide="cpu"></i> Constituent Ensemble Model Breakdown:
               </span>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+              <div class="model-consensus-grid">
+                
+                <!-- Model 1: XGBoost -->
                 {% if model_breakdown.xgb is not none %}
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL 1 — XGBOOST</div>
-                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ [(model_breakdown.xgb or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #16a34a;">Gradient Boosted Trees</div>
+                <div class="model-consensus-card top-performer">
+                  <div style="font-size: 10px; color: var(--success-text); font-weight: 800; display: flex; justify-content: space-between;">
+                    <span>1. XGBOOST</span>
+                    <span>Trees</span>
+                  </div>
+                  <div style="font-size: 18px; font-weight: 800; color: var(--success-text);">{{ [(model_breakdown.xgb or 0), 100.0]|min }}%</div>
+                  <div class="model-consensus-bar-track">
+                    <div class="model-consensus-bar-fill success" style="width: {{ [(model_breakdown.xgb or 0), 100.0]|min }}%;"></div>
+                  </div>
                 </div>
                 {% endif %}
-                <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL 2 — LOGREG</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.logreg or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #64748b;">Linear Reference Odds</div>
+
+                <!-- Model 2: Logistic Regression -->
+                <div class="model-consensus-card">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 800; display: flex; justify-content: space-between;">
+                    <span>2. LOGREG</span>
+                    <span>Linear</span>
+                  </div>
+                  <div style="font-size: 18px; font-weight: 800; color: var(--dark);">{{ [(model_breakdown.logreg or 0), 100.0]|min }}%</div>
+                  <div class="model-consensus-bar-track">
+                    <div class="model-consensus-bar-fill" style="width: {{ [(model_breakdown.logreg or 0), 100.0]|min }}%;"></div>
+                  </div>
                 </div>
+
+                <!-- Model 3: Random Forest -->
                 {% if model_breakdown.rf is not none %}
-                <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL 3 — RANDOM FOREST</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.rf or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #64748b;">Bagged Decision Trees</div>
+                <div class="model-consensus-card">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 800; display: flex; justify-content: space-between;">
+                    <span>3. RANDOM FOREST</span>
+                    <span>Bagged</span>
+                  </div>
+                  <div style="font-size: 18px; font-weight: 800; color: var(--dark);">{{ [(model_breakdown.rf or 0), 100.0]|min }}%</div>
+                  <div class="model-consensus-bar-track">
+                    <div class="model-consensus-bar-fill" style="width: {{ [(model_breakdown.rf or 0), 100.0]|min }}%;"></div>
+                  </div>
                 </div>
                 {% endif %}
-                <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL 4 — SVM</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.svm or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #64748b;">RBF Kernel Non-Linear</div>
+
+                <!-- Model 4: SVM -->
+                <div class="model-consensus-card">
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 800; display: flex; justify-content: space-between;">
+                    <span>4. SVM</span>
+                    <span>RBF</span>
+                  </div>
+                  <div style="font-size: 18px; font-weight: 800; color: var(--dark);">{{ [(model_breakdown.svm or 0), 100.0]|min }}%</div>
+                  <div class="model-consensus-bar-track">
+                    <div class="model-consensus-bar-fill" style="width: {{ [(model_breakdown.svm or 0), 100.0]|min }}%;"></div>
+                  </div>
                 </div>
+
               </div>
             </div>
             {% endif %}
+
           </div>
 
         </div>
@@ -563,15 +434,16 @@
 
     <!-- RAG CLINICAL DECISION SUPPORT -->
     {% if clinical_advice %}
-    <div class="card-glass collapsible-card" id="card-rag" style="border-left: 6px solid var(--primary); background: linear-gradient(135deg, #ffffff, #f0f4ff);">
+    <div class="card-glass collapsible-card" id="card-rag" style="border-left: 6px solid var(--primary); background: linear-gradient(135deg, var(--card-bg), var(--info-bg));">
       <div class="collapsible-trigger" onclick="toggleCard('card-rag')">
         <h2 class="section-title" style="margin-bottom: 0;">
-          🩺 Clinical Recommendations (RAG Support)
+          <i data-lucide="stethoscope" style="color: var(--primary);"></i>
+          <span>Clinical Recommendations (RAG Decision Support)</span>
         </h2>
         <div style="display: flex; align-items: center; gap: 8px;">
           {% if current_user.role != 'lab_staff' %}
-          <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime chat-btn-in-card" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none;">
-            💬 Chat
+          <button type="button" onclick="event.stopPropagation(); toggleChat(true);" class="btn-prime chat-btn-in-card" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+            <i data-lucide="message-square"></i> Chat
           </button>
           {% endif %}
           <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
@@ -580,10 +452,10 @@
 
       <div class="collapsible-content">
         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-          Evidence-based recommendations retrieved from Wilson's Disease Clinical Guidelines (AASLD/EASL) via LangChain + ChromaDB vector retrieval.
+          Evidence-based guidance retrieved from Wilson's Disease Clinical Guidelines (AASLD / EASL) via LangChain + ChromaDB vector retrieval.
         </p>
 
-        <div style="background: #ffffff; padding: 20px; border-radius: var(--radius-md); border: 1px solid #c7d2fe; font-size: 14px; line-height: 1.7; color: var(--dark); overflow-x: auto;">
+        <div style="background: var(--card-bg); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 14px; line-height: 1.7; color: var(--dark); overflow-x: auto;">
           <div style="white-space: pre-wrap;">{{ clinical_advice | safe }}</div>
         </div>
       </div>
@@ -593,21 +465,21 @@
     <!-- CLINICAL PARAMETERS TABLE FORMAT -->
     <div class="card-glass collapsible-card" id="card-table">
       <div class="collapsible-trigger" onclick="toggleCard('card-table')">
-        <h2 class="section-title" style="margin-bottom: 0;">📌 Patient Biochemical Data & Clinical Evaluation</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">
+          <i data-lucide="table" style="color: var(--primary);"></i>
+          <span>Patient Biochemical Data &amp; Clinical Evaluation</span>
+        </h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
       <div class="collapsible-content">
         {% if is_historical %}
-        <div class="integrity-notice" style="background: #f5f3ff; border-left: 4px solid #8b5cf6; padding: 10px 14px; margin-top: 12px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: #1e293b; line-height: 1.5;">
-          ℹ️ <strong>Clinical Interpretation Notice:</strong> Clinical status badges and reference comparisons are <strong>recalculated using the current application logic</strong> from the patient's archived 23 clinical inputs.
+        <div class="integrity-notice" style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 10px 14px; margin-top: 12px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: var(--text-main); line-height: 1.5;">
+          <i data-lucide="info"></i> <strong>Clinical Interpretation Notice:</strong> Clinical status badges and reference comparisons are recalculated from the patient's archived 23 clinical inputs.
         </div>
         {% endif %}
-        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 8px;">
           Structured table displaying patient clinical measurements alongside standard medical reference ranges.
-        </p>
-        <p style="font-size: 12px; color: #64748b; margin-bottom: 16px; font-style: italic;">
-          ℹ️ Reference ranges shown are project-configured clinical reference values and may vary by laboratory.
         </p>
 
         <div class="data-table-container">
@@ -625,7 +497,7 @@
                 {% for item in clinical_table %}
                 <tr>
                   <td><strong style="color: var(--dark);">{{ item.label }}</strong></td>
-                  <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ item.formatted_value }}</code></td>
+                  <td><code style="font-size: 14px; color: var(--primary); font-weight: 700;">{{ item.formatted_value }}</code></td>
                   <td style="color: var(--text-muted); font-size: 13px;">{{ item.reference_boundary }}</td>
                   <td>
                     <span class="eval-badge {{ item.badge_class }}">{{ item.badge_text }}</span>
@@ -636,7 +508,7 @@
                 {% for key, value in data.items() %}
                 <tr>
                   <td><strong style="color: var(--dark);">{{ key.replace("_", " ").title() }}</strong></td>
-                  <td><code style="font-size: 14px; color: #4f46e5; font-weight: 700;">{{ value }}</code></td>
+                  <td><code style="font-size: 14px; color: var(--primary); font-weight: 700;">{{ value }}</code></td>
                   <td style="color: var(--text-muted); font-size: 13px;">Standard Clinical Metric</td>
                   <td><span class="eval-badge eval-neutral">Recorded</span></td>
                 </tr>
@@ -651,19 +523,22 @@
     <!-- LEIPZIG SCORE BREAKDOWN & CLINICAL ACTION CHECKLIST -->
     <div class="card-glass collapsible-card" id="card-checklist">
       <div class="collapsible-trigger" onclick="toggleCard('card-checklist')">
-        <h2 class="section-title" style="margin-bottom: 0;">📋 Leipzig Criteria Contribution</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">
+          <i data-lucide="clipboard-check" style="color: var(--primary);"></i>
+          <span>Leipzig Criteria Contribution &amp; Action Plan</span>
+        </h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
       <div class="collapsible-content">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
           
-          <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <div style="background: var(--table-stripe); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin: 0;">
-                🔍 Leipzig Criteria Contribution
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="search"></i> Leipzig Scoring Matrix
               </h4>
-              <span style="font-size: 13px; font-weight: 800; background: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 12px;">
+              <span style="font-size: 13px; font-weight: 800; background: var(--primary-light); color: var(--primary); padding: 3px 10px; border-radius: 12px;">
                 {% if is_historical and stored_leipzig_score is not none %}
                 Original Stored Score: {{ stored_leipzig_score }} pts
                 {% else %}
@@ -672,12 +547,12 @@
               </span>
             </div>
             {% if is_historical %}
-            <div class="integrity-notice" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: #1e293b; line-height: 1.5;">
-              ⚠️ <strong>Calculation Notice:</strong> Total Leipzig score ({% if stored_leipzig_score is not none %}{{ stored_leipzig_score }}{% else %}{{ leipzig_breakdown.total_score if leipzig_breakdown else 0 }}{% endif %} pts) was preserved from the original assessment record. The criteria breakdown and physician recommendations below are <strong>recalculated using the current application logic</strong> based on archived clinical inputs.
+            <div class="integrity-notice" style="background: var(--warning-bg); border-left: 4px solid var(--warning); padding: 10px 14px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; color: var(--warning-text); line-height: 1.5;">
+              <i data-lucide="alert-triangle"></i> <strong>Calculation Notice:</strong> Total Leipzig score ({% if stored_leipzig_score is not none %}{{ stored_leipzig_score }}{% else %}{{ leipzig_breakdown.total_score if leipzig_breakdown else 0 }}{% endif %} pts) was preserved from the original assessment record.
             </div>
             {% endif %}
             <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 12px; line-height: 1.4;">
-              This project calculates selected available Leipzig criteria only. Complete Leipzig assessment requires additional clinical and laboratory evaluation.
+              Selected available Leipzig criteria calculated from biochemical and clinical findings.
             </p>
             
             {% if leipzig_breakdown %}
@@ -697,7 +572,7 @@
               <p style="font-size: 12px; color: var(--text-main); line-height: 1.5; margin-bottom: 8px;">
                 <strong>Clinical Interpretation:</strong> {{ leipzig_breakdown.interpretation }}
               </p>
-              <div style="font-size: 11px; color: #64748b; line-height: 1.4;">
+              <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
                 <em>Unassessed Criteria (0 pts assigned in panel):</em>
                 <ul style="padding-left: 16px; margin-top: 4px;">
                   {% for unassessed in leipzig_breakdown.unassessed_list %}
@@ -709,9 +584,9 @@
             {% endif %}
           </div>
 
-          <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <h4 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
-              📑 Physician Next Steps
+          <div style="background: var(--table-stripe); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <h4 style="font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="list-ordered"></i> Physician Next Steps
             </h4>
             <ul style="padding-left: 20px; font-size: 13px; color: var(--text-main); line-height: 1.8;">
               {% if physician_steps %}
@@ -724,8 +599,8 @@
                 <li>24-hour urinary copper and hepatic laboratory re-testing.</li>
               {% endif %}
             </ul>
-            <div style="margin-top: 14px; background: #fff; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; color: #64748b; line-height: 1.5;">
-              ⚠️ <strong>Clinical Decision Support Note:</strong> All findings and score calculations represent assistive decision support and do not constitute a definitive medical diagnosis or prescription. Final diagnosis and pharmacological therapy must be determined by a licensed physician.
+            <div style="margin-top: 14px; background: var(--card-bg); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; color: var(--text-muted); line-height: 1.5;">
+              <i data-lucide="shield-alert"></i> <strong>Clinical Decision Support Note:</strong> All findings and score calculations represent assistive decision support and do not constitute a definitive medical diagnosis. Final diagnosis must be confirmed by a licensed physician.
             </div>
           </div>
 
@@ -736,28 +611,30 @@
     <!-- EXPLAINABLE AI (SHAP WATERFALL PLOT) SECTION -->
     <div class="card-glass collapsible-card" id="card-shap">
       <div class="collapsible-trigger" onclick="toggleCard('card-shap')">
-        <h2 class="section-title" style="margin-bottom: 0;">📊 Explainable AI — Patient Risk Attribution</h2>
+        <h2 class="section-title" style="margin-bottom: 0;">
+          <i data-lucide="bar-chart-2" style="color: var(--primary);"></i>
+          <span>Explainable AI — Patient Risk Attribution</span>
+        </h2>
         <span class="chevron-badge"><span class="chevron-arrow">▼</span> <span class="badge-txt">Collapse</span></span>
       </div>
 
       <div class="collapsible-content">
-        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 20px;">
           SHAP (SHapley Additive exPlanations) Waterfall analysis visualizes how the current patient's clinical markers contributed to the ensemble prediction, shifting risk toward Positive (red, + risk) or Negative (blue, - risk) relative to baseline expectation.
         </p>
 
-        <div style="display: flex; flex-direction: column; gap: 24px;">
-
+        <div style="display: flex; flex-direction: column; gap: 20px;">
           {% if shap_waterfall %}
-          <div id="shap-plot-container" style="background: white; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
-            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px;">
-              🔍 SHAP Waterfall Plot — Current Patient Explanation
+          <div id="shap-plot-container" style="background: var(--card-bg); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow-x: auto;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="search"></i> SHAP Waterfall Plot — Patient Feature Attribution
             </h3>
             <img src="{{ url_for('static', filename=shap_waterfall) }}" alt="SHAP Waterfall Plot" class="shap-plot-img" style="width: 100%; border-radius: 8px;">
           </div>
           {% endif %}
 
           {% if not shap_waterfall %}
-          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; color: var(--text-muted);">
+          <div style="background: var(--table-stripe); padding: 20px; border-radius: 8px; text-align: center; color: var(--text-muted);">
             {% if is_historical %}
             SHAP feature attribution waterfall plot was not recorded or is no longer available on disk for this historical assessment.
             {% else %}
@@ -765,18 +642,31 @@
             {% endif %}
           </div>
           {% endif %}
-
         </div>
       </div>
     </div>
 
     <!-- CLINICAL DECISION SUPPORT DISCLAIMER -->
-    <div class="clinical-disclaimer-box" style="margin-top: 24px; padding: 14px 18px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.6;">
-      <div style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-        <span>⚕️</span> <span>Mandatory Clinical Decision Support Notice & Disclaimer</span>
+    <div class="clinical-disclaimer-box" style="margin-top: 24px; padding: 14px 18px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--table-stripe); color: var(--text-muted); font-size: 12px; line-height: 1.6;">
+      <div style="font-weight: 700; color: var(--dark); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+        <i data-lucide="shield-check"></i> <span>Mandatory Clinical Decision Support Notice &amp; Disclaimer</span>
       </div>
       <div>
         NeuroMed AI is an assistive clinical decision-support tool, <strong>not a confirmed medical diagnosis or diagnostic device</strong>. Predictions, probability metrics, and criteria breakdowns must be evaluated in context by a qualified, licensed clinician. Definitive diagnosis of Wilson's Disease requires comprehensive specialist hepatology/neurology evaluation, complete Leipzig scoring, ophthalmic slit-lamp examination for Kayser-Fleischer rings, 24-hour urinary copper testing, and genetic/biochemical confirmation.
+      </div>
+    </div>
+
+    <!-- ATTENDING PHYSICIAN SIGNATURE BLOCK (PRINT ONLY) -->
+    <div class="doctor-signature-block">
+      <div style="width: 48%;">
+        <div style="font-weight: 700; font-size: 12px; margin-bottom: 40px; color: #0f172a;">Attending Clinician Review &amp; Order:</div>
+        <div style="border-bottom: 1.5px solid #0f172a; width: 85%;"></div>
+        <div style="font-size: 11px; color: #475569; margin-top: 5px;">MD / DO Signature &amp; License / NPI Number</div>
+      </div>
+      <div style="width: 48%; text-align: right;">
+        <div style="font-weight: 700; font-size: 12px; margin-bottom: 40px; color: #0f172a;">Verification Date &amp; Clinical Stamp:</div>
+        <div style="border-bottom: 1.5px solid #0f172a; width: 85%; margin-left: auto;"></div>
+        <div style="font-size: 11px; color: #475569; margin-top: 5px;">Division of Hepatology / Movement Disorders</div>
       </div>
     </div>
 
@@ -784,86 +674,108 @@
 
   <!-- FOOTER -->
   <footer class="footer-custom">
-    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence & RAG Decision Support System</p>
+    <p>© 2026 NeuroMed AI — Wilson's Disease Clinical Intelligence &amp; Stacking Ensemble Decision Support System</p>
   </footer>
 
   {% if current_user.role != 'lab_staff' %}
   <!-- PROMINENT FLOATING RAG CHATBOT WIDGET -->
-  <div id="chat-toggle" onclick="toggleChat()" style="position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #4f46e5, #0ea5e9); color: white; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 28px rgba(79, 70, 229, 0.5); font-size: 34px; z-index: 10000; border: 3px solid #ffffff; transition: transform 0.2s ease;">
-    💬
+  <div id="chat-toggle" onclick="toggleChat()" style="position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #4f46e5, #0ea5e9); color: white; border-radius: 50%; width: 66px; height: 66px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 28px rgba(79, 70, 229, 0.5); font-size: 28px; z-index: 10000; border: 3px solid #ffffff; transition: transform 0.2s ease;">
+    <i data-lucide="message-square"></i>
   </div>
 
   <style>
     @keyframes popupSlideIn {
       from { opacity: 0; transform: translateY(30px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 
-  <div id="chat-widget" style="display: flex; position: fixed; bottom: 110px; right: 30px; width: 420px; height: 550px; background: white; border-radius: 20px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25); border: 1px solid var(--border); flex-direction: column; overflow: hidden; z-index: 10000; font-family: inherit; animation: popupSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
+  <div id="chat-widget" style="display: flex; position: fixed; bottom: 110px; right: 30px; width: 420px; height: 550px; background: var(--card-bg); border-radius: 20px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25); border: 1px solid var(--border); flex-direction: column; overflow: hidden; z-index: 10000; font-family: inherit; animation: popupSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
     
     <!-- CHAT HEADER -->
     <div style="background: linear-gradient(135deg, #0f172a, #1e1b4b); color: white; padding: 14px 18px; font-weight: 800; font-size: 15px; display: flex; justify-content: space-between; align-items: center;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 18px;">🤖</span>
-        <span>Wilson Medical RAG Assistant</span>
+        <i data-lucide="bot"></i>
+        <span>NeuroMed Clinical Knowledge Copilot | Validated against AASLD &amp; EASL Literature</span>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <button id="sessions-toggle-btn" type="button" onclick="toggleSessionsDrawer()" title="View Consultation History & New Chat" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 700; transition: all 0.2s ease;">
-          <span>💬 History</span>
+          <i data-lucide="history"></i> <span>History</span>
         </button>
-        <button id="tts-toggle-btn" type="button" onclick="toggleAutoTTS()" title="Auto Voice Output (Read aloud answers)" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 700; transition: all 0.2s ease;">
-          <span id="tts-icon">🔊</span> <span id="tts-label">Voice: ON</span>
+        <button id="tts-toggle-btn" type="button" onclick="toggleAutoTTS()" title="Auto Voice Output" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 700; transition: all 0.2s ease;">
+          <span id="tts-icon"><i data-lucide="volume-2" style="width: 14px; height: 14px;"></i></span> <span id="tts-label">Voice: ON</span>
         </button>
-        <span onclick="toggleChat(false)" style="cursor: pointer; font-size: 18px; opacity: 0.8; padding: 2px 6px;" title="Minimize Chat">✖</span>
+        <span onclick="toggleChat(false)" style="cursor: pointer; font-size: 18px; opacity: 0.8; padding: 2px 6px;" title="Minimize Chat">&times;</span>
       </div>
     </div>
 
     <!-- CHAT SESSIONS DRAWER -->
-    <div id="chat-sessions-panel" style="display: none; background: #f8fafc; border-bottom: 2px solid var(--border); max-height: 200px; overflow-y: auto; padding: 12px; flex-shrink: 0;">
+    <div id="chat-sessions-panel" style="display: none; background: var(--table-stripe); border-bottom: 2px solid var(--border); max-height: 200px; overflow-y: auto; padding: 12px; flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 12px; font-weight: 800; color: #1e1b4b;">Consultation Sessions</span>
+        <span style="font-size: 12px; font-weight: 800; color: var(--dark);">Consultation Sessions</span>
         <button type="button" onclick="startNewChatSession()" style="background: var(--primary); color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer;">+ New Chat</button>
       </div>
       <div id="chat-sessions-list" style="display: flex; flex-direction: column; gap: 6px;">
-        <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Loading sessions...</span>
+        <span style="font-size: 11px; color: var(--text-muted); font-style: italic;">Loading sessions...</span>
       </div>
     </div>
 
     <!-- QUICK QUESTION SUGGESTION CHIPS -->
-    <div style="background: #f8fafc; padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; overflow-x: auto; white-space: nowrap;">
-      <span onclick="sendQuickChip('How are you?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">👋 How are you?</span>
-      <span onclick="sendQuickChip('What does my {{ (probability * 100)|round(1) }}% risk score mean?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🩺 Explain my {{ (probability * 100)|round(1) }}% risk</span>
-      <span onclick="sendQuickChip('What foods should I avoid for this report?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🥑 Foods to avoid?</span>
-      <span onclick="sendQuickChip('What precautions and treatment plan should I follow?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🛡️ Precautions & Plan</span>
-      <span onclick="sendQuickChip('What is Ceruloplasmin?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🔬 What is Ceruloplasmin?</span>
-      <span onclick="sendQuickChip('What is RAG in NeuroMed AI?')" style="font-size: 11px; background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);">🤖 What is RAG?</span>
+    <div style="background: var(--table-stripe); padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; overflow-x: auto; white-space: nowrap;">
+      <span onclick="sendQuickChip('Dietary Copper Restrictions (EASL Consensus)')" style="font-size: 11px; background: var(--card-bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);"><i data-lucide="utensils" style="width: 12px; height: 12px;"></i> Dietary Copper Restrictions (EASL)</span>
+      <span onclick="sendQuickChip('First-Line Chelation Protocols (D-Penicillamine vs. Trientine)')" style="font-size: 11px; background: var(--card-bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);"><i data-lucide="pill" style="width: 12px; height: 12px;"></i> Chelation Protocols (AASLD)</span>
+      <span onclick="sendQuickChip('Leipzig Scoring Interpretation Criteria')" style="font-size: 11px; background: var(--card-bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);"><i data-lucide="clipboard-check" style="width: 12px; height: 12px;"></i> Leipzig Scoring Criteria</span>
+      <span onclick="sendQuickChip('What does the {{ (probability * 100)|round(1) }}% risk score indicate for this patient profile?')" style="font-size: 11px; background: var(--card-bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);"><i data-lucide="activity" style="width: 12px; height: 12px;"></i> Explain {{ (probability * 100)|round(1) }}% Risk</span>
+      <span onclick="sendQuickChip('Diagnostic interpretation of Ceruloplasmin and Free Serum Copper levels')" style="font-size: 11px; background: var(--card-bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 14px; cursor: pointer; color: var(--primary); font-weight: 700; box-shadow: var(--shadow-sm);"><i data-lucide="test-tube-2" style="width: 12px; height: 12px;"></i> Copper Kinetics Guidance</span>
     </div>
 
     <!-- CHAT MESSAGES CONTAINER -->
-    <div id="chat-messages" style="flex: 1; padding: 18px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
-      <div style="background: #e0e7ff; padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: #3730a3; line-height: 1.5; font-weight: 500;">
-        Hello! I am your RAG Clinical Assistant with Voice Support 🎙️. Ask me anything about Wilson's Disease diagnosis, chelation therapy, or dietary guidelines!
+    <div id="chat-messages" style="flex: 1; padding: 18px; overflow-y: auto; background: var(--table-stripe); display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+      <div style="background: var(--primary-light); padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: var(--primary); line-height: 1.5; font-weight: 500;">
+        Hello! I am your NeuroMed Clinical Knowledge Copilot. Ask any question regarding Wilson's Disease diagnosis, AASLD/EASL chelation protocols, or dietary copper management.
       </div>
     </div>
 
     <!-- MIC LISTENING STATUS BAR -->
-    <div id="mic-status-bar" style="display: none; background: #fee2e2; color: #991b1b; padding: 6px 14px; font-size: 11px; font-weight: 700; text-align: center; border-top: 1px solid #fca5a5;">
-      🔴 Listening to medical query... Speak now! Tap 🎙️ to stop.
+    <div id="mic-status-bar" style="display: none; background: var(--danger-bg); color: var(--danger-text); padding: 6px 14px; font-size: 11px; font-weight: 700; text-align: center; border-top: 1px solid var(--danger-border);">
+      [RECORDING ACTIVE] Listening to clinical inquiry... Speak clearly. Tap microphone to complete.
     </div>
 
     <!-- CHAT INPUT -->
-    <div style="padding: 10px 12px; background: white; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center;">
-      <button id="mic-btn" type="button" onclick="toggleVoiceInput()" title="Speak your query (Voice Input)" style="background: #f1f5f9; color: var(--primary); border: 1px solid var(--border); width: 42px; height: 42px; border-radius: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-        <span id="mic-icon">🎙️</span>
+    <div style="padding: 10px 12px; background: var(--card-bg); border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center;">
+      <button id="mic-btn" type="button" onclick="toggleVoiceInput()" title="Speak your query (Voice Input)" style="background: var(--table-stripe); color: var(--primary); border: 1px solid var(--border); width: 42px; height: 42px; border-radius: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+        <span id="mic-icon"><i data-lucide="mic" style="width: 18px; height: 18px;"></i></span>
       </button>
-      <input type="text" id="chat-input" placeholder="Type or speak a clinical query..." onkeypress="handleKeyPress(event)" style="flex: 1; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; font-size: 13px;">
+      <input type="text" id="chat-input" placeholder="Type or speak a clinical query..." onkeypress="handleKeyPress(event)" style="flex: 1; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; font-size: 13px; background: var(--input-bg); color: var(--text-bright);">
       <button id="send-btn" onclick="sendChatMessage()" style="background: var(--primary); color: white; border: none; padding: 11px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; flex-shrink: 0;">Send</button>
     </div>
   </div>
   {% endif %}
 
   <script>
+    // --- THEME SWITCHER WITH LOCALSTORAGE PERSISTENCE ---
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('neuromed_theme', next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('themeIcon');
+      if (icon) {
+        icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      updateThemeIcon(currentTheme);
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
     function toggleNavMenu() {
       const links = document.getElementById('main-nav-links');
       if (links) links.classList.toggle('nav-open');
@@ -878,6 +790,7 @@
           txt.textContent = card.classList.contains('collapsed') ? 'Expand' : 'Collapse';
         }
       }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function expandAllCards() {
@@ -886,6 +799,7 @@
         const txt = c.querySelector('.badge-txt');
         if (txt) txt.textContent = 'Collapse';
       });
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function collapseAllCards() {
@@ -894,6 +808,7 @@
         const txt = c.querySelector('.badge-txt');
         if (txt) txt.textContent = 'Expand';
       });
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     // Contextual Patient Report Data for RAG Chatbot
@@ -917,26 +832,24 @@
       const label = document.getElementById('tts-label');
       const btn = document.getElementById('tts-toggle-btn');
       if (autoTTS) {
-        if (icon) icon.textContent = '🔊';
+        if (icon) icon.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i>';
         if (label) label.textContent = 'Voice: ON';
         if (btn) btn.style.background = 'rgba(255,255,255,0.22)';
       } else {
-        if (icon) icon.textContent = '🔇';
+        if (icon) icon.innerHTML = '<i data-lucide="volume-x" style="width: 14px; height: 14px;"></i>';
         if (label) label.textContent = 'Voice: OFF';
         if (btn) btn.style.background = 'rgba(255,255,255,0.1)';
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function formatBotResponse(text) {
       if (!text) return "";
-      // Strip escaped or unescaped divider artifacts: \==\, \---\, ===, ---, ==, etc.
       let clean = text.replace(/\\*={2,}\\*/g, '');
       clean = clean.replace(/\\*-{3,}\\*/g, '');
       clean = clean.replace(/^[ \t]*[=\-_~\\]+[ \t]*$/gm, '');
-      // Strip any asterisks (* or **) and backticks completely
       clean = clean.replace(/[*`#]/g, '');
-      // Convert any bullet hyphens at line start to clean bullet symbol (• )
       clean = clean.replace(/^[ \t]*-[ \t]+/gm, '• ');
       return clean.trim();
     }
@@ -1004,17 +917,6 @@
       rec.onerror = function(event) {
         console.warn("Speech recognition error:", event.error);
         stopVoiceInput();
-        if (event.error === 'not-allowed') {
-          const micStatus = document.getElementById('mic-status-bar');
-          if (micStatus) {
-            micStatus.style.display = 'block';
-            micStatus.style.background = '#fef3c7';
-            micStatus.style.color = '#92400e';
-            micStatus.style.borderColor = '#fde68a';
-            micStatus.innerHTML = '⚠️ Mic blocked on HTTP IP. Use <b>http://localhost:5000</b> or allow mic in browser permissions.';
-            setTimeout(() => { micStatus.style.display = 'none'; }, 6000);
-          }
-        }
       };
 
       rec.onend = function() {
@@ -1049,7 +951,7 @@
       const micBtn = document.getElementById('mic-btn');
       const micStatus = document.getElementById('mic-status-bar');
       if (micBtn) {
-        micBtn.style.background = '#f1f5f9';
+        micBtn.style.background = 'var(--table-stripe)';
         micBtn.style.color = 'var(--primary)';
         micBtn.classList.remove('mic-pulsing');
       }
@@ -1063,13 +965,17 @@
         chatOpen = !chatOpen;
       }
       const widget = document.getElementById('chat-widget');
-      widget.style.display = chatOpen ? 'flex' : 'none';
-      if (chatOpen) {
-        document.getElementById('chat-input').focus();
-      } else {
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-        stopVoiceInput();
+      if (widget) {
+        widget.style.display = chatOpen ? 'flex' : 'none';
+        if (chatOpen) {
+          const inp = document.getElementById('chat-input');
+          if (inp) inp.focus();
+        } else {
+          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+          stopVoiceInput();
+        }
       }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function handleKeyPress(e) {
@@ -1077,14 +983,18 @@
     }
 
     function sendQuickChip(text) {
-      document.getElementById('chat-input').value = text;
-      sendChatMessage();
+      const inp = document.getElementById('chat-input');
+      if (inp) {
+        inp.value = text;
+        sendChatMessage();
+      }
     }
 
     let currentSessionId = localStorage.getItem('wilson_chat_session_id') || null;
 
     async function toggleSessionsDrawer() {
       const panel = document.getElementById('chat-sessions-panel');
+      if (!panel) return;
       if (panel.style.display === 'none' || !panel.style.display) {
         panel.style.display = 'block';
         await loadUserSessions();
@@ -1095,23 +1005,24 @@
 
     async function loadUserSessions() {
       const listDiv = document.getElementById('chat-sessions-list');
+      if (!listDiv) return;
       try {
         const res = await fetch('/api/chat/sessions');
         const data = await res.json();
         if (data.success && data.sessions) {
           if (data.sessions.length === 0) {
-            listDiv.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">No past consultations found.</span>';
+            listDiv.innerHTML = '<span style="font-size: 11px; color: var(--text-muted);">No past consultations found.</span>';
             return;
           }
           listDiv.innerHTML = data.sessions.map(s => `
-            <div onclick="selectSession('${s.session_id}')" style="background: ${s.session_id === currentSessionId ? '#e0e7ff' : 'white'}; border: 1px solid ${s.session_id === currentSessionId ? 'var(--primary)' : '#cbd5e1'}; padding: 6px 10px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-              <span style="font-weight: 700; color: #1e1b4b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;">${s.title || 'Consultation'}</span>
-              <span style="color: #64748b; font-size: 10px;">${s.message_count || 0} msgs</span>
+            <div onclick="selectSession('${s.session_id}')" style="background: ${s.session_id === currentSessionId ? 'var(--primary-light)' : 'var(--card-bg)'}; border: 1px solid ${s.session_id === currentSessionId ? 'var(--primary)' : 'var(--border)'}; padding: 6px 10px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+              <span style="font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;">${s.title || 'Consultation'}</span>
+              <span style="color: var(--text-muted); font-size: 10px;">${s.message_count || 0} msgs</span>
             </div>
           `).join('');
         }
       } catch (e) {
-        listDiv.innerHTML = '<span style="font-size: 11px; color: #ef4444;">Failed to load history.</span>';
+        listDiv.innerHTML = '<span style="font-size: 11px; color: var(--danger-text);">Failed to load history.</span>';
       }
     }
 
@@ -1131,12 +1042,15 @@
           localStorage.setItem('wilson_chat_session_id', currentSessionId);
           chatHistory = [];
           const container = document.getElementById('chat-messages');
-          container.innerHTML = `
-            <div style="background: #e0e7ff; padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: #3730a3; line-height: 1.5; font-weight: 500;">
-              New consultation started! I am your RAG Clinical Assistant with Voice Support 🎙️. Ask me anything about Wilson's Disease diagnosis, chelation therapy, or dietary guidelines!
-            </div>
-          `;
-          document.getElementById('chat-sessions-panel').style.display = 'none';
+          if (container) {
+            container.innerHTML = `
+              <div style="background: var(--primary-light); padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: var(--primary); line-height: 1.5; font-weight: 500;">
+                New consultation started. Ask any question regarding Wilson's Disease diagnosis, AASLD/EASL chelation protocols, or dietary copper management.
+              </div>
+            `;
+          }
+          const panel = document.getElementById('chat-sessions-panel');
+          if (panel) panel.style.display = 'none';
         }
       } catch (e) {
         console.error('Failed to create new session:', e);
@@ -1146,13 +1060,15 @@
     async function selectSession(sessionId) {
       currentSessionId = sessionId;
       localStorage.setItem('wilson_chat_session_id', currentSessionId);
-      document.getElementById('chat-sessions-panel').style.display = 'none';
+      const panel = document.getElementById('chat-sessions-panel');
+      if (panel) panel.style.display = 'none';
       await loadSessionMessages(sessionId);
     }
 
     async function loadSessionMessages(sessionId) {
       const container = document.getElementById('chat-messages');
-      container.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 10px;">Loading consultation messages...</div>';
+      if (!container) return;
+      container.innerHTML = '<div style="color: var(--text-muted); font-style: italic; padding: 10px;">Loading consultation messages...</div>';
       try {
         const res = await fetch(`/api/chat/session/${sessionId}`);
         const data = await res.json();
@@ -1161,7 +1077,7 @@
           chatHistory = [];
           if (data.messages.length === 0) {
             container.innerHTML = `
-              <div style="background: #e0e7ff; padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: #3730a3; line-height: 1.5; font-weight: 500;">
+              <div style="background: var(--primary-light); padding: 12px 16px; border-radius: 14px; max-width: 88%; align-self: flex-start; color: var(--primary); line-height: 1.5; font-weight: 500;">
                 Consultation resumed. Ask any question about Wilson's Disease diagnosis, chelation therapy, or dietary guidelines!
               </div>
             `;
@@ -1175,41 +1091,42 @@
               container.appendChild(uDiv);
             } else {
               const bDiv = document.createElement('div');
-              bDiv.style.cssText = 'background: #e0e7ff; color: #1e1b4b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px;';
+              bDiv.style.cssText = 'background: var(--primary-light); color: var(--dark); padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px;';
               const tDiv = document.createElement('div');
               tDiv.style.cssText = 'white-space: pre-wrap;';
               tDiv.innerText = m.content;
               bDiv.appendChild(tDiv);
 
               const actRow = document.createElement('div');
-              actRow.style.cssText = 'display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px solid rgba(99,102,241,0.18); padding-top: 5px;';
+              actRow.style.cssText = 'display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 5px;';
               const spk = document.createElement('button');
               spk.type = 'button';
-              spk.style.cssText = 'background: white; border: 1px solid rgba(99,102,241,0.3); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;';
-              spk.innerHTML = '🔊 Read Aloud';
+              spk.style.cssText = 'background: var(--card-bg); border: 1px solid var(--border); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;';
+              spk.innerHTML = '<i data-lucide="volume-2" style="width: 12px; height: 12px;"></i> Read Aloud';
               spk.onclick = () => speakBotText(m.content);
               actRow.appendChild(spk);
               bDiv.appendChild(actRow);
               container.appendChild(bDiv);
+              if (typeof lucide !== 'undefined') lucide.createIcons();
             }
           });
           container.scrollTop = container.scrollHeight;
         }
       } catch (e) {
-        container.innerHTML = '<div style="color: #ef4444; padding: 10px;">Failed to load messages.</div>';
+        container.innerHTML = '<div style="color: var(--danger-text); padding: 10px;">Failed to load messages.</div>';
       }
     }
 
     async function sendChatMessage() {
       const input = document.getElementById('chat-input');
-      const message = input.value.trim();
+      const message = input ? input.value.trim() : '';
       if (!message) return;
 
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
       const messagesContainer = document.getElementById('chat-messages');
+      if (!messagesContainer) return;
       
-      // User Message
       const userDiv = document.createElement('div');
       userDiv.style.cssText = 'background: var(--primary); color: white; padding: 10px 14px; border-radius: 12px; max-width: 85%; align-self: flex-end; font-weight: 500;';
       userDiv.innerText = message;
@@ -1218,9 +1135,8 @@
       input.value = '';
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-      // Loading Indicator
       const loadingDiv = document.createElement('div');
-      loadingDiv.style.cssText = 'background: #e2e8f0; color: #475569; padding: 10px 14px; border-radius: 12px; max-width: 85%; align-self: flex-start; font-style: italic;';
+      loadingDiv.style.cssText = 'background: var(--table-stripe); color: var(--text-muted); padding: 10px 14px; border-radius: 12px; max-width: 85%; align-self: flex-start; font-style: italic;';
       loadingDiv.innerText = 'Searching medical vectorstore...';
       messagesContainer.appendChild(loadingDiv);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -1233,7 +1149,6 @@
           chat_history: chatHistory.slice(-6),
           csrf_token: '{{ csrf_token() }}'
         };
-        // Record user turn in local history
         chatHistory.push({ role: 'user', content: message });
 
         const response = await fetch('/api/chat', {
@@ -1249,14 +1164,9 @@
 
         if (!response.ok) {
           let errMsg = data.error || data.response || "Error connecting to RAG assistant.";
-          if (response.status === 401 || (data.error && data.error.includes("Session expired"))) {
-            errMsg = "🔒 Your session has expired due to 30 minutes of inactivity. Please refresh the page and log in again to continue.";
-          } else if (response.status === 400 && data.error && data.error.includes("CSRF")) {
-            errMsg = "🔒 Security token expired. Please refresh the page and log in again.";
-          }
           const errDiv = document.createElement('div');
-          errDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px; font-weight: 500; border: 1px solid #fca5a5;';
-          errDiv.innerHTML = `${errMsg} <br><a href="/login?next=${encodeURIComponent(window.location.pathname)}" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-top: 6px; display: inline-block;">Click here to Log In</a>`;
+          errDiv.style.cssText = 'background: var(--danger-bg); color: var(--danger-text); padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px; font-weight: 500; border: 1px solid var(--danger-border);';
+          errDiv.innerHTML = `${errMsg}`;
           messagesContainer.appendChild(errDiv);
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
           return;
@@ -1268,7 +1178,7 @@
         }
 
         const botDiv = document.createElement('div');
-        botDiv.style.cssText = 'background: #e0e7ff; color: #1e1b4b; padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px;';
+        botDiv.style.cssText = 'background: var(--primary-light); color: var(--dark); padding: 12px 14px; border-radius: 14px; max-width: 88%; align-self: flex-start; line-height: 1.5; font-size: 13px;';
         
         const textNode = document.createElement('div');
         textNode.style.cssText = 'white-space: pre-wrap;';
@@ -1276,24 +1186,22 @@
         textNode.innerText = cleanResponse;
         botDiv.appendChild(textNode);
 
-        // Record assistant turn in local history
         chatHistory.push({ role: 'assistant', content: cleanResponse });
 
-        // Read aloud action bar
         const actionRow = document.createElement('div');
-        actionRow.style.cssText = 'display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px solid rgba(99,102,241,0.18); padding-top: 5px;';
+        actionRow.style.cssText = 'display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 5px;';
         
         const speakBtn = document.createElement('button');
         speakBtn.type = 'button';
-        speakBtn.style.cssText = 'background: white; border: 1px solid rgba(99,102,241,0.3); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;';
-        speakBtn.innerHTML = '🔊 Read Aloud';
+        speakBtn.style.cssText = 'background: var(--card-bg); border: 1px solid var(--border); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;';
+        speakBtn.innerHTML = '<i data-lucide="volume-2" style="width: 12px; height: 12px;"></i> Read Aloud';
         speakBtn.onclick = () => speakBotText(cleanResponse);
         actionRow.appendChild(speakBtn);
 
         botDiv.appendChild(actionRow);
         messagesContainer.appendChild(botDiv);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
 
-        // Auto Voice Output if enabled
         if (autoTTS && cleanResponse) {
           speakBotText(cleanResponse);
         }
@@ -1302,9 +1210,11 @@
         if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
           chatHistory.pop();
         }
-        messagesContainer.removeChild(loadingDiv);
+        if (loadingDiv.parentNode === messagesContainer) {
+          messagesContainer.removeChild(loadingDiv);
+        }
         const errDiv = document.createElement('div');
-        errDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 14px; max-width: 85%; align-self: flex-start;';
+        errDiv.style.cssText = 'background: var(--danger-bg); color: var(--danger-text); padding: 10px 14px; border-radius: 14px; max-width: 85%; align-self: flex-start;';
         errDiv.innerText = 'Error connecting to RAG assistant.';
         messagesContainer.appendChild(errDiv);
       }

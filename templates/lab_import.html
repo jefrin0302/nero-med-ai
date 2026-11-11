@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Laboratory Workstation & Certified Report Generation — NeuroMed AI</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   <style>
     .lab-header {
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -220,27 +228,57 @@
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI
-      </a>
-      <ul class="nav-links">
-        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
-        <li><a class="nav-link-item active" href="{{ url_for('lab_import_page') }}">Lab Workstation</a></li>
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
+
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('lab_import_page') }}"><i data-lucide="flask-conical"></i> Lab Workstation</a></li>
         {% if current_user.role in ('admin', 'clinician') %}
-        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patients</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
         {% endif %}
         {% if current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
         {% endif %}
-        <li><span class="nav-link-item" style="color: #64748b; font-size: 13px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
-        <li>
-          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
-          </form>
-        </li>
       </ul>
+
+      <div class="nav-right-actions">
+        <!-- THEME TOGGLE BUTTON -->
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        {% if current_user.is_authenticated %}
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.username }}</span>
+          <span style="opacity: 0.4;">|</span>
+          <span class="role-text">{{ 'Lab Specialist' if current_user.role == 'lab_staff' else ('Dept. Head' if current_user.role == 'admin' else 'Clinician') }}</span>
+        </span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="nav-btn-logout" title="Sign Out">
+            <i data-lucide="log-out"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+        {% else %}
+        <a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">
+          <i data-lucide="lock"></i>
+          <span>Sign In</span>
+        </a>
+        {% endif %}
+
+        <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -255,7 +293,7 @@
             Laboratory Medicine Subsystem
           </span>
           <h1 style="font-size: 26px; font-weight: 800; margin: 10px 0 6px;">
-            Laboratory Data Ingestion & Clinical Pathology Workstation
+            Laboratory Data Ingestion &amp; Clinical Pathology Workstation
           </h1>
           <p style="font-size: 14px; color: #cbd5e1; margin: 0; max-width: 760px; line-height: 1.5;">
             Collect patient demographics, measure 23 Wilson’s Disease biomarkers, record specimen QC notes, and issue official Certified Laboratory Reports. 
@@ -276,13 +314,13 @@
     <!-- WORKSTATION NAVIGATION TABS -->
     <div class="tab-bar">
       <button type="button" class="tab-btn active" onclick="switchLabTab('intake')">
-        📝 1. Patient Intake & Biomarkers Entry
+        <i data-lucide="file-edit" style="width: 14px; height: 14px;"></i> 1. Patient Intake &amp; Biomarkers Entry
       </button>
       <button type="button" class="tab-btn" onclick="switchLabTab('file')">
-        📁 2. File Ingestion & Parser
+        <i data-lucide="folder-up" style="width: 14px; height: 14px;"></i> 2. File Ingestion &amp; Parser
       </button>
       <button type="button" class="tab-btn" onclick="switchLabTab('reports')">
-        📋 3. Certified Laboratory Reports Registry ({{ recent_reports|length }})
+        <i data-lucide="clipboard-list" style="width: 14px; height: 14px;"></i> 3. Certified Laboratory Reports Registry ({{ recent_reports|length }})
       </button>
     </div>
 
@@ -293,24 +331,27 @@
       <div class="panel-card">
         <div class="panel-header">
           <div>
-            <h2 class="panel-title">👤 Patient Identification & Specimen Metadata</h2>
+            <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="user" style="color: var(--primary);"></i>
+              <span>Patient Identification &amp; Specimen Metadata</span>
+            </h2>
             <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">
               Lookup an existing patient or register a new record to allocate a sequential Patient ID.
             </p>
           </div>
           <!-- PRESET CONTROLS -->
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" class="btn-secondary" onclick="fillTestSample('normal')" style="font-size: 12px; padding: 6px 12px;">
-              🟢 Normal Baseline
+            <button type="button" class="btn-secondary" onclick="fillTestSample('normal')" style="font-size: 12px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 4px;">
+              <i data-lucide="file-check" style="width: 12px; height: 12px; color: #10b981;"></i> Normal Baseline
             </button>
-            <button type="button" class="btn-secondary" onclick="fillTestSample('baseline_wilson')" style="font-size: 12px; padding: 6px 12px;">
-              🔴 Baseline Wilson (Jan)
+            <button type="button" class="btn-secondary" onclick="fillTestSample('baseline_wilson')" style="font-size: 12px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 4px;">
+              <i data-lucide="alert-triangle" style="width: 12px; height: 12px; color: #ef4444;"></i> Baseline Wilson Profile
             </button>
-            <button type="button" class="btn-secondary" onclick="fillTestSample('followup_wilson')" style="font-size: 12px; padding: 6px 12px;">
-              🟡 Follow-Up Decoppering (June)
+            <button type="button" class="btn-secondary" onclick="fillTestSample('followup_wilson')" style="font-size: 12px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 4px;">
+              <i data-lucide="activity" style="width: 12px; height: 12px; color: #f59e0b;"></i> Follow-Up Decoppering
             </button>
-            <button type="button" class="btn-secondary" onclick="resetIntakeForm()" style="font-size: 12px; padding: 6px 12px; color: #ef4444;">
-              🔄 Clear
+            <button type="button" class="btn-secondary" onclick="resetIntakeForm()" style="font-size: 12px; padding: 6px 12px; color: #ef4444; display: inline-flex; align-items: center; gap: 4px;">
+              <i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Clear Form
             </button>
           </div>
         </div>
@@ -399,7 +440,10 @@
 
           <!-- SECTION 2: SPECIMEN INTEGRITY -->
           <div class="biomarker-section">
-            <div class="biomarker-title">🧪 Specimen QC & Collection Parameters</div>
+            <div class="biomarker-title" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="flask-conical" style="color: var(--primary);"></i>
+              <span>Specimen QC &amp; Collection Parameters</span>
+            </div>
             <div class="form-grid-3">
               <div class="form-group-lab">
                 <label class="form-label-lab">Sample Type</label>
@@ -415,8 +459,9 @@
           <!-- SECTION 3: 23 CLINICAL BIOMARKERS -->
           <!-- PANEL A: COPPER METABOLISM -->
           <div class="biomarker-section" style="border-left: 4px solid #f59e0b;">
-            <div class="biomarker-title" style="color: #b45309;">
-              🔬 Panel A: Copper Metabolism Profile (Diagnostic Hallmarks)
+            <div class="biomarker-title" style="color: #b45309; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="test-tube-2"></i>
+              <span>Panel A: Copper Metabolism Profile (Diagnostic Hallmarks)</span>
             </div>
             <div class="form-grid-3">
               <div class="form-group-lab">
@@ -440,8 +485,9 @@
 
           <!-- PANEL B: HEPATIC FUNCTION PANEL -->
           <div class="biomarker-section" style="border-left: 4px solid #10b981;">
-            <div class="biomarker-title" style="color: #047857;">
-              🩺 Panel B: Liver Function Panel (Transaminases & Synthesis)
+            <div class="biomarker-title" style="color: #047857; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="activity"></i>
+              <span>Panel B: Liver Function Panel (Transaminases &amp; Synthesis)</span>
             </div>
             <div class="form-grid-3">
               <div class="form-group-lab">
@@ -477,8 +523,9 @@
 
           <!-- PANEL C: CLINICAL SIGNS & GENETICS -->
           <div class="biomarker-section" style="border-left: 4px solid #6366f1;">
-            <div class="biomarker-title" style="color: #4338ca;">
-              👁️ Panel C: Clinical Manifestations, Neuro-Cognitive & Genetics
+            <div class="biomarker-title" style="color: #4338ca; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="eye"></i>
+              <span>Panel C: Clinical Manifestations, Neuro-Cognitive &amp; Genetics</span>
             </div>
             <div class="form-grid-3">
               <div class="form-group-lab">
@@ -523,7 +570,7 @@
           <!-- SUBMIT ACTION -->
           <div style="display: flex; justify-content: flex-end; gap: 14px; margin-top: 24px; align-items: center;">
             <button type="submit" id="btnSaveReport" class="btn-prime" style="padding: 12px 28px; font-size: 14px; display: inline-flex; align-items: center; gap: 8px;">
-              💾 Save & Generate Certified Lab Report
+              <i data-lucide="file-check-2"></i> Save &amp; Generate Certified Lab Report
             </button>
           </div>
         </form>
@@ -537,26 +584,32 @@
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px;">
         <!-- PANEL 1: DOWNLOAD TEMPLATES -->
         <div class="panel-card">
-          <h2 class="panel-title">📥 Approved Laboratory Templates</h2>
+          <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="file-spreadsheet" style="color: var(--primary);"></i>
+            <span>Approved Laboratory Templates</span>
+          </h2>
           <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-top: 6px;">
             Download standardized schemas matching the 23 Wilson’s Disease biomarker variables.
           </p>
           <div style="display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap;">
-            <a href="{{ url_for('api_sample_template', format='csv') }}" class="btn-prime" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px;">
-              📄 CSV Template
+            <a href="{{ url_for('api_sample_template', format='csv') }}" class="btn-prime" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="file-text" style="width: 14px; height: 14px;"></i> CSV Template
             </a>
-            <a href="{{ url_for('api_sample_template', format='json') }}" class="btn-secondary" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px;">
-              📋 JSON Template
+            <a href="{{ url_for('api_sample_template', format='json') }}" class="btn-secondary" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="file-code" style="width: 14px; height: 14px;"></i> JSON Template
             </a>
-            <a href="{{ url_for('api_sample_template', format='docx') }}" class="btn-prime" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px; background: #4f46e5;">
-              📝 Word (.docx) Template
+            <a href="{{ url_for('api_sample_template', format='docx') }}" class="btn-prime" style="text-decoration: none; padding: 9px 16px; font-size: 12.5px; background: #4f46e5; display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="file" style="width: 14px; height: 14px;"></i> Word (.docx) Template
             </a>
           </div>
         </div>
 
         <!-- PANEL 2: UPLOAD DROPZONE -->
         <div class="panel-card">
-          <h2 class="panel-title">🔬 Upload Lab Report File</h2>
+          <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="upload-cloud" style="color: var(--primary);"></i>
+            <span>Upload Lab Report File</span>
+          </h2>
           <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-top: 6px;">
             Drop or browse a CSV, JSON, PDF, or Word DOCX/DOC file (max 2 MB) for automated parameter extraction.
           </p>
@@ -566,7 +619,7 @@
             <input type="file" id="labFileInput" accept=".csv,.json,.pdf,.docx,.doc" style="display: none;" onchange="handleFileSelect(this.files[0])" />
 
             <div class="drop-zone" id="dropZone" onclick="document.getElementById('labFileInput').click()">
-              <div style="font-size: 32px; margin-bottom: 6px;">📊</div>
+              <div style="margin-bottom: 6px; color: var(--primary);"><i data-lucide="upload" style="width: 32px; height: 32px;"></i></div>
               <div style="font-weight: 700; color: var(--dark); font-size: 14px;">Click to select file or drag here</div>
               <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Supports CSV, JSON, PDF, or Word DOCX/DOC (up to 2 MB)</div>
             </div>
@@ -583,8 +636,8 @@
           </div>
           <div style="display: flex; gap: 10px; align-items: center;">
             <div id="statusBadgeContainer"></div>
-            <button type="button" id="btnTransferToIntake" class="btn-prime" onclick="transferParsedValuesToIntake()" style="font-size: 12.5px; padding: 8px 16px;">
-              📥 Transfer Values to Intake Form (Tab 1)
+            <button type="button" id="btnTransferToIntake" class="btn-prime" onclick="transferParsedValuesToIntake()" style="font-size: 12.5px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="arrow-down-left" style="width: 14px; height: 14px;"></i> Transfer Values to Intake Form (Tab 1)
             </button>
           </div>
         </div>
@@ -614,13 +667,16 @@
       <div class="panel-card">
         <div class="panel-header">
           <div>
-            <h2 class="panel-title">📋 Certified Laboratory Reports Registry</h2>
+            <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="clipboard-list" style="color: var(--primary);"></i>
+              <span>Certified Laboratory Reports Registry</span>
+            </h2>
             <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">
               Archived pathology reports issued by laboratory personnel. Click View / Print to open the official clinical certificate.
             </p>
           </div>
-          <button type="button" class="btn-secondary" onclick="refreshReportsTable()" style="font-size: 12.5px; padding: 7px 14px;">
-            🔄 Refresh Registry
+          <button type="button" class="btn-secondary" onclick="refreshReportsTable()" style="font-size: 12.5px; padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i> Refresh Registry
           </button>
         </div>
 
@@ -629,7 +685,7 @@
             <thead>
               <tr>
                 <th>Report #</th>
-                <th>Patient ID & Name</th>
+                <th>Patient ID &amp; Name</th>
                 <th>Collection Date</th>
                 <th>Sample Type</th>
                 <th>Reporting Tech</th>
@@ -641,7 +697,7 @@
               {% if recent_reports|length == 0 %}
               <tr>
                 <td colspan="7" style="text-align: center; color: #94a3b8; padding: 36px;">
-                  🧪 No certified laboratory reports generated yet. Complete the Intake Form in Tab 1 to generate the first official laboratory certificate.
+                  No certified laboratory reports generated yet. Complete the Intake Form in Tab 1 to generate the first official laboratory certificate.
                 </td>
               </tr>
               {% else %}
@@ -661,14 +717,14 @@
                   {{ rep.sample_type or 'Venous Blood & 24h Urine' }}
                 </td>
                 <td style="font-size: 12.5px; color: #334155;">
-                  👤 {{ rep.technician_name or 'Lab Staff' }}
+                  {{ rep.technician_name or 'Lab Staff' }}
                 </td>
                 <td>
-                  <span class="badge-certified">✓ Certified</span>
+                  <span class="badge-certified">[VALIDATED] Certified</span>
                 </td>
                 <td style="text-align: right;">
                   <a href="{{ url_for('lab_report_view', report_id=rep.report_id) }}" class="btn-prime" style="padding: 6px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
-                    📄 View / Print Official Report
+                    <i data-lucide="file-text" style="width: 12px; height: 12px;"></i> View / Print Official Report
                   </a>
                 </td>
               </tr>
@@ -831,7 +887,7 @@
       e.preventDefault();
       const btn = document.getElementById('btnSaveReport');
       btn.disabled = true;
-      btn.innerHTML = '⏳ Certifying & Storing Report...';
+      btn.innerHTML = 'Certifying &amp; Storing Report...';
 
       const payload = {
         patient_id: document.getElementById('patientId').value,
@@ -879,7 +935,7 @@
       .then(res => res.json())
       .then(data => {
         btn.disabled = false;
-        btn.innerHTML = '💾 Save & Generate Certified Lab Report';
+        btn.innerHTML = '<i data-lucide="file-check-2"></i> Save &amp; Generate Certified Lab Report';
 
         const alertBox = document.getElementById('labAlertBox');
         alertBox.style.display = 'block';
@@ -891,10 +947,10 @@
           alertBox.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
-                <strong>✅ Laboratory Report Issued:</strong> ${data.message}
+                <strong>[CONFIRMED] Laboratory Report Issued:</strong> ${data.message}
               </div>
-              <a href="${data.report_url}" target="_blank" class="btn-prime" style="padding: 7px 16px; font-size: 13px; text-decoration: none; background: #059669;">
-                🖨️ View & Print Certified Report
+              <a href="${data.report_url}" target="_blank" class="btn-prime" style="padding: 7px 16px; font-size: 13px; text-decoration: none; background: #059669; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="printer" style="width: 14px; height: 14px;"></i> View &amp; Print Certified Report
               </a>
             </div>
           `;
@@ -903,18 +959,20 @@
           alertBox.style.background = '#fee2e2';
           alertBox.style.color = '#991b1b';
           alertBox.style.border = '1px solid #fecaca';
-          alertBox.innerHTML = `<strong>⚠️ Error:</strong> ${data.error || 'Failed to save report.'}`;
+          alertBox.innerHTML = `<strong>[ERROR]:</strong> ${data.error || 'Failed to save report.'}`;
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
       .catch(err => {
         btn.disabled = false;
-        btn.innerHTML = '💾 Save & Generate Certified Lab Report';
+        btn.innerHTML = '<i data-lucide="file-check-2"></i> Save &amp; Generate Certified Lab Report';
         const alertBox = document.getElementById('labAlertBox');
         alertBox.style.display = 'block';
         alertBox.style.background = '#fee2e2';
         alertBox.style.color = '#991b1b';
-        alertBox.innerHTML = `<strong>⚠️ Network Error:</strong> Could not save report. Please try again.`;
+        alertBox.innerHTML = `<strong>[NETWORK ERROR]:</strong> Could not save report. Please try again.`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       });
     }
 
@@ -964,7 +1022,7 @@
         if (!data.success) {
           document.getElementById('resultFilename').textContent = file.name + ' — Validation Failed';
           document.getElementById('statusBadgeContainer').innerHTML = '<span class="status-badge rejected">Validation Error</span>';
-          document.getElementById('validationNotes').innerHTML = '<div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px;">⚠️ ' + (data.error || 'Parsing error') + '</div>';
+          document.getElementById('validationNotes').innerHTML = '<div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px;">[VALIDATION ERROR] ' + (data.error || 'Parsing error') + '</div>';
           lastParsedData = null;
           return;
         }
@@ -1057,7 +1115,7 @@
       alertBox.style.background = '#dbeafe';
       alertBox.style.color = '#1e40af';
       alertBox.style.border = '1px solid #bfdbfe';
-      alertBox.innerHTML = `📥 Successfully transferred parsed values from <strong>${lastParsedData.filename || 'uploaded file'}</strong> into Patient Intake Form. Review values and click Save to issue Certified Report.`;
+      alertBox.innerHTML = `[TRANSFERRED] Successfully transferred parsed values from <strong>${lastParsedData.filename || 'uploaded file'}</strong> into Patient Intake Form. Review values and click Save to issue Certified Report.`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1084,19 +1142,24 @@
             </td>
             <td style="font-size: 12.5px; color: #475569;">${(rep.collection_date || '').substring(0, 16)}</td>
             <td style="font-size: 12.5px; color: #334155;">${rep.sample_type || 'Venous Blood & 24h Urine'}</td>
-            <td style="font-size: 12.5px; color: #334155;">👤 ${rep.technician_name || 'Lab Staff'}</td>
-            <td><span class="badge-certified">✓ Certified</span></td>
+            <td style="font-size: 12.5px; color: #334155;">${rep.technician_name || 'Lab Staff'}</td>
+            <td><span class="badge-certified">[VALIDATED] Certified</span></td>
             <td style="text-align: right;">
               <a href="/lab/report/${rep.report_id}" class="btn-prime" style="padding: 6px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
-                📄 View / Print Official Report
+                <i data-lucide="file-text" style="width: 12px; height: 12px;"></i> View / Print Official Report
               </a>
             </td>
           `;
           tbody.appendChild(tr);
         });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
       .catch(err => console.error("Error refreshing reports:", err));
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
   </script>
 
 </body>

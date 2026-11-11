@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NeuroMed AI — Clinical RAG Observability & Governance</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   
   <style>
     :root {
@@ -25,9 +33,9 @@
     }
 
     .monitor-container {
-      max-width: 1300px;
+      max-width: 1380px;
       margin: 0 auto;
-      padding: 30px 20px 80px 20px;
+      padding: 24px 24px 80px 24px;
     }
 
     /* HERO BANNER */
@@ -698,34 +706,60 @@
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI
-      </a>
-
-      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
-        ☰
-      </button>
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
 
       <ul class="nav-links" id="main-nav-links">
-        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
-        {% if current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
         {% endif %}
-        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
-        <li><a class="nav-link-item active" href="{{ url_for('rag_monitor') }}">RAG Monitor</a></li>
-        {% if current_user.is_authenticated %}
-        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
-        <li>
-          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
-          </form>
-        </li>
-        {% else %}
-        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
-        {% endif %}
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
       </ul>
+
+      <div class="nav-right-actions">
+        <!-- THEME TOGGLE BUTTON -->
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        {% if current_user.is_authenticated %}
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.username }}</span>
+          <span style="opacity: 0.4;">|</span>
+          <span class="role-text">{{ 'Dept. Head' if current_user.role == 'admin' else ('Lab Spec.' if current_user.role == 'lab_staff' else 'Clinician') }}</span>
+        </span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="nav-btn-logout" title="Sign Out">
+            <i data-lucide="log-out"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+        {% else %}
+        <a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">
+          <i data-lucide="lock"></i>
+          <span>Sign In</span>
+        </a>
+        {% endif %}
+
+        <button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none;">
+          <i data-lucide="smartphone"></i>
+          <span>Install App</span>
+        </button>
+
+        <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -735,11 +769,11 @@
     <div class="hero-banner">
       <div>
         <div class="hero-title">
-          <span>🩺 Clinical RAG Observability & Governance</span>
+          <span><i data-lucide="stethoscope" style="width:24px;height:24px;vertical-align:middle;margin-right:8px;"></i> Clinical Knowledge Observability &amp; Governance</span>
         </div>
         <div class="hero-subtitle">
           Real-time telemetry, zero-hallucination citation validation, dynamic clinical guideline ingestion, 
-          and Chief Doctor authorization portal for NeuroMed AI.
+          and Clinical Governance authorization portal for NeuroMed AI.
         </div>
       </div>
       <div class="telemetry-badges">
@@ -754,10 +788,10 @@
         </span>
         {% endif %}
         <span class="badge-pill model">
-          ⚡ Model: {{ rag_status.gemini_model }}
+          Model: {{ rag_status.gemini_model }}
         </span>
         <span class="badge-pill guard">
-          🛡️ Zero-Hallucination Guard: Active
+          [OPERATIONAL] Zero-Hallucination Guard: Active
         </span>
       </div>
     </div>
@@ -765,22 +799,22 @@
     <!-- TAB NAVIGATION BAR -->
     <div class="tab-bar">
       <button class="tab-btn active" onclick="switchTab('overview')">
-        📊 Overview & Telemetry
+        <i data-lucide="bar-chart-3" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Overview &amp; Telemetry
       </button>
       <button class="tab-btn" onclick="switchTab('governance')">
-        🛡️ Document Governance
+        <i data-lucide="shield-check" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Document Governance
         {% if pending_docs|length > 0 %}
         <span style="background: #f59e0b; color: white; border-radius: 9999px; padding: 2px 7px; font-size: 11px;">{{ pending_docs|length }}</span>
         {% endif %}
       </button>
       <button class="tab-btn" onclick="switchTab('audit')">
-        📋 Live Query Audit Trail
+        <i data-lucide="clipboard-list" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Live Query Audit Trail
       </button>
       <button class="tab-btn" onclick="switchTab('chunks')">
-        🧩 Chunks Explorer
+        <i data-lucide="layers" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Chunks Explorer
       </button>
       <button class="tab-btn" onclick="switchTab('pipeline')">
-        ⚙️ How It Works & Divides
+        <i data-lucide="git-branch" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> How It Works &amp; Architecture
       </button>
     </div>
 
@@ -824,7 +858,7 @@
         <!-- CITATION DISTRIBUTION -->
         <div class="content-card">
           <div class="card-header-styled">
-            <span class="card-title-styled">📚 Guideline Citation Share</span>
+            <span class="card-title-styled"><i data-lucide="book-open" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Guideline Citation Share</span>
             <span style="font-size: 12px; color: #64748b;">Evidence Distribution</span>
           </div>
           <div class="card-body-styled">
@@ -879,8 +913,8 @@
         <!-- ENGINE STATUS & SAFEGUARDS -->
         <div class="content-card">
           <div class="card-header-styled">
-            <span class="card-title-styled">⚙️ Dual-Engine Safeguards</span>
-            <span style="font-size: 12px; color: #10b981; font-weight: 700;">Online & Ready</span>
+            <span class="card-title-styled"><i data-lucide="shield-alert" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Dual-Engine Safeguards</span>
+            <span style="font-size: 12px; color: #10b981; font-weight: 700;">Online &amp; Ready</span>
           </div>
           <div class="card-body-styled">
             <div style="display: flex; flex-direction: column; gap: 14px;">
@@ -901,7 +935,7 @@
               <div style="padding: 12px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #f59e0b;">
                 <div style="font-weight: 700; font-size: 13px; color: #78350f;">Quarantine Gatekeeper Protocol</div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 3px;">
-                  New guidelines submitted by clinicians reside in quarantined staging. The RAG engine is forbidden from indexing them until the Chief Doctor authorizes approval.
+                  New guidelines submitted by clinicians reside in quarantined staging. The RAG engine is forbidden from indexing them until Clinical Governance authorizes approval.
                 </div>
               </div>
             </div>
@@ -920,7 +954,7 @@
       <!-- CLINICIAN DOCUMENT UPLOAD FORM -->
       <div class="content-card">
         <div class="card-header-styled">
-          <span class="card-title-styled">📤 Submit Clinical Guideline for Review</span>
+          <span class="card-title-styled"><i data-lucide="upload" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Submit Clinical Guideline for Review</span>
           <span style="font-size: 12px; color: #b45309; background: #fef3c7; padding: 4px 10px; border-radius: 9999px; font-weight: 700;">
             Quarantined Staging State
           </span>
@@ -929,7 +963,7 @@
           <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
             Clinicians can upload official hospital protocols, treatment algorithms, or clinical research papers (PDF, DOCX, TXT). 
             Documents will be safely quarantined in <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">medical_docs/pending/</code> 
-            and <strong>cannot be retrieved by the RAG chatbot until approved by the Chief Doctor (Admin)</strong>.
+            and <strong>cannot be retrieved by the RAG chatbot until approved by Clinical Governance (Admin)</strong>.
           </p>
 
           <form id="upload-doc-form" onsubmit="submitGuideline(event)">
@@ -945,7 +979,7 @@
               </div>
               <div>
                 <button type="submit" id="upload-btn" class="btn-action" style="background: var(--primary); color: white; padding: 10px 20px; height: 42px;">
-                  ⬆️ Submit Guideline
+                  <i data-lucide="upload" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Submit Guideline
                 </button>
               </div>
             </div>
@@ -957,11 +991,11 @@
       <!-- PENDING APPROVAL TABLE (CHIEF DOCTOR GATEKEEPER) -->
       <div class="content-card">
         <div class="card-header-styled">
-          <span class="card-title-styled">⏳ Pending Chief Doctor Authorizations ({{ pending_docs|length }})</span>
+          <span class="card-title-styled"><i data-lucide="clock" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Pending Review Queue ({{ pending_docs|length }})</span>
           {% if current_user.role == 'admin' %}
-          <span style="font-size: 12px; color: #10b981; font-weight: 700;">👑 Chief Doctor Mode: Authorization Actions Enabled</span>
+          <span style="font-size: 12px; color: #10b981; font-weight: 700;">Clinical Governance Active: Authorization Actions Enabled</span>
           {% else %}
-          <span style="font-size: 12px; color: #64748b;">Clinician View: Awaiting Chief Doctor Authorization</span>
+          <span style="font-size: 12px; color: #64748b;">Clinician View: Awaiting Clinical Governance Authorization</span>
           {% endif %}
         </div>
         <div style="overflow-x: auto;">
@@ -982,7 +1016,7 @@
               {% if pending_docs|length == 0 %}
               <tr>
                 <td colspan="8" style="text-align: center; color: #94a3b8; padding: 30px;">
-                  ✅ No documents currently pending review. All active guidelines are approved.
+                  [CLEAR] No documents currently pending review. All active guidelines are approved.
                 </td>
               </tr>
               {% else %}
@@ -995,22 +1029,22 @@
                 <td>{{ d.created_at[:16] }}</td>
                 <td>{{ (d.file_size_bytes / 1024)|round(1) }} KB</td>
                 <td>
-                  <span class="status-badge pending">🔒 Quarantined (Pending Approval)</span>
+                  <span class="status-badge pending">[QUARANTINED] Pending Approval</span>
                 </td>
                 <td>
                   <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                     <button class="btn-action" style="background: #0284c7; color: white;" onclick="inspectDocument({{ d.doc_id }}, '{{ d.filename }}', true)" title="Inspect extracted text, passages and embedded PDF before approval">
-                      👁️ Inspect Document
+                      <i data-lucide="eye" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Inspect Document
                     </button>
                     {% if current_user.role == 'admin' %}
                     <button class="btn-action btn-approve" onclick="approveDocument({{ d.doc_id }}, '{{ d.filename }}')">
-                      ✓ Approve & Ingest
+                      <i data-lucide="check" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Approve &amp; Ingest
                     </button>
                     <button class="btn-action btn-reject" onclick="rejectDocument({{ d.doc_id }}, '{{ d.filename }}')">
-                      ✗ Reject
+                      <i data-lucide="x" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Reject
                     </button>
                     {% else %}
-                    <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Awaiting Chief Doctor</span>
+                    <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Awaiting Review</span>
                     {% endif %}
                   </div>
                 </td>
@@ -1025,7 +1059,7 @@
       <!-- ACTIVE KNOWLEDGE BASE TABLE -->
       <div class="content-card">
         <div class="card-header-styled">
-          <span class="card-title-styled">📖 Active Guidelines in RAG Knowledge Base</span>
+          <span class="card-title-styled"><i data-lucide="book-check" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Active Guidelines in RAG Knowledge Base</span>
           <span style="font-size: 12px; color: #64748b;">Live Retrievable by Chatbot</span>
         </div>
         <div style="overflow-x: auto;">
@@ -1045,48 +1079,48 @@
               <tr>
                 <td style="font-weight: 700;">AASLD WD Guidelines.pdf</td>
                 <td>~380 passages</td>
-                <td><span class="status-badge approved">✓ Core Guideline</span></td>
+                <td><span class="status-badge approved">[CORE GUIDELINE]</span></td>
                 <td>American Association for the Study of Liver Diseases</td>
                 <td><span style="color: #10b981; font-weight: 700;">● Active in RAG</span></td>
                 <td>
-                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('AASLD WD Guidelines.pdf')" title="Inspect Guideline Text & PDF">
-                    👁️ Inspect
+                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('AASLD WD Guidelines.pdf')" title="Inspect Guideline Text &amp; PDF">
+                    <i data-lucide="eye" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Inspect
                   </button>
                 </td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">EASL-ERN Clinical Practice Guidelines on Wilson's disease.pdf</td>
                 <td>~450 passages</td>
-                <td><span class="status-badge approved">✓ Core Guideline</span></td>
+                <td><span class="status-badge approved">[CORE GUIDELINE]</span></td>
                 <td>European Association for the Study of the Liver</td>
                 <td><span style="color: #10b981; font-weight: 700;">● Active in RAG</span></td>
                 <td>
-                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('EASL-ERN Clinical Practice Guidelines on Wilson\'s disease.pdf')" title="Inspect Guideline Text & PDF">
-                    👁️ Inspect
+                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('EASL-ERN Clinical Practice Guidelines on Wilson\'s disease.pdf')" title="Inspect Guideline Text &amp; PDF">
+                    <i data-lucide="eye" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Inspect
                   </button>
                 </td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">NIH Wilson Disease.pdf</td>
                 <td>~180 passages</td>
-                <td><span class="status-badge approved">✓ Core Guideline</span></td>
+                <td><span class="status-badge approved">[CORE GUIDELINE]</span></td>
                 <td>National Institutes of Health / GeneReviews</td>
                 <td><span style="color: #10b981; font-weight: 700;">● Active in RAG</span></td>
                 <td>
-                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('NIH Wilson Disease.pdf')" title="Inspect Guideline Text & PDF">
-                    👁️ Inspect
+                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('NIH Wilson Disease.pdf')" title="Inspect Guideline Text &amp; PDF">
+                    <i data-lucide="eye" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Inspect
                   </button>
                 </td>
               </tr>
               <tr>
                 <td style="font-weight: 700;">clinical practice guidelines in WD.pdf</td>
                 <td>~155 passages</td>
-                <td><span class="status-badge approved">✓ Core Guideline</span></td>
+                <td><span class="status-badge approved">[CORE GUIDELINE]</span></td>
                 <td>Indian National Association for Study of the Liver (INASL)</td>
                 <td><span style="color: #10b981; font-weight: 700;">● Active in RAG</span></td>
                 <td>
-                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('clinical practice guidelines in WD.pdf')" title="Inspect Guideline Text & PDF">
-                    👁️ Inspect
+                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocumentByName('clinical practice guidelines in WD.pdf')" title="Inspect Guideline Text &amp; PDF">
+                    <i data-lucide="eye" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Inspect
                   </button>
                 </td>
               </tr>
@@ -1099,12 +1133,12 @@
                   <div style="font-size: 11px; color: #64748b;">{{ d.filename }}</div>
                 </td>
                 <td>{{ d.passages_count or 'Indexed' }} passages</td>
-                <td><span class="status-badge approved">✓ Approved by Chief Doctor</span></td>
+                <td><span class="status-badge approved">[APPROVED] Verified Clinical Protocol</span></td>
                 <td>{{ d.reviewed_by_name or 'Chief Doctor' }} ({{ d.reviewed_at[:10] if d.reviewed_at else 'Recent' }})</td>
                 <td><span style="color: #10b981; font-weight: 700;">● Active in RAG</span></td>
                 <td>
-                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocument({{ d.doc_id }}, '{{ d.filename }}', false)" title="Inspect Guideline Text & PDF">
-                    👁️ Inspect
+                  <button class="btn-action-sm btn-secondary-sm" onclick="inspectDocument({{ d.doc_id }}, '{{ d.filename }}', false)" title="Inspect Guideline Text &amp; PDF">
+                    <i data-lucide="eye" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Inspect
                   </button>
                 </td>
               </tr>
@@ -1117,7 +1151,7 @@
       <!-- COMPLETE DOCUMENT GOVERNANCE AUDIT HISTORY -->
       <div class="content-card">
         <div class="card-header-styled">
-          <span class="card-title-styled">📜 Document Governance Audit History ({{ all_governance_docs|length }} Records)</span>
+          <span class="card-title-styled"><i data-lucide="file-check" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Document Governance Audit History ({{ all_governance_docs|length }} Records)</span>
           <span style="font-size: 12px; color: #64748b;">Complete request-to-decision audit trail with reviewer notes</span>
         </div>
         <div style="overflow-x: auto;">
@@ -1125,7 +1159,7 @@
             <thead>
               <tr>
                 <th>Request Time</th>
-                <th>Guideline Title & File</th>
+                <th>Guideline Title &amp; File</th>
                 <th>Submitted By</th>
                 <th>File Info</th>
                 <th>Review Decision</th>
@@ -1138,21 +1172,21 @@
               {% if all_governance_docs|length == 0 %}
               <tr>
                 <td colspan="8" style="text-align: center; color: #94a3b8; padding: 30px;">
-                  ℹ️ No document governance records found. Upload a guideline using the submission form above to create the first governance entry.
+                  No document governance records found. Upload a guideline using the submission form above to create the first governance entry.
                 </td>
               </tr>
               {% else %}
               {% for doc in all_governance_docs %}
               <tr>
                 <td style="font-size: 12px; color: #64748b; white-space: nowrap;">
-                  📅 {{ doc.created_at[:16] if doc.created_at else 'Unknown' }}
+                  {{ doc.created_at[:16] if doc.created_at else 'Unknown' }}
                 </td>
                 <td>
                   <div style="font-weight: 700; color: #0f172a;">{{ doc.title }}</div>
                   <code style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 5px; border-radius: 4px;">{{ doc.filename }}</code>
                 </td>
                 <td style="font-size: 13px; color: #334155;">
-                  👤 {{ doc.uploaded_by_name or 'Clinician' }}
+                  {{ doc.uploaded_by_name or 'Clinician' }}
                 </td>
                 <td style="font-size: 11px; color: #64748b;">
                   <div>{{ (doc.file_size_bytes / 1024)|round(1) }} KB</div>
@@ -1162,16 +1196,16 @@
                 </td>
                 <td>
                   {% if doc.review_status == 'approved' %}
-                    <span class="status-badge approved">✓ Accepted / Approved</span>
+                    <span class="status-badge approved">[APPROVED]</span>
                   {% elif doc.review_status == 'rejected' %}
-                    <span class="status-badge rejected">✗ Rejected</span>
+                    <span class="status-badge rejected">[REJECTED]</span>
                   {% else %}
-                    <span class="status-badge pending">⏳ Pending Authorization</span>
+                    <span class="status-badge pending">[PENDING REVIEW]</span>
                   {% endif %}
                 </td>
                 <td style="font-size: 13px; color: #334155;">
                   {% if doc.reviewed_by_name %}
-                    👑 {{ doc.reviewed_by_name }}
+                    <i data-lucide="shield-check" style="width:13px;height:13px;vertical-align:middle;margin-right:3px;"></i> {{ doc.reviewed_by_name }}
                     <div style="font-size: 11px; color: #94a3b8;">{{ doc.reviewed_at[:16] if doc.reviewed_at else '' }}</div>
                   {% else %}
                     <span style="color: #94a3b8; font-style: italic;">Awaiting Review</span>
@@ -1187,8 +1221,8 @@
                   {% endif %}
                 </td>
                 <td>
-                  <button class="btn-action" style="background: #0284c7; color: white; padding: 5px 12px; font-size: 11px;" onclick="inspectDocument({{ doc.doc_id }}, '{{ doc.filename }}', {% if doc.review_status == 'pending_approval' %}true{% else %}false{% endif %})" title="Inspect Guideline Content & Extracted Passages">
-                    👁️ Inspect
+                  <button class="btn-action" style="background: #0284c7; color: white; padding: 5px 12px; font-size: 11px;" onclick="inspectDocument({{ doc.doc_id }}, '{{ doc.filename }}', {% if doc.review_status == 'pending_approval' %}true{% else %}false{% endif %})" title="Inspect Guideline Content &amp; Extracted Passages">
+                    <i data-lucide="eye" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Inspect
                   </button>
                 </td>
               </tr>
@@ -1207,7 +1241,7 @@
     <div id="tab-audit" class="tab-content">
       <div class="content-card">
         <div class="card-header-styled">
-          <span class="card-title-styled">📋 Recent Clinical Queries & Telemetry Audit</span>
+          <span class="card-title-styled"><i data-lucide="clipboard-list" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Recent Clinical Queries &amp; Telemetry Audit</span>
           <span style="font-size: 12px; color: #64748b;">Showing last {{ recent_queries|length }} queries</span>
         </div>
         <div style="overflow-x: auto;">
@@ -1238,18 +1272,18 @@
                 <td style="max-width: 280px; word-break: break-word;">{{ q.query_text }}</td>
                 <td>
                   {% if q.synthesis_engine == 'gemini' %}
-                  <span class="status-badge gemini">⚡ Gemini (Verified)</span>
+                  <span class="status-badge gemini">[VERIFIED] Gemini Live API</span>
                   {% elif q.synthesis_engine == 'extractive' %}
-                  <span class="status-badge extractive">🛡️ Extractive Synthesis</span>
+                  <span class="status-badge extractive">[DETERMINISTIC] Extractive Synthesis</span>
                   {% else %}
                   <span class="status-badge" style="background: #f1f5f9; color: #475569;">{{ q.synthesis_engine }}</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if q.citation_valid == 1 %}
-                  <span style="color: #10b981; font-weight: 700;">✓ Pass</span>
+                  <span style="color: #10b981; font-weight: 700;">[PASS] Verified</span>
                   {% else %}
-                  <span style="color: #ef4444; font-weight: 700;" title="{{ q.fallback_reason or 'Unverified citation' }}">⚠️ Fallback</span>
+                  <span style="color: #ef4444; font-weight: 700;" title="{{ q.fallback_reason or 'Unverified citation' }}">[FALLBACK] Diverted</span>
                   {% endif %}
                 </td>
                 <td>{{ q.latency_ms|round(1) if q.latency_ms else '--' }} ms</td>
@@ -1302,7 +1336,7 @@
         {% set d_lower = doc.document.lower() %}
         {% set pill_cls = 'aasld' if 'aasld' in d_lower else ('easl' if 'easl' in d_lower else ('nih' if 'nih' in d_lower else ('inasl' if 'inasl' in d_lower else 'custom'))) %}
         <span class="doc-pill {{ pill_cls }}" style="cursor: pointer;" onclick="filterByDocument('{{ doc.document }}')" title="Click to filter by this document">
-          📄 {{ doc.document }}: <strong>{{ doc.count }}</strong> chunks
+          <i data-lucide="file-text" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i> {{ doc.document }}: <strong>{{ doc.count }}</strong> chunks
         </span>
         {% endfor %}
       </div>
@@ -1361,13 +1395,13 @@
 
       <!-- LOADING SPINNER -->
       <div id="chunks-loading" style="display: none; text-align: center; padding: 50px; color: var(--primary); font-weight: 700; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 24px;">
-        <div style="font-size: 24px; margin-bottom: 8px;">⏳</div>
+        <div style="margin-bottom: 8px;"><i data-lucide="loader" style="width:24px;height:24px;animation:spin 1s linear infinite;"></i></div>
         Filtering and retrieving guideline chunks from active corpus...
       </div>
 
       <!-- EMPTY STATE -->
       <div id="chunks-empty" style="display: none; text-align: center; padding: 50px; color: #64748b; background: white; border-radius: var(--radius-lg); border: 1px dashed #cbd5e1; margin-bottom: 24px;">
-        <div style="font-size: 32px; margin-bottom: 10px;">🔍</div>
+        <div style="margin-bottom: 10px;"><i data-lucide="search" style="width:32px;height:32px;color:#94a3b8;"></i></div>
         <div style="font-weight: 700; font-size: 15px; color: #1e293b; margin-bottom: 4px;">No Guideline Passages Match Your Query</div>
         <div style="font-size: 13px;">Try adjusting your document selector, page number, or search keywords.</div>
         <button class="btn-action-sm btn-primary-sm" style="margin-top: 14px;" onclick="resetChunkFilters()">Reset Filters</button>
@@ -1391,7 +1425,7 @@
           <div class="chunk-entities-container">
             {% for term in chunk.detected_terms %}
             <span class="entity-tag {{ term.category }}" title="Detected clinical term: {{ term.matched_text }} (Category: {{ term.category }}). Informational label only.">
-              🏷️ {{ term.matched_text }} ({{ term.category }})
+              {{ term.matched_text }} ({{ term.category }})
             </span>
             {% endfor %}
           </div>
@@ -1401,11 +1435,11 @@
 
           <div class="chunk-card-footer">
             <span style="font-size: 11px; color: #64748b;">
-              📏 {{ chunk.char_count }} chars • {{ chunk.word_count }} words • ~{{ chunk.estimated_tokens }} tokens <span style="font-size: 10px; color: #94a3b8;">(est.)</span>
+              {{ chunk.char_count }} chars • {{ chunk.word_count }} words • ~{{ chunk.estimated_tokens }} tokens <span style="font-size: 10px; color: #94a3b8;">(est.)</span>
             </span>
             <div style="display: flex; gap: 6px;">
               <button class="btn-action-sm btn-secondary-sm" onclick="copyCitation('{{ chunk.source }}', {{ chunk.page }})" title="Copy formal citation">
-                📋 Copy
+                <i data-lucide="copy" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i> Copy
               </button>
             </div>
           </div>
@@ -1424,7 +1458,7 @@
       <div class="content-card" style="margin-bottom: 24px;">
         <div class="card-header-styled">
           <div>
-            <span class="card-title-styled">🏗️ Verified End-to-End Clinical RAG Pipeline Architecture</span>
+            <span class="card-title-styled"><i data-lucide="git-branch" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Verified End-to-End Clinical RAG Pipeline Architecture</span>
             <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
               Direct source-anchored execution path from raw guideline ingestion to zero-hallucination citation validation.
             </div>
@@ -1443,11 +1477,11 @@
                 <span class="stage-step-badge">1</span>
                 <div style="font-weight: 800; font-size: 13.5px; color: #1e1b4b; margin-bottom: 4px;">Ingestion &amp; Staging</div>
                 <div style="font-size: 12px; color: #64748b; line-height: 1.4;">
-                  Chief Doctor quarantine gatekeeper, RBAC validation, document file parsing (PDF/DOCX/TXT).
+                  Clinical Governance quarantine gatekeeper, RBAC validation, document file parsing (PDF/DOCX/TXT).
                 </div>
               </div>
               <div style="margin-top: 12px; font-size: 11px; font-weight: 700; color: var(--primary);">
-                app.py / auth_middleware.py ➔
+                app.py / auth_middleware.py &rarr;
               </div>
             </div>
 
@@ -1461,7 +1495,7 @@
                 </div>
               </div>
               <div style="margin-top: 12px; font-size: 11px; font-weight: 700; color: var(--primary);">
-                chunk_clinical_text() ➔
+                chunk_clinical_text() &rarr;
               </div>
             </div>
 
@@ -1475,7 +1509,7 @@
                 </div>
               </div>
               <div style="margin-top: 12px; font-size: 11px; font-weight: 700; color: var(--primary);">
-                retrieve_relevant_passages() ➔
+                retrieve_relevant_passages() &rarr;
               </div>
             </div>
 
@@ -1489,7 +1523,7 @@
                 </div>
               </div>
               <div style="margin-top: 12px; font-size: 11px; font-weight: 700; color: var(--primary);">
-                ask_chatbot_with_telemetry() ➔
+                ask_chatbot_with_telemetry() &rarr;
               </div>
             </div>
 
@@ -1503,7 +1537,7 @@
                 </div>
               </div>
               <div style="margin-top: 12px; font-size: 11px; font-weight: 700; color: var(--primary);">
-                verify_citations() / log_rag_query() ➔
+                verify_citations() / log_rag_query() &rarr;
               </div>
             </div>
           </div>
@@ -1519,7 +1553,7 @@
       <div class="content-card" style="margin-bottom: 24px;">
         <div class="card-header-styled">
           <div>
-            <span class="card-title-styled">🧠 Clinical Chunking Mechanics: Preserving Medical Semantics</span>
+            <span class="card-title-styled"><i data-lucide="layers" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clinical Chunking Mechanics: Preserving Medical Semantics</span>
             <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
               Why fixed-character window chunking risks clinical safety, and how NeuroMed AI protects dosages and page provenance.
             </div>
@@ -1530,7 +1564,7 @@
             <!-- Left: Naive Chunking -->
             <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 18px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <span style="font-weight: 800; color: #9f1239; font-size: 14px;">❌ Naive Fixed-Character Chunking</span>
+                <span style="font-weight: 800; color: #9f1239; font-size: 14px;">[UNSAFE] Naive Fixed-Character Chunking</span>
                 <span style="font-size: 11px; background: #ffe4e6; color: #9f1239; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">Clinical Hazard</span>
               </div>
               <p style="font-size: 12.5px; color: #4c0519; line-height: 1.5; margin-bottom: 12px;">
@@ -1542,14 +1576,14 @@
                 "ceed 1000 mg/day as higher initial doses cause severe neurological deterioration..."
               </div>
               <div style="font-size: 12px; color: #9f1239; font-weight: 600;">
-                ⚠️ <strong>Failure Mode:</strong> A query on pediatric Trientine retrieves Chunk 1 without Chunk 2, losing the critical upper limit restriction ("1000 mg/day max").
+                <strong>Clinical Hazard:</strong> A query on pediatric Trientine retrieves Chunk 1 without Chunk 2, losing the critical upper limit restriction ("1000 mg/day max").
               </div>
             </div>
 
             <!-- Right: Production Clinical Chunking -->
             <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <span style="font-weight: 800; color: #166534; font-size: 14px;">✅ NeuroMed AI Sentence-Preserving Chunking</span>
+                <span style="font-weight: 800; color: #166534; font-size: 14px;">[PROTECTED] Sentence-Preserving Clinical Chunking</span>
                 <span style="font-size: 11px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">Production Safeguard</span>
               </div>
               <p style="font-size: 12.5px; color: #14532d; line-height: 1.5; margin-bottom: 12px;">
@@ -1561,7 +1595,7 @@
                 <span style="background: #fef08a; color: #854d0e; font-weight: 700; padding: 2px 4px;">[150-char Overlap Region into Chunk 2]</span>
               </div>
               <div style="font-size: 12px; color: #166534; font-weight: 600;">
-                🛡️ <strong>Safety Guarantee:</strong> Complete dosage guidelines, upper safety thresholds, and authentic page references remain intact in a single contextual unit.
+                <strong>Clinical Safety Invariant:</strong> Complete dosage guidelines, upper safety thresholds, and authentic page references remain intact in a single contextual unit.
               </div>
             </div>
           </div>
@@ -1572,7 +1606,7 @@
       <div class="content-card">
         <div class="card-header-styled">
           <div>
-            <span class="card-title-styled">🧪 Interactive Clinical Document Chunking Sandbox</span>
+            <span class="card-title-styled"><i data-lucide="terminal" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Interactive Clinical Document Chunking Sandbox</span>
             <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
               Live test bench using the exact pure shared function <code>chunk_clinical_text()</code>. Completely isolated from persistent storage.
             </div>
@@ -1634,19 +1668,19 @@
           <!-- ACTION BUTTONS -->
           <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px;">
             <button class="btn-action" style="background: var(--primary); color: white; padding: 10px 20px;" onclick="runChunkSimulation()">
-              ⚡ Simulate Chunk Division
+              <i data-lucide="play" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Simulate Chunk Division
             </button>
             <button class="btn-action-sm btn-secondary-sm" onclick="resetSimulatorText()">
               ↺ Reset Text
             </button>
             <button class="btn-action-sm btn-secondary-sm" onclick="copySimulatorJSON()" id="btn-copy-sim-json" style="display: none;">
-              📋 Copy Raw JSON
+              <i data-lucide="copy" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Copy Raw JSON
             </button>
           </div>
 
           <!-- SIMULATOR LOADING -->
           <div id="sim-loading" style="display: none; text-align: center; padding: 24px; color: var(--primary); font-weight: 700;">
-            ⏳ Dividing clinical text and computing sentence boundaries...
+            Computing sentence boundaries and token distributions...
           </div>
 
           <!-- SIMULATOR RESULTS DISPLAY -->
@@ -1658,7 +1692,7 @@
               <div><span style="font-size: 12px; color: #64748b;">Avg Chunk Size:</span> <strong id="sim-metric-avg-size" style="font-size: 15px; color: #1e1b4b;">0 chars</strong></div>
               <div><span style="font-size: 12px; color: #64748b;">Overlap Continuity:</span> <strong id="sim-metric-overlap-cnt" style="font-size: 15px; color: #059669;">Verified</strong></div>
               <div style="margin-left: auto; font-size: 11px; background: #ecfdf5; color: #047857; padding: 4px 10px; border-radius: 9999px; font-weight: 700;">
-                🛡️ 100% In-Memory Sandbox (Zero vector mutation)
+                [IN-MEMORY] Read-Only Sandbox (Zero vector mutation)
               </div>
             </div>
 
@@ -1682,7 +1716,7 @@
       <!-- Modal Header -->
       <div style="padding: 16px 24px; background: #0f172a; color: white; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
         <div style="display: flex; align-items: center; gap: 14px; overflow: hidden;">
-          <span style="font-size: 26px;">📑</span>
+          <i data-lucide="file-text" style="width:24px;height:24px;color:#38bdf8;"></i>
           <div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
               <h3 id="modal-doc-title" style="margin: 0; font-size: 17px; font-weight: 800; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 650px;">Document Preview</h3>
@@ -1699,19 +1733,19 @@
       <!-- Metrics & Subtab Toggle Ribbon -->
       <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div style="display: flex; gap: 16px; font-size: 12px; color: #475569; align-items: center; flex-wrap: wrap;">
-          <span>📑 Pages: <strong id="modal-metric-pages" style="color: #0f172a;">--</strong></span>
-          <span>🔤 Characters: <strong id="modal-metric-chars" style="color: #0f172a;">--</strong></span>
-          <span>🧩 Est. Passages: <strong id="modal-metric-passages" style="color: #0f172a;">--</strong></span>
-          <span>🏷️ Clinical Terms: <strong id="modal-metric-terms" style="color: #0f172a;">--</strong></span>
+          <span>Pages: <strong id="modal-metric-pages" style="color: #0f172a;">--</strong></span>
+          <span>Characters: <strong id="modal-metric-chars" style="color: #0f172a;">--</strong></span>
+          <span>Est. Passages: <strong id="modal-metric-passages" style="color: #0f172a;">--</strong></span>
+          <span>Clinical Terms: <strong id="modal-metric-terms" style="color: #0f172a;">--</strong></span>
         </div>
 
         <!-- Subtabs toggle: Extracted Text vs. Embedded PDF -->
         <div style="display: flex; gap: 6px; background: #e2e8f0; padding: 3px; border-radius: 8px;">
           <button id="modal-tab-btn-text" onclick="switchPreviewSubTab('text')" style="padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            📝 Extracted Clinical Text &amp; Passages
+            Extracted Clinical Text &amp; Passages
           </button>
           <button id="modal-tab-btn-pdf" onclick="switchPreviewSubTab('pdf')" style="padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; background: transparent; color: #64748b;">
-            📑 Embedded PDF Viewer
+            Embedded PDF Viewer
           </button>
         </div>
       </div>
@@ -1720,7 +1754,7 @@
       <div style="flex: 1; overflow: hidden; position: relative; background: #f1f5f9; display: flex; flex-direction: column;">
         <!-- Loading overlay -->
         <div id="modal-preview-loading" style="display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.92); z-index: 10; justify-content: center; align-items: center; flex-direction: column; gap: 12px;">
-          <div style="font-size: 36px; animation: spin 1s linear infinite;">⏳</div>
+          <div><i data-lucide="loader" style="width:32px;height:32px;animation:spin 1s linear infinite;"></i></div>
           <div style="font-weight: 700; color: #0f172a; font-size: 14px;">Extracting document text and clinical entities...</div>
         </div>
 
@@ -1755,7 +1789,7 @@
       <!-- Modal Footer (Review & Authorization Actions) -->
       <div style="padding: 14px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 280px; display: flex; align-items: center; gap: 10px;">
-          <input type="text" id="modal-review-notes" placeholder="Chief Doctor Review Notes (optional for approval, required for rejection)..." style="flex: 1; max-width: 550px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12.5px;" />
+          <input type="text" id="modal-review-notes" placeholder="Reviewer Notes (optional for approval, required for rejection)..." style="flex: 1; max-width: 550px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12.5px;" />
         </div>
 
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -1764,10 +1798,10 @@
           </button>
           <div id="modal-admin-actions" style="display: flex; gap: 10px;">
             <button id="modal-btn-reject" class="btn-action btn-reject" onclick="rejectFromModal()">
-              ✗ Reject Document
+              <i data-lucide="x" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Reject Document
             </button>
             <button id="modal-btn-approve" class="btn-action btn-approve" onclick="approveFromModal()">
-              ✓ Authorize &amp; Ingest
+              <i data-lucide="check" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> Authorize &amp; Ingest
             </button>
           </div>
         </div>
@@ -1787,6 +1821,10 @@
 
       const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabName));
       if (activeBtn) activeBtn.classList.add('active');
+
+      if (window.lucide) {
+        lucide.createIcons();
+      }
     }
 
     function toggleNavMenu() {
@@ -1801,7 +1839,7 @@
       const submitBtn = document.getElementById('upload-btn');
       feedback.style.display = 'block';
       feedback.style.color = '#3b82f6';
-      feedback.innerText = 'Submitting document for Chief Doctor authorization...';
+      feedback.innerText = 'Submitting document for Clinical Governance authorization...';
       submitBtn.disabled = true;
 
       const form = document.getElementById('upload-doc-form');
@@ -1819,16 +1857,16 @@
 
         if (response.ok && data.success) {
           feedback.style.color = '#10b981';
-          feedback.innerText = '✓ ' + data.message;
+          feedback.innerText = '[SUCCESS] ' + data.message;
           form.reset();
           setTimeout(() => window.location.reload(), 1500);
         } else {
           feedback.style.color = '#ef4444';
-          feedback.innerText = '✗ ' + (data.error || 'Submission failed.');
+          feedback.innerText = '[ERROR] ' + (data.error || 'Submission failed.');
         }
       } catch (err) {
         feedback.style.color = '#ef4444';
-        feedback.innerText = '✗ Network error: ' + err.message;
+        feedback.innerText = '[ERROR] Network error: ' + err.message;
       } finally {
         submitBtn.disabled = false;
       }
@@ -1849,17 +1887,17 @@
             'Content-Type': 'application/json',
             'X-CSRFToken': '{{ csrf_token() }}'
           },
-          body: JSON.stringify({ notes: customNotes || 'Approved by Chief Doctor (Admin)' })
+          body: JSON.stringify({ notes: customNotes || 'Approved by Clinical Governance (Admin)' })
         });
         const data = await response.json();
         if (response.ok && data.success) {
-          alert('✓ ' + data.message);
+          alert('[SUCCESS] ' + data.message);
           window.location.reload();
         } else {
-          alert('✗ Approval failed: ' + (data.error || 'Server error.'));
+          alert('[ERROR] Approval failed: ' + (data.error || 'Server error.'));
         }
       } catch (err) {
-        alert('✗ Network error: ' + err.message);
+        alert('[ERROR] Network error: ' + err.message);
       }
     }
 
@@ -1882,13 +1920,13 @@
         });
         const data = await response.json();
         if (response.ok && data.success) {
-          alert('✓ Document rejected.');
+          alert('[SUCCESS] Document rejected.');
           window.location.reload();
         } else {
-          alert('✗ Rejection failed: ' + (data.error || 'Server error.'));
+          alert('[ERROR] Rejection failed: ' + (data.error || 'Server error.'));
         }
       } catch (err) {
-        alert('✗ Network error: ' + err.message);
+        alert('[ERROR] Network error: ' + err.message);
       }
     }
 
@@ -2047,7 +2085,7 @@
         if (chunk.detected_terms && chunk.detected_terms.length > 0) {
           entityHtml = '<div class="chunk-entities-container">';
           chunk.detected_terms.forEach(t => {
-            entityHtml += `<span class="entity-tag ${escapeHtml(t.category)}" title="Detected clinical term: ${escapeHtml(t.matched_text)} (${escapeHtml(t.category)}). Informational label only.">🏷️ ${escapeHtml(t.matched_text)} (${escapeHtml(t.category)})</span>`;
+            entityHtml += `<span class="entity-tag ${escapeHtml(t.category)}" title="Detected clinical term: ${escapeHtml(t.matched_text)} (${escapeHtml(t.category)}). Informational label only.">${escapeHtml(t.matched_text)} (${escapeHtml(t.category)})</span>`;
           });
           entityHtml += '</div>';
         }
@@ -2068,11 +2106,11 @@
 
             <div class="chunk-card-footer">
               <span style="font-size: 11px; color: #64748b;">
-                📏 ${chunk.char_count} chars • ${chunk.word_count} words • ~${chunk.estimated_tokens} tokens <span style="font-size: 10px; color: #94a3b8;">(est.)</span>
+                ${chunk.char_count} chars • ${chunk.word_count} words • ~${chunk.estimated_tokens} tokens <span style="font-size: 10px; color: #94a3b8;">(est.)</span>
               </span>
               <div style="display: flex; gap: 6px;">
                 <button class="btn-action-sm btn-secondary-sm" onclick="copyCitation('${escapeHtml(chunk.source)}', ${chunk.page})" title="Copy formal citation">
-                  📋 Copy
+                  <i data-lucide="copy" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i> Copy
                 </button>
               </div>
             </div>
@@ -2081,12 +2119,15 @@
       });
 
       grid.innerHTML = html;
+      if (window.lucide) {
+        lucide.createIcons();
+      }
     }
 
     function copyCitation(source, page) {
       const citation = `${source} (Page ${page})`;
       navigator.clipboard.writeText(citation).then(() => {
-        alert(`✓ Copied clinical citation:\n${citation}`);
+        alert(`[SUCCESS] Copied clinical citation:\n${citation}`);
       }).catch(err => {
         prompt('Copy citation:', citation);
       });
@@ -2098,13 +2139,13 @@
     // =========================================================================
     const PIPELINE_STAGES = {
       1: {
-        title: "Stage 1: Quarantined Ingestion & Chief Doctor Gatekeeper",
+        title: "Stage 1: Quarantined Ingestion & Clinical Governance Gatekeeper",
         subtitle: "Safe intake and staging of clinical guideline documents",
         module: "app.py:upload_guideline() & auth_middleware.py",
         inputs: "Raw guideline file (PDF, DOCX, TXT) submitted by clinician via web portal",
         outputs: "Quarantined record in SQLite `rag_documents` (status: pending_approval)",
         config: "Allowed extensions: .pdf, .docx, .txt | Max file size: 32MB | Quarantine isolation: Enabled",
-        invariant: "Production Corpus Integrity: Uploaded guidelines NEVER enter memory, vector embeddings, or retrieval ranking until explicitly authorized by Chief Doctor (Admin).",
+        invariant: "Production Corpus Integrity: Uploaded guidelines NEVER enter memory, vector embeddings, or retrieval ranking until explicitly authorized by Clinical Governance (Admin).",
         instrumentation: "Status transitions logged with audit timestamps, notes, and reviewer ID in `rag_documents`."
       },
       2: {
@@ -2145,7 +2186,7 @@
         outputs: "Citation validity flag (0 or 1), verified sources list, audit trail entry in SQLite",
         config: "Citation pattern: `[Source: <filename> | Page: <page_num>]` | Strict regex matching: Enabled",
         invariant: "Fail-Safe Diversion: If generative response omits citations or cites unretrieved sources/pages, the response is discarded and regenerated via deterministic extractive pathway.",
-        instrumentation: "Full telemetry record written to `rag_query_logs` for Chief Doctor compliance audit."
+        instrumentation: "Full telemetry record written to `rag_query_logs` for Clinical Governance compliance audit."
       }
     };
 
@@ -2172,25 +2213,25 @@
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 14px;">
           <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">📥 Input Contract</div>
+            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Input Contract</div>
             <div style="font-size: 12.5px; color: #1e293b; margin-top: 4px; line-height: 1.4;">${s.inputs}</div>
           </div>
           <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">📤 Output Contract</div>
+            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Output Contract</div>
             <div style="font-size: 12.5px; color: #1e293b; margin-top: 4px; line-height: 1.4;">${s.outputs}</div>
           </div>
         </div>
 
         <div style="background: #f1f5f9; border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 12px; color: #334155;">
-          <strong>⚙️ System Configuration:</strong> ${s.config}
+          <strong>System Configuration:</strong> ${s.config}
         </div>
 
         <div style="background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #1e40af; margin-bottom: 8px;">
-          <strong>🛡️ Safety Invariant:</strong> ${s.invariant}
+          <strong>Safety Invariant:</strong> ${s.invariant}
         </div>
 
         <div style="font-size: 11.5px; color: #64748b;">
-          <strong>📊 Telemetry &amp; Audit:</strong> ${s.instrumentation}
+          <strong>Telemetry &amp; Audit:</strong> ${s.instrumentation}
         </div>
       `;
     }
@@ -2321,7 +2362,7 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
             if (c.detected_terms && c.detected_terms.length > 0) {
               entityHtml = '<div class="chunk-entities-container" style="margin-top: 8px;">';
               c.detected_terms.forEach(t => {
-                entityHtml += `<span class="entity-tag ${escapeHtml(t.category)}">🏷️ ${escapeHtml(t.matched_text)} (${escapeHtml(t.category)})</span>`;
+                entityHtml += `<span class="entity-tag ${escapeHtml(t.category)}">${escapeHtml(t.matched_text)} (${escapeHtml(t.category)})</span>`;
               });
               entityHtml += '</div>';
             }
@@ -2330,7 +2371,7 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
             if (c.overlap_prev) {
               overlapNotice = `
                 <div style="background: #fef9c3; border: 1px dashed #ca8a04; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; font-size: 11px; color: #854d0e;">
-                  <strong>⚡ Overlap from Chunk #${idx}:</strong> "...${escapeHtml(c.overlap_prev)}..."
+                  <strong>Overlap from Chunk #${idx}:</strong> "...${escapeHtml(c.overlap_prev)}..."
                 </div>
               `;
             }
@@ -2347,7 +2388,7 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
                     </span>
                   </div>
                   <span style="font-size: 11px; color: #475569; font-weight: 700;">
-                    📏 ${c.char_count} chars • ${c.word_count} words • ~${c.estimated_tokens} tokens (est.)
+                    ${c.char_count} chars • ${c.word_count} words • ~${c.estimated_tokens} tokens (est.)
                   </span>
                 </div>
 
@@ -2380,7 +2421,7 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
       if (!lastSimulatedJSON) return;
       const jsonStr = JSON.stringify(lastSimulatedJSON, null, 2);
       navigator.clipboard.writeText(jsonStr).then(() => {
-        alert('✓ Copied complete simulator JSON payload to clipboard!');
+        alert('[SUCCESS] Copied complete simulator JSON payload to clipboard!');
       }).catch(err => {
         prompt('Copy simulator JSON:', jsonStr);
       });
@@ -2419,11 +2460,11 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
 
       if (isPending) {
         badgeEl.className = 'status-badge pending';
-        badgeEl.innerText = '🔒 Quarantined (Pending Approval)';
+        badgeEl.innerText = '[QUARANTINED] Pending Approval';
         adminActions.style.display = '{{ current_user.role }}' === 'admin' ? 'flex' : 'none';
       } else {
         badgeEl.className = 'status-badge approved';
-        badgeEl.innerText = '✓ Active in RAG Knowledge Base';
+        badgeEl.innerText = '[ACTIVE] In RAG Knowledge Base';
         adminActions.style.display = 'none';
       }
 
@@ -2457,7 +2498,7 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
           if (data.detected_terms && data.detected_terms.length > 0) {
             let termsHtml = '';
             data.detected_terms.forEach(t => {
-              termsHtml += `<span class="entity-tag ${escapeHtml(t.category)}" style="font-size: 10.5px; padding: 2px 7px; margin-bottom: 3px;">🏷️ ${escapeHtml(t.matched_text)}</span>`;
+              termsHtml += `<span class="entity-tag ${escapeHtml(t.category)}" style="font-size: 10.5px; padding: 2px 7px; margin-bottom: 3px;">${escapeHtml(t.matched_text)}</span>`;
             });
             termsContainer.innerHTML = termsHtml;
           } else {
@@ -2546,7 +2587,7 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
 
     function approveFromModal() {
       if (!currentPreviewDocId) return;
-      const notes = document.getElementById('modal-review-notes').value.trim() || 'Approved by Chief Doctor after text and PDF inspection';
+      const notes = document.getElementById('modal-review-notes').value.trim() || 'Approved by Clinical Governance after text and PDF inspection';
       approveDocument(currentPreviewDocId, currentPreviewFilename, notes);
     }
 
@@ -2571,6 +2612,9 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
         if (txtArea && !txtArea.value) {
           txtArea.value = p.text;
         }
+      }
+      if (window.lucide) {
+        lucide.createIcons();
       }
     });
   </script>

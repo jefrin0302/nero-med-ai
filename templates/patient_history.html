@@ -1,10 +1,18 @@
-<!DOCTYPE html>
+=<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Assessment History for {{ patient.patient_name }} ({{ patient.patient_id }}) — NeuroMed AI</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 
   <style>
     .history-header {
@@ -116,33 +124,60 @@
   <!-- NAVBAR -->
   <header class="navbar-custom">
     <div class="nav-container">
-      <a class="brand-logo" href="{{ url_for('home') }}">
-        🧬 NeuroMed AI
-      </a>
-
-      <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
-        ☰
-      </button>
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
 
       <ul class="nav-links" id="main-nav-links">
-        <li><a class="nav-link-item" href="{{ url_for('home') }}">Home</a></li>
-        {% if current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}" style="color: #4f46e5; font-weight: 700;">👑 Chief Doctor Dashboard</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
         {% endif %}
-        <li><a class="nav-link-item" href="{{ url_for('about') }}">Clinical Test</a></li>
-        <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}">Patient Records</a></li>
-        {% if current_user.is_authenticated %}
-        <li><span style="font-size: 12px; color: var(--primary); font-weight: 700; padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">👤 {{ current_user.username }} ({{ current_user.role }})</span></li>
-        <li>
-          <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="nav-link-item" style="background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font: inherit; padding: 0; display: inline-flex; align-items: center;">Sign Out</button>
-          </form>
-        </li>
-        {% else %}
-        <li><a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">Sign In</a></li>
-        {% endif %}
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
       </ul>
+
+      <div class="nav-right-actions">
+        <!-- THEME TOGGLE BUTTON -->
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        {% if current_user.is_authenticated %}
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.username }}</span>
+          <span style="opacity: 0.4;">|</span>
+          <span class="role-text">{{ 'Dept. Head' if current_user.role == 'admin' else ('Lab Spec.' if current_user.role == 'lab_staff' else 'Clinician') }}</span>
+        </span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="nav-btn-logout" title="Sign Out">
+            <i data-lucide="log-out"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+        {% else %}
+        <a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">
+          <i data-lucide="lock"></i>
+          <span>Sign In</span>
+        </a>
+        {% endif %}
+
+        <button type="button" class="pwa-install-btn" onclick="triggerPWAInstall()" style="display: none;">
+          <i data-lucide="smartphone"></i>
+          <span>Install App</span>
+        </button>
+
+        <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -151,8 +186,8 @@
 
     <!-- NAVIGATION BREADCRUMB -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-      <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
-        ⬅ Back to Patient Directory
+      <a href="{{ url_for('patient_dashboard') }}" class="btn-secondary" style="font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+        <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i> Back to Patient Registry
       </a>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         {% if current_user.role == 'admin' %}
@@ -161,11 +196,11 @@
                 style="font-size: 13px; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: var(--radius-sm); font-weight: 700;"
                 onclick="openDeleteModal('{{ patient.patient_id }}', '{{ patient.patient_name | escape }}')"
                 title="Permanently delete patient record">
-          🗑️ Delete Patient Record
+          <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Delete Patient Record
         </button>
         {% endif %}
-        <a href="{{ url_for('about') }}" class="btn-prime" style="font-size: 13px; text-decoration: none;">
-          ➕ Run New Assessment for this Patient
+        <a href="{{ url_for('about') }}" class="btn-prime" style="font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+          <i data-lucide="clipboard-plus"></i> New Assessment for this Patient
         </a>
       </div>
     </div>
@@ -196,8 +231,8 @@
 
     <!-- DEMOGRAPHICS PROFILE CARD -->
     <div class="profile-card">
-      <h2 style="font-size: 16px; font-weight: 700; color: var(--dark); margin: 0 0 12px 0;">
-        👤 Baseline Demographic Profile
+      <h2 style="font-size: 16px; font-weight: 700; color: var(--dark); margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="user" style="color: var(--primary);"></i> Baseline Demographic Profile
       </h2>
       <div class="demographics-grid">
         <div class="demo-item">
@@ -233,8 +268,9 @@
     <div class="timeline-card" style="margin-bottom: 24px;">
       <div style="padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div>
-          <h2 style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 0;">
-            📋 Clinical Assessment History (Newest Assessment First)
+          <h2 style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="clipboard-list" style="color: var(--primary);"></i>
+            <span>Clinical Assessment History (Newest Assessment First)</span>
           </h2>
           <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">
             Archived Records: {{ history | length }}
@@ -242,7 +278,7 @@
         </div>
         {% if history and history | length >= 2 %}
         <a href="{{ url_for('patient_compare_view', patient_id=patient.patient_id, type='assessment') }}" class="btn-prime" style="padding: 8px 16px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; background: #4f46e5;">
-          ⚖️ Compare Assessments Side-by-Side
+          <i data-lucide="git-compare" style="width: 14px; height: 14px;"></i> Compare Assessments Side-by-Side
         </a>
         {% endif %}
       </div>
@@ -252,7 +288,7 @@
         <thead>
           <tr>
             <th>ID</th>
-            <th>Date & Time</th>
+            <th>Date &amp; Time</th>
             <th>Consensus Risk Prediction</th>
             <th>Ensemble Probability</th>
             <th>Leipzig Score</th>
@@ -272,9 +308,9 @@
             <td>
               {% if a.prediction_text %}
                 {% if 'High' in a.prediction_text %}
-                  <span class="badge-high-risk">⚠️ {{ a.prediction_text }}</span>
+                  <span class="badge-high-risk"><i data-lucide="alert-triangle" style="width: 12px; height: 12px;"></i> {{ a.prediction_text }}</span>
                 {% else %}
-                  <span class="badge-low-risk">💚 {{ a.prediction_text }}</span>
+                  <span class="badge-low-risk"><i data-lucide="check" style="width: 12px; height: 12px;"></i> {{ a.prediction_text }}</span>
                 {% endif %}
               {% else %}
                 <span style="color: var(--text-muted);">Recorded</span>
@@ -305,7 +341,7 @@
             </td>
             <td style="text-align: right;">
               <a href="{{ url_for('historical_assessment_report', assessment_id=a.assessment_id) }}" class="btn-prime" style="padding: 7px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
-                📄 View Clinical Report
+                <i data-lucide="file-text" style="width: 12px; height: 12px;"></i> View Report
               </a>
             </td>
           </tr>
@@ -314,13 +350,13 @@
       </table>
       {% else %}
       <div style="padding: 48px; text-align: center; color: var(--text-muted);">
-        <div style="font-size: 40px; margin-bottom: 12px;">🧪</div>
+        <div style="margin-bottom: 12px; color: var(--primary);"><i data-lucide="flask-conical" style="width: 40px; height: 40px;"></i></div>
         <h3 style="color: var(--dark); margin-bottom: 8px;">No Clinical Assessments Yet</h3>
         <p style="font-size: 14px; max-width: 480px; margin: 0 auto 20px auto;">
           This patient has a registered baseline profile, but no clinical assessments have been performed.
         </p>
-        <a href="{{ url_for('about') }}" class="btn-prime" style="text-decoration: none; padding: 10px 24px;">
-          ⚡ Launch Assessment for {{ patient.patient_name }}
+        <a href="{{ url_for('about') }}" class="btn-prime" style="text-decoration: none; padding: 10px 24px; display: inline-flex; align-items: center; gap: 6px;">
+          <i data-lucide="clipboard-plus"></i> New Assessment for {{ patient.patient_name }}
         </a>
       </div>
       {% endif %}
@@ -330,8 +366,9 @@
     <div class="timeline-card">
       <div style="padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div>
-          <h2 style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 0;">
-            🔬 Certified Pathology Laboratory Reports
+          <h2 style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="test-tubes" style="color: var(--primary);"></i>
+            <span>Certified Pathology Laboratory Reports</span>
           </h2>
           <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">
             Collected by Lab Staff • {{ lab_reports | length if lab_reports else 0 }} Reports
@@ -340,11 +377,11 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           {% if lab_reports and lab_reports | length >= 2 %}
           <a href="{{ url_for('patient_compare_view', patient_id=patient.patient_id, type='lab') }}" class="btn-prime" style="padding: 8px 16px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; background: #059669;">
-            ⚖️ Compare Lab Reports (e.g. Jan vs June)
+            <i data-lucide="git-compare" style="width: 14px; height: 14px;"></i> Compare Lab Reports
           </a>
           {% endif %}
-          <a href="{{ url_for('lab_import_page') }}" class="btn-secondary" style="padding: 8px 16px; font-size: 13px; text-decoration: none;">
-            ➕ New Lab Intake
+          <a href="{{ url_for('lab_import_page') }}" class="btn-secondary" style="padding: 8px 16px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> New Lab Intake
           </a>
         </div>
       </div>
@@ -375,7 +412,7 @@
               {{ r.sample_type or 'Venous Blood & 24h Urine' }}
             </td>
             <td style="font-size: 13px; color: #334155;">
-              👤 {{ r.technician_name or 'Lab Staff' }}
+              {{ r.technician_name or 'Lab Staff' }}
             </td>
             <td style="font-size: 12px; color: #64748b;">
               {% if r.ceruloplasmin_level is not none %}Cerulo: <strong>{{ r.ceruloplasmin_level }}</strong> mg/dL{% endif %}
@@ -383,11 +420,11 @@
               {% if r.alt is not none %} • ALT: <strong>{{ r.alt }}</strong> U/L{% endif %}
             </td>
             <td>
-              <span class="badge-low-risk">✓ Certified</span>
+              <span class="badge-low-risk">[VALIDATED] Certified</span>
             </td>
             <td style="text-align: right;">
               <a href="{{ url_for('lab_report_view', report_id=r.report_id) }}" class="btn-prime" style="padding: 6px 14px; font-size: 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
-                📄 View Official Report
+                <i data-lucide="file-text" style="width: 12px; height: 12px;"></i> View Official Report
               </a>
             </td>
           </tr>
@@ -396,13 +433,13 @@
       </table>
       {% else %}
       <div style="padding: 36px; text-align: center; color: var(--text-muted);">
-        <div style="font-size: 32px; margin-bottom: 10px;">🧪</div>
+        <div style="margin-bottom: 10px; color: var(--primary);"><i data-lucide="flask-conical" style="width: 32px; height: 32px;"></i></div>
         <h4 style="color: var(--dark); margin: 0 0 6px 0;">No Certified Lab Reports on File</h4>
         <p style="font-size: 13px; max-width: 440px; margin: 0 auto 16px auto;">
           Biomarker measurements for this patient have not yet been submitted through the Laboratory Workstation.
         </p>
-        <a href="{{ url_for('lab_import_page') }}" class="btn-secondary" style="font-size: 12.5px; text-decoration: none; padding: 8px 18px;">
-          🔬 Open Lab Workstation to Enter Report
+        <a href="{{ url_for('lab_import_page') }}" class="btn-secondary" style="font-size: 12.5px; text-decoration: none; padding: 8px 18px; display: inline-flex; align-items: center; gap: 6px;">
+          <i data-lucide="flask-conical" style="width: 14px; height: 14px;"></i> Open Lab Workstation to Enter Report
         </a>
       </div>
       {% endif %}
@@ -420,12 +457,12 @@
   <div id="deletePatientModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
     <div style="background: white; border-radius: 16px; max-width: 480px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #fee2e2; overflow: hidden;">
       <div style="background: #fef2f2; border-bottom: 1px solid #fee2e2; padding: 20px 24px; display: flex; align-items: center; gap: 14px;">
-        <div style="background: #fee2e2; color: #dc2626; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
-          ⚠️
+        <div style="background: #fee2e2; color: #dc2626; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i data-lucide="alert-octagon" style="width: 24px; height: 24px;"></i>
         </div>
         <div>
           <h3 style="margin: 0; font-size: 18px; color: #991b1b; font-weight: 800;">Delete Patient Record</h3>
-          <span style="font-size: 12px; color: #b91c1c; font-weight: 600;">Chief Doctor / Admin Authorization Required</span>
+          <span style="font-size: 12px; color: #b91c1c; font-weight: 600;">Clinical Governance / Admin Authorization Required</span>
         </div>
       </div>
       <div style="padding: 24px;">
@@ -441,7 +478,7 @@
             Cancel
           </button>
           <button type="button" id="confirmDeleteBtn" onclick="executePatientDelete()" style="background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-            🗑️ Permanently Delete
+            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Permanently Delete
           </button>
         </div>
       </div>
@@ -479,7 +516,7 @@
       const btn = document.getElementById('confirmDeleteBtn');
       const originalText = btn.innerHTML;
       btn.disabled = true;
-      btn.innerHTML = '⏳ Deleting...';
+      btn.innerHTML = 'Deleting...';
 
       try {
         const resp = await fetch(`/api/patient/${encodeURIComponent(targetDeletePatientId)}/delete`, {
@@ -514,6 +551,9 @@
       }
     }
     {% endif %}
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
   </script>
 
 </body>

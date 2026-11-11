@@ -3,8 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chief Doctor Executive Admin & Governance Dashboard — NeuroMed AI</title>
+  <title>Clinical Governance &amp; Administration Dashboard — NeuroMed AI</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('neuromed_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   
   <style>
     :root {
@@ -21,12 +29,50 @@
     }
 
     body {
-      background-color: #f1f5f9;
-      color: #1e293b;
+      background-color: var(--bg-main, #f1f5f9);
+      color: var(--text-main, #1e293b);
       font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+    }
+
+    [data-theme="dark"] body {
+      background-color: #0b0f19;
+      color: #cbd5e1;
+    }
+    [data-theme="dark"] .admin-main-pane {
+      background: #0b0f19;
+    }
+    [data-theme="dark"] .kpi-card,
+    [data-theme="dark"] .data-card,
+    [data-theme="dark"] .quick-action-card,
+    [data-theme="dark"] .audit-table-card,
+    [data-theme="dark"] .modal-content-custom,
+    [data-theme="dark"] .status-card {
+      background: #0f172a;
+      border-color: #1e293b;
+      color: #cbd5e1;
+    }
+    [data-theme="dark"] .kpi-title,
+    [data-theme="dark"] .kpi-number,
+    [data-theme="dark"] .card-title-custom,
+    [data-theme="dark"] .table th,
+    [data-theme="dark"] .table td {
+      color: #f1f5f9;
+    }
+    [data-theme="dark"] .table th {
+      background: #1e293b;
+      border-color: #334155;
+    }
+    [data-theme="dark"] .table td {
+      border-color: #1e293b;
+    }
+    [data-theme="dark"] .filter-input,
+    [data-theme="dark"] .filter-select {
+      background: #1e293b;
+      border-color: #334155;
+      color: #f1f5f9;
     }
 
     /* EXECUTIVE TOP BAR */
@@ -562,35 +608,49 @@
 </head>
 <body>
 
-  <!-- EXECUTIVE TOP NAVBAR -->
-  <header class="admin-navbar">
-    <div style="display: flex; align-items: center; gap: 18px;">
-      <a class="admin-brand" href="{{ url_for('admin_dashboard') }}">
-        🧬 NeuroMed AI
-      </a>
-      <span class="chief-doctor-badge">
-        🛡️ Chief Doctor Administration
-      </span>
-      <span style="font-size: 12px; color: #94a3b8; display: inline-flex; align-items: center; gap: 6px;">
-        <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span>
-        Ensemble v2.0 In-Service
-      </span>
-    </div>
+  <!-- TOP NAVBAR -->
+  <header class="navbar-custom">
+    <div class="nav-container">
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge">CDSS</span>
+        </a>
+      </div>
 
-    <div class="top-actions">
-      <a href="{{ url_for('about') }}" class="btn-action btn-action-success" style="padding: 7px 14px;">
-        🧪 New Assessment
-      </a>
-      <a href="{{ url_for('patient_dashboard') }}" class="btn-action btn-action-outline" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">
-        👥 Patient Directory
-      </a>
-      <span style="font-size: 13px; color: #cbd5e1; margin-left: 6px;">
-        👤 <strong>{{ current_user.full_name or current_user.username }}</strong>
-      </span>
-      <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn-action btn-action-danger" style="margin-left: 6px;">Sign Out</button>
-      </form>
+      <ul class="nav-links" id="main-nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
+      </ul>
+
+      <div class="nav-right-actions">
+        <!-- THEME TOGGLE BUTTON -->
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Hospital Dark/Light Mode" aria-label="Toggle theme">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+
+        <span class="nav-user-pill">
+          <i data-lucide="user-check"></i>
+          <span>Dr. {{ current_user.full_name or current_user.username }}</span>
+          <span style="opacity: 0.4;" class="role-sep">|</span>
+          <span class="role-text">Dept. Head</span>
+        </span>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="nav-btn-logout" title="Sign Out">
+            <i data-lucide="log-out"></i>
+            <span>Sign Out</span>
+          </button>
+        </form>
+
+        <button type="button" class="nav-toggle-btn" onclick="toggleNavMenu()" aria-label="Toggle navigation">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -604,8 +664,8 @@
         <div class="sidebar-section-title">Executive Control</div>
         <ul class="nav-tab-list">
           <li>
-            <button class="sidebar-btn active" onclick="showTab('overview', this)">
-              📊 Overview Dashboard
+            <button class="sidebar-btn active" onclick="showTab('overview', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="layout-dashboard" style="width: 15px; height: 15px;"></i> Overview Dashboard
             </button>
           </li>
         </ul>
@@ -615,39 +675,39 @@
         <div class="sidebar-section-title">Clinical Workspace (Clinician Tools)</div>
         <ul class="nav-tab-list">
           <li>
-            <button class="sidebar-btn" onclick="showTab('clinical-workspace', this)">
-              🧪 Clinical Test Launcher
+            <button class="sidebar-btn" onclick="showTab('clinical-workspace', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="clipboard-plus" style="width: 15px; height: 15px;"></i> Diagnostic Intake Launcher
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('patients-dir', this)">
-              👥 Patient Management
+            <button class="sidebar-btn" onclick="showTab('patients-dir', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="users" style="width: 15px; height: 15px;"></i> Patient Registry
               <span class="sidebar-badge badge-green-status">{{ overview.total_patients }}</span>
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('disease-prediction', this)">
-              🧠 Disease Prediction &amp; AI
+            <button class="sidebar-btn" onclick="showTab('disease-prediction', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="cpu" style="width: 15px; height: 15px;"></i> Stacking Ensemble AI
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('shap-xai', this)">
-              🔬 Explainable AI (SHAP)
+            <button class="sidebar-btn" onclick="showTab('shap-xai', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="git-branch" style="width: 15px; height: 15px;"></i> Explainable AI (SHAP)
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('rag-assistant', this)">
-              💬 Medical RAG Assistant
+            <button class="sidebar-btn" onclick="showTab('rag-assistant', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="bot" style="width: 15px; height: 15px;"></i> Clinical Knowledge Copilot
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('clinical-guide', this)">
-              📖 Leipzig Scoring &amp; Guidelines
+            <button class="sidebar-btn" onclick="showTab('clinical-guide', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="book-open" style="width: 15px; height: 15px;"></i> Leipzig Scoring &amp; Guidelines
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('prediction-reports', this)">
-              📑 Prediction History &amp; Reports
+            <button class="sidebar-btn" onclick="showTab('prediction-reports', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="file-text" style="width: 15px; height: 15px;"></i> Assessment History &amp; Reports
               <span class="sidebar-badge badge-green-status">{{ overview.total_assessments }}</span>
             </button>
           </li>
@@ -658,38 +718,38 @@
         <div class="sidebar-section-title">Governance &amp; Administration</div>
         <ul class="nav-tab-list">
           <li>
-            <button class="sidebar-btn" onclick="showTab('user-mgmt', this)">
-              👥 User &amp; Role Management
+            <button class="sidebar-btn" onclick="showTab('user-mgmt', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="user-cog" style="width: 15px; height: 15px;"></i> User &amp; Role Provisioning
               <span class="sidebar-badge badge-green-status">{{ overview.active_users }}/{{ overview.total_users }}</span>
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('doc-approval', this)">
-              🛡️ Document Approval Center
+            <button class="sidebar-btn" onclick="showTab('doc-approval', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="file-check" style="width: 15px; height: 15px;"></i> Guideline Governance Desk
               {% if overview.pending_guidelines > 0 %}
               <span class="sidebar-badge badge-amber-count">{{ overview.pending_guidelines }}</span>
               {% endif %}
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('model-gov', this)">
-              ⚖️ Clinical AI Model Governance
+            <button class="sidebar-btn" onclick="showTab('model-gov', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="check-square" style="width: 15px; height: 15px;"></i> Model Validation &amp; Auditing
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('system-health', this)">
-              🖥️ System Health &amp; Telemetry
+            <button class="sidebar-btn" onclick="showTab('system-health', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="server" style="width: 15px; height: 15px;"></i> System Health &amp; Telemetry
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('audit-trail', this)">
-              📜 Security Audit Logs
+            <button class="sidebar-btn" onclick="showTab('audit-trail', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="shield-check" style="width: 15px; height: 15px;"></i> Security Audit Logs
               <span class="sidebar-badge badge-green-status">{{ overview.events_24h }}</span>
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" onclick="showTab('governance-policies', this)">
-              📋 Compliance &amp; Policies
+            <button class="sidebar-btn" onclick="showTab('governance-policies', this)" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="scroll-text" style="width: 15px; height: 15px;"></i> Compliance &amp; Policies
             </button>
           </li>
         </ul>
@@ -713,17 +773,17 @@
 
         <div class="exec-banner">
           <div class="exec-title-box">
-            <h1>👑 Chief Doctor Executive Command Center</h1>
+            <h1 style="display: flex; align-items: center; gap: 10px;"><i data-lucide="sliders" style="width: 28px; height: 28px; color: var(--primary);"></i> Clinical Governance Command Center</h1>
             <p class="exec-subtitle">
               Comprehensive clinical oversight, multi-model AI ensemble diagnostics, and system governance for Wilson's Disease.
             </p>
           </div>
           <div style="display: flex; gap: 10px;">
-            <a href="{{ url_for('about') }}" class="btn-action btn-action-primary" style="padding: 10px 18px; font-size: 13px;">
-              🚀 Launch Clinical Test
+            <a href="{{ url_for('about') }}" class="btn-action btn-action-primary" style="padding: 10px 18px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="stethoscope"></i> New Patient Assessment
             </a>
-            <button class="btn-action btn-action-outline" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);" onclick="showTab('doc-approval')">
-              🛡️ Review Guidelines ({% raw %}{{ overview.pending_guidelines }}{% endraw %})
+            <button class="btn-action btn-action-outline" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2); display: inline-flex; align-items: center; gap: 6px;" onclick="showTab('doc-approval')">
+              <i data-lucide="file-check"></i> Review Guidelines ({% raw %}{{ overview.pending_guidelines }}{% endraw %})
             </button>
           </div>
         </div>
@@ -768,7 +828,9 @@
           <!-- Recent Clinical Assessments -->
           <div class="content-panel" style="margin-bottom: 0;">
             <div class="panel-header">
-              <span class="panel-title">🩺 Recent Clinical Assessments</span>
+              <span class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="activity" style="color: var(--primary);"></i> Recent Clinical Assessments
+              </span>
               <button class="btn-action btn-action-outline" onclick="showTab('prediction-reports')">View All</button>
             </div>
             <div style="overflow-x: auto;">
@@ -815,13 +877,15 @@
           <!-- Pending Guidelines Requiring Chief Doctor Approval -->
           <div class="content-panel" style="margin-bottom: 0;">
             <div class="panel-header">
-              <span class="panel-title">🛡️ Guidelines Requiring Approval</span>
+              <span class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="file-check" style="color: var(--primary);"></i> Guidelines Requiring Approval
+              </span>
               <button class="btn-action btn-action-outline" onclick="showTab('doc-approval')">Manage Center</button>
             </div>
             <div class="panel-body">
               {% if pending_docs|length > 0 %}
                 <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #92400e;">
-                  ⚠️ <strong>{{ pending_docs|length }} clinical document(s)</strong> have been submitted by clinicians and quarantined. They will not be used in the RAG knowledge base until you sign off.
+                  <strong>[GOVERNANCE NOTICE]: {{ pending_docs|length }} clinical document(s)</strong> have been submitted by clinicians and quarantined. They will not be used in the RAG knowledge base until formal sign-off.
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                   {% for doc in pending_docs[:3] %}
@@ -839,9 +903,9 @@
                 </div>
               {% else %}
                 <div style="text-align: center; padding: 36px 20px; color: #64748b;">
-                  <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
+                  <div style="margin-bottom: 8px; color: #10b981;"><i data-lucide="check-circle-2" style="width: 32px; height: 32px;"></i></div>
                   <div style="font-weight: 700; font-size: 15px; color: #1e293b;">All Clinical Guidelines Approved</div>
-                  <div style="font-size: 13px; margin-top: 4px;">There are no quarantined documents pending Chief Doctor review.</div>
+                  <div style="font-size: 13px; margin-top: 4px;">There are no quarantined documents pending clinical review.</div>
                 </div>
               {% endif %}
             </div>
@@ -857,45 +921,47 @@
       <div id="tab-clinical-workspace" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">🧪 Chief Doctor Clinical Assessment Launcher</span>
+            <span class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="clipboard-plus" style="color: var(--primary);"></i> Clinical Assessment Launcher
+            </span>
             <a href="{{ url_for('about') }}" class="btn-action btn-action-primary">Open Full Clinical Form</a>
           </div>
           <div class="panel-body">
             <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">
-              As Chief Doctor, you have complete clinical access to initiate new patient evaluations, enter 23 clinical biomarkers, upload certified laboratory reports, and generate multi-model Wilson's Disease risk predictions.
+              As Department Head, you have complete clinical access to initiate new patient evaluations, enter 23 clinical biomarkers, upload certified laboratory reports, and generate multi-model Wilson's Disease risk predictions.
             </p>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
               <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center;">
-                <div style="font-size: 36px; margin-bottom: 10px;">🧪</div>
+                <div style="margin-bottom: 10px; color: var(--primary);"><i data-lucide="stethoscope" style="width: 36px; height: 36px;"></i></div>
                 <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Direct Clinical Assessment</h3>
                 <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">
                   Launch assessment form with automated Patient ID generation and clinical reference bounds.
                 </p>
-                <a href="{{ url_for('about') }}" class="btn-action btn-action-primary" style="width: 100%; justify-content: center;">
-                  Start Assessment
+                <a href="{{ url_for('about') }}" class="btn-action btn-action-primary" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                  <i data-lucide="clipboard-plus"></i> Start Assessment
                 </a>
               </div>
 
               <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center;">
-                <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
+                <div style="margin-bottom: 10px; color: var(--primary);"><i data-lucide="file-up" style="width: 36px; height: 36px;"></i></div>
                 <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Import Certified Lab Data</h3>
                 <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">
                   Upload laboratory CSV, JSON, or Word DOCX files to auto-populate and validate biomarkers.
                 </p>
-                <a href="{{ url_for('lab_import_page') }}" class="btn-action btn-action-outline" style="width: 100%; justify-content: center;">
-                  Open Lab Workstation
+                <a href="{{ url_for('lab_import_page') }}" class="btn-action btn-action-outline" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                  <i data-lucide="flask-conical"></i> Open Lab Workstation
                 </a>
               </div>
 
               <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center;">
-                <div style="font-size: 36px; margin-bottom: 10px;">👥</div>
+                <div style="margin-bottom: 10px; color: var(--primary);"><i data-lucide="users" style="width: 36px; height: 36px;"></i></div>
                 <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Longitudinal Patient Review</h3>
                 <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">
                   Inspect biomarker trajectories over time and compare baseline against follow-up visits.
                 </p>
-                <a href="{{ url_for('patient_dashboard') }}" class="btn-action btn-action-outline" style="width: 100%; justify-content: center;">
-                  Browse Patients
+                <a href="{{ url_for('patient_dashboard') }}" class="btn-action btn-action-outline" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                  <i data-lucide="users"></i> Browse Patients
                 </a>
               </div>
             </div>
@@ -909,7 +975,9 @@
       <div id="tab-patients-dir" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">👥 Patient Management Directory</span>
+            <span class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="users" style="color: var(--primary);"></i> Patient Registry Directory
+            </span>
             <div style="display: flex; gap: 10px;">
               <input type="text" id="patientSearchInput" onkeyup="filterPatientTable()" placeholder="Search patient ID or name..." class="form-input" style="width: 260px; padding: 6px 12px;" />
               <a href="{{ url_for('about') }}" class="btn-action btn-action-primary">+ New Patient</a>
@@ -970,7 +1038,7 @@
       <div id="tab-disease-prediction" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">🧠 Wilson's Disease Stacking Ensemble Architecture</span>
+            <span class="panel-title"><i data-lucide="layers" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Wilson's Disease Stacking Ensemble Architecture</span>
             <span class="role-badge role-clinician">Model Version: {{ meta_info.model_version or 'v2.0.0-calibrated' }}</span>
           </div>
           <div class="panel-body">
@@ -1040,7 +1108,7 @@
       <div id="tab-shap-xai" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">🔬 Explainable AI (SHAP XAI) Attribution Center</span>
+            <span class="panel-title"><i data-lucide="git-branch" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Explainable AI (SHAP XAI) Attribution Center</span>
             <span style="font-size: 12px; color: #64748b;">Shapley Value Additive Feature Importance</span>
           </div>
           <div class="panel-body">
@@ -1118,14 +1186,14 @@
       <div id="tab-rag-assistant" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">💬 Chief Doctor Medical RAG Consultation Assistant</span>
+            <span class="panel-title"><i data-lucide="bot" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clinical Governance RAG Consultation Assistant</span>
             <span style="font-size: 12px; color: #10b981; font-weight: 700;">● Grounded in AASLD &amp; EASL</span>
           </div>
           <div class="panel-body">
             <div class="rag-terminal">
               <div class="rag-messages" id="ragMessagesContainer">
                 <div class="rag-msg assistant">
-                  👋 <strong>Welcome, Chief Doctor.</strong> I am your clinical RAG assistant grounded strictly in verified clinical practice guidelines (AASLD 2022 and EASL-ERN). You can ask diagnostic criteria, chelator regimens (D-penicillamine, trientine), zinc maintenance, monitoring protocols, or Leipzig scoring rules.
+                  <strong>Clinical Governance Knowledge Copilot:</strong> System grounded strictly in verified clinical practice guidelines (AASLD 2022 and EASL-ERN). Inquire regarding diagnostic criteria, chelator regimens (D-penicillamine, trientine), zinc maintenance, monitoring protocols, or Leipzig scoring rules.
                 </div>
               </div>
               <div class="rag-input-box">
@@ -1143,7 +1211,7 @@
       <div id="tab-clinical-guide" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">📖 Leipzig Criteria Diagnostic Reference Matrix</span>
+            <span class="panel-title"><i data-lucide="book-open" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Leipzig Criteria Diagnostic Reference Matrix</span>
             <a href="{{ url_for('do') }}" class="btn-action btn-action-outline">Full Interactive Guide</a>
           </div>
           <div style="overflow-x: auto;">
@@ -1203,7 +1271,7 @@
       <div id="tab-prediction-reports" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">📑 Clinical Prediction History &amp; Certified Reports</span>
+            <span class="panel-title"><i data-lucide="file-text" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clinical Prediction History &amp; Certified Reports</span>
             <span class="sidebar-badge badge-green-status">{{ overview.total_assessments }} Records</span>
           </div>
           <div style="overflow-x: auto;">
@@ -1255,7 +1323,7 @@
       <div id="tab-user-mgmt" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">👥 User &amp; Role Management</span>
+            <span class="panel-title"><i data-lucide="user-cog" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> User &amp; Role Management</span>
             <button class="btn-action btn-action-primary" onclick="openCreateUserModal()">+ Provision New Account</button>
           </div>
           <div style="overflow-x: auto;">
@@ -1290,7 +1358,7 @@
                     {% if u.is_active == 1 %}
                     <span class="status-badge-active">● Active</span>
                     {% else %}
-                    <span class="status-badge-inactive">✕ Deactivated</span>
+                    <span class="status-badge-inactive">[INACTIVE]</span>
                     {% endif %}
                   </td>
                   <td>{{ u.created_at[:10] if u.created_at else 'N/A' }}</td>
@@ -1322,7 +1390,7 @@
       <div id="tab-doc-approval" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">🛡️ Clinical Document Approval Center &amp; Knowledge Governance</span>
+            <span class="panel-title"><i data-lucide="shield-check" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clinical Document Approval Center &amp; Knowledge Governance</span>
             <span class="role-badge role-admin">Chief Doctor Signature Required</span>
           </div>
           <div class="panel-body">
@@ -1354,11 +1422,11 @@
                     <td>{{ (doc.file_size_bytes / 1024)|round(1) }} KB</td>
                     <td>
                       {% if doc.review_status == 'approved' %}
-                      <span class="status-badge-active">✓ Approved</span>
+                      <span class="status-badge-active">[APPROVED]</span>
                       {% elif doc.review_status == 'rejected' %}
-                      <span class="status-badge-inactive">✕ Rejected</span>
+                      <span class="status-badge-inactive">[REJECTED]</span>
                       {% else %}
-                      <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">⏳ Pending Approval</span>
+                      <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">[PENDING REVIEW]</span>
                       {% endif %}
                     </td>
                     <td>{{ doc.created_at[:10] if doc.created_at else 'N/A' }}</td>
@@ -1388,7 +1456,7 @@
       <div id="tab-model-gov" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">⚖️ Clinical AI Model Governance &amp; Validation</span>
+            <span class="panel-title"><i data-lucide="check-square" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clinical AI Model Governance &amp; Validation</span>
             <span class="status-badge-active">● FROZEN IN PRODUCTION</span>
           </div>
           <div class="panel-body">
@@ -1422,31 +1490,31 @@
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>XGBoost Classifier</span>
-                <span class="status-badge-active">✓ In-Service</span>
+                <span class="status-badge-active">[OPERATIONAL]</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Logistic Regression</span>
-                <span class="status-badge-active">✓ In-Service</span>
+                <span class="status-badge-active">[OPERATIONAL]</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Random Forest</span>
-                <span class="status-badge-active">✓ In-Service</span>
+                <span class="status-badge-active">[OPERATIONAL]</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Support Vector Machine (SVM)</span>
-                <span class="status-badge-active">✓ In-Service</span>
+                <span class="status-badge-active">[OPERATIONAL]</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Stacking Meta-Classifier</span>
-                <span class="status-badge-active">✓ In-Service</span>
+                <span class="status-badge-active">[OPERATIONAL]</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>Isotonic Calibrator</span>
-                <span class="status-badge-active">✓ In-Service</span>
+                <span class="status-badge-active">[OPERATIONAL]</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>SHAP KernelExplainer</span>
-                <span class="status-badge-active">✓ In-Service</span>
+                <span class="status-badge-active">[OPERATIONAL]</span>
               </div>
             </div>
           </div>
@@ -1459,7 +1527,7 @@
       <div id="tab-system-health" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">🖥️ System Health &amp; Infrastructure Telemetry</span>
+            <span class="panel-title"><i data-lucide="server" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> System Health &amp; Infrastructure Telemetry</span>
             <span class="status-badge-active">● {{ health.status or 'HEALTHY' }}</span>
           </div>
           <div class="panel-body">
@@ -1500,7 +1568,7 @@
       <div id="tab-audit-trail" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">📜 Immutable Security &amp; Clinical Audit Trail</span>
+            <span class="panel-title"><i data-lucide="file-check" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Immutable Security &amp; Clinical Audit Trail</span>
             <div style="display: flex; gap: 10px;">
               <select id="auditActionFilter" onchange="filterAuditLogs()" class="form-input" style="width: 170px; padding: 6px 10px;">
                 <option value="">All Actions</option>
@@ -1513,7 +1581,7 @@
                 <option value="PATIENT_DELETED">Patient Deleted</option>
               </select>
               <a href="{{ url_for('api_admin_export_audit_logs') }}" class="btn-action btn-action-outline">
-                📥 Export CSV
+                <i data-lucide="download" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i> Export CSV
               </a>
             </div>
           </div>
@@ -1564,7 +1632,7 @@
       <div id="tab-governance-policies" class="tab-view">
         <div class="content-panel">
           <div class="panel-header">
-            <span class="panel-title">📋 Clinical Governance Policies &amp; Compliance Enforcement</span>
+            <span class="panel-title"><i data-lucide="clipboard-check" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clinical Governance Policies &amp; Compliance Enforcement</span>
           </div>
           <div class="panel-body">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
@@ -1602,8 +1670,8 @@
   <div id="createUserModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span class="modal-title">👤 Provision New Clinician Account</span>
-        <button onclick="closeModal('createUserModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+        <span class="modal-title"><i data-lucide="user-plus" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Provision New Clinician Account</span>
+        <button onclick="closeModal('createUserModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">&times;</button>
       </div>
       <form id="createUserForm" onsubmit="submitCreateUser(event)">
         <div class="modal-body">
@@ -1641,8 +1709,8 @@
   <div id="resetPasswordModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span class="modal-title">🔑 Reset Account Password</span>
-        <button onclick="closeModal('resetPasswordModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+        <span class="modal-title"><i data-lucide="key-round" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Reset Account Password</span>
+        <button onclick="closeModal('resetPasswordModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">&times;</button>
       </div>
       <div class="modal-body">
         <p style="font-size: 13.5px; color: #475569; margin-bottom: 16px;">
@@ -1665,8 +1733,8 @@
   <div id="approveDocModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span class="modal-title">✓ Chief Doctor Guideline Approval</span>
-        <button onclick="closeModal('approveDocModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+        <span class="modal-title"><i data-lucide="check-circle" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Guideline Approval Authorization</span>
+        <button onclick="closeModal('approveDocModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">&times;</button>
       </div>
       <div class="modal-body">
         <p style="font-size: 13.5px; color: #475569; margin-bottom: 14px;">
@@ -1688,8 +1756,8 @@
   <div id="rejectDocModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span class="modal-title">✕ Reject Guideline Submission</span>
-        <button onclick="closeModal('rejectDocModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+        <span class="modal-title"><i data-lucide="x-circle" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Reject Guideline Submission</span>
+        <button onclick="closeModal('rejectDocModal')" style="background:none; border:none; font-size:18px; cursor:pointer;">&times;</button>
       </div>
       <div class="modal-body">
         <p style="font-size: 13.5px; color: #475569; margin-bottom: 14px;">
@@ -1723,6 +1791,9 @@
       if (btn) {
         document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+      }
+      if (window.lucide) {
+        lucide.createIcons();
       }
     }
 
@@ -1981,7 +2052,7 @@
       const loadingDiv = document.createElement('div');
       loadingDiv.className = 'rag-msg assistant';
       loadingDiv.id = 'ragLoadingMsg';
-      loadingDiv.innerHTML = '🔍 <em>Retrieving guideline evidence from AASLD / EASL passages...</em>';
+      loadingDiv.innerHTML = '<em>Querying guideline evidence from AASLD / EASL consensus passages...</em>';
       container.appendChild(loadingDiv);
       container.scrollTop = container.scrollHeight;
 
@@ -2003,7 +2074,7 @@
 
         let citationsHtml = '';
         if (data.telemetry && data.telemetry.citations && data.telemetry.citations.length > 0) {
-          citationsHtml = `<div class="rag-citations-box">📚 <strong>Evidence Sources:</strong> ${data.telemetry.citations.join(', ')} (Latency: ${data.telemetry.latency_ms} ms)</div>`;
+          citationsHtml = `<div class="rag-citations-box"><strong>Evidence Sources:</strong> ${data.telemetry.citations.join(', ')} (Latency: ${data.telemetry.latency_ms} ms)</div>`;
         }
 
         replyDiv.innerHTML = `<div>${data.response}</div>${citationsHtml}`;
@@ -2015,7 +2086,7 @@
 
         const errDiv = document.createElement('div');
         errDiv.className = 'rag-msg assistant';
-        errDiv.innerText = '⚠️ Error retrieving response from RAG engine.';
+        errDiv.innerText = '[ERROR] Unable to retrieve response from clinical RAG engine.';
         container.appendChild(errDiv);
       }
     }

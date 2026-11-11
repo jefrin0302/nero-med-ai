@@ -574,7 +574,7 @@ def calculate_patient_leipzig_score(p_data: dict) -> str:
 
     score = 0
     lines = []
-    lines.append("📋 Patient-Specific Leipzig Score Evaluation (AASLD / EASL Criteria)\n")
+    lines.append("Patient-Specific Leipzig Score Evaluation (AASLD / EASL Criteria)\n")
 
     # 1. Kayser-Fleischer Rings (Slit-lamp examination)
     kfr = p_data.get("Kayser-Fleischer Rings")
@@ -658,7 +658,7 @@ def calculate_patient_leipzig_score(p_data: dict) -> str:
     lines.append("• Coombs-Negative Hemolytic Anemia: Coombs test not available in patient record (unassessed, 0 pts)")
 
     # Diagnostic Likelihood & Interpretation (Clinical Decision Support Wording)
-    lines.append(f"\n🎯 Total Leipzig Score from Evaluated Criteria: {score} points\n")
+    lines.append(f"\nTotal Leipzig Score from Evaluated Criteria: {score} points\n")
     if score >= 4:
         lines.append(
             f"• Clinical Interpretation:\n"
@@ -728,7 +728,7 @@ def evaluate_patient_specific_biomarker(biomarker_key: str, p_data: dict) -> str
             )
 
         return sanitize_bot_answer(
-            f"🧪 Your Serum Ceruloplasmin Evaluation:\n\n"
+            f"Serum Ceruloplasmin Evaluation:\n\n"
             f"• Patient Value: {v:.1f} mg/dL\n"
             f"• Reference Range: 20 – 40 mg/dL\n"
             f"• Clinical Status: {status}\n\n"
@@ -765,7 +765,7 @@ def evaluate_patient_specific_biomarker(biomarker_key: str, p_data: dict) -> str
             )
 
         return sanitize_bot_answer(
-            f"🧪 Your 24-Hour Urinary Copper Evaluation:\n\n"
+            f"24-Hour Urinary Copper Evaluation:\n\n"
             f"• Patient Value: {v:.1f} µg/24h\n"
             f"• Reference Range: < 40 µg/24h (Normal); > 100 µg/24h (Diagnostic threshold)\n"
             f"• Clinical Status: {status}\n\n"
@@ -793,7 +793,7 @@ def evaluate_patient_specific_biomarker(biomarker_key: str, p_data: dict) -> str
             interp = f"Your free serum copper is {v:.1f} µg/dL, within the target safe reference limit (< 15 µg/dL)."
 
         return sanitize_bot_answer(
-            f"🧪 Your Free (Non-Ceruloplasmin-Bound) Serum Copper:\n\n"
+            f"Free (Non-Ceruloplasmin-Bound) Serum Copper:\n\n"
             f"• Patient Value: {v:.1f} µg/dL\n"
             f"• Normal Reference Range: 5 – 15 µg/dL\n"
             f"• Clinical Status: {status}\n\n"
@@ -819,7 +819,7 @@ def evaluate_patient_specific_biomarker(biomarker_key: str, p_data: dict) -> str
 
         status = "Elevated Transaminases (Hepatocellular injury)" if is_elevated else "Within Normal Baseline (10–40 U/L)"
         return sanitize_bot_answer(
-            f"🧪 Your Liver Enzyme (Transaminases) Evaluation:\n\n"
+            f"Liver Enzyme (Transaminases) Evaluation:\n\n"
             f"• ALT (Alanine Aminotransferase): {alt_str} (Normal: 10 – 40 U/L)\n"
             f"• AST (Aspartate Aminotransferase): {ast_str} (Normal: 10 – 40 U/L)\n"
             f"• Clinical Status: {status}\n\n"
@@ -845,7 +845,7 @@ def evaluate_patient_specific_biomarker(biomarker_key: str, p_data: dict) -> str
             "No corneal copper deposition reported on slit-lamp exam. Note that KF rings may be absent in up to 50% of hepatic presentations."
         )
         return sanitize_bot_answer(
-            f"👁️ Your Kayser-Fleischer (KF) Rings Evaluation:\n\n"
+            f"Kayser-Fleischer (KF) Rings Evaluation:\n\n"
             f"• Recorded Finding: {'Present' if is_present else 'Absent'}\n"
             f"• Status: {status}\n\n"
             f"• Clinical Context: {interp}"
@@ -869,7 +869,7 @@ def evaluate_patient_specific_biomarker(biomarker_key: str, p_data: dict) -> str
             "No mutation detected in standard ATP7B screening. Clinical diagnosis relies on biochemical and slit-lamp markers."
         )
         return sanitize_bot_answer(
-            f"🧬 Your ATP7B Genetic Analysis Evaluation:\n\n"
+            f"ATP7B Genetic Analysis Evaluation:\n\n"
             f"• Genetic Finding: {'Mutation Detected' if is_detected else 'Not Detected / Normal'}\n"
             f"• Status: {status}\n\n"
             f"• Clinical Significance: {interp}"
@@ -962,7 +962,7 @@ def generate_patient_risk_explanation(prob, pred_text, p_data: dict, model_break
 
     if prob < 40.0:
         body = (
-            f"📊 Patient Risk Interpretation: Low Statistical Risk ({prob}% — {pred_text})\n\n"
+            f"Patient Risk Interpretation: Low Statistical Risk ({prob}% — {pred_text})\n\n"
             f"• Model Assessment:\n"
             f"  The ensemble classifier estimates a {prob}% probability of Wilson's disease based on your entered markers. "
             f"Your clinical parameters generally reflect preserved copper homeostasis.\n\n"
@@ -973,7 +973,7 @@ def generate_patient_risk_explanation(prob, pred_text, p_data: dict, model_break
         )
     elif prob < 60.0:
         body = (
-            f"📊 Patient Risk Interpretation: Intermediate / Indeterminate Risk ({prob}% — {pred_text})\n\n"
+            f"Patient Risk Interpretation: Intermediate / Indeterminate Risk ({prob}% — {pred_text})\n\n"
             f"• Model Assessment:\n"
             f"  The ensemble classifier estimates an intermediate probability ({prob}%). "
             f"Your entered parameters present a mixed clinical picture where some biomarkers suggest abnormal copper kinetics while others remain indeterminate.\n\n"
@@ -985,7 +985,7 @@ def generate_patient_risk_explanation(prob, pred_text, p_data: dict, model_break
         )
     else:
         body = (
-            f"📊 Patient Risk Interpretation: High Risk Signal ({prob}% — {pred_text})\n\n"
+            f"Patient Risk Interpretation: High Risk Signal ({prob}% — {pred_text})\n\n"
             f"• Model Assessment:\n"
             f"  The ensemble classifier estimates a high probability ({prob}%) that the entered profile resembles Wilson's disease.\n\n"
             f"{mb_text}"
@@ -1003,7 +1003,7 @@ def handle_medication_safety(clean_q: str) -> str:
     skipping, or altering medication/dosage. Never prescribes or advises self-discontinuation.
     """
     return sanitize_bot_answer(
-        "⚠️ Critical Clinical Medication Safety Advisory:\n\n"
+        "Critical Clinical Medication Safety Advisory:\n\n"
         "• Medical therapy for Wilson's disease (including D-Penicillamine, Trientine, and Zinc salts) "
         "is life-long and must NEVER be stopped, skipped, or modified without direct supervision from your treating physician.\n\n"
         "• Risk of Abrupt Cessation: Abruptly stopping de-coppering therapy allows toxic copper to rapidly re-accumulate, "
@@ -3295,14 +3295,14 @@ Provide clear headings for:
                 kfr = "Present (+2 Leipzig pts)" if str(p_data.get("Kayser-Fleischer Rings", "")).strip() in ("1", "Yes", "true") else "Absent"
                 gene = "Mutation Detected (+2 Leipzig pts)" if str(p_data.get("ATB7B Gene Mutation", "")).strip() in ("1", "Yes", "true") else "Normal"
                 return _finish(
-                    f"📋 Your Entered Clinical Assessment Biomarkers:\n\n"
+                    f"Entered Clinical Assessment Biomarkers:\n\n"
                     f"• Serum Ceruloplasmin: {cerulo} mg/dL (Normal: 20–40 mg/dL; <10 mg/dL suggests Wilson disease)\n"
                     f"• 24h Urinary Copper: {u_copper} µg/24h (Normal: <40 µg/24h; >100 µg/24h supports diagnosis)\n"
                     f"• Free Serum Copper: {f_copper} µg/dL (Normal: <15 µg/dL)\n"
                     f"• Liver Transaminases (ALT / AST): {alt} U/L / {ast} U/L (Normal: 10–40 U/L)\n"
                     f"• Kayser-Fleischer Rings: {kfr}\n"
                     f"• ATP7B Gene Mutation: {gene}\n\n"
-                    f"💡 Model Assessment: {pred_text} ({prob}% probability)",
+                    f"Model Assessment: {pred_text} ({prob}% probability)",
                     "patient_analytics"
                 )
 
@@ -3314,7 +3314,7 @@ Provide clear headings for:
         if is_diet_query and has_possessive and prob is not None:
             if prob < 40:
                 return _finish(
-                    f"🥑 Dietary Guidance for Your Low-Risk Profile ({prob}%)\n\n"
+                    f"Dietary Guidance for Low-Risk Assessment ({prob}%)\n\n"
                     f"• Clinical Guideline Standard (AASLD Guidelines):\n"
                     f"  For a low-risk profile ({prob}%), a strict medical copper-restricted diet is not clinically indicated without a confirmed diagnosis. General healthy eating is recommended.\n\n"
                     f"• Sensible Dietary Precautions:\n"
@@ -3332,7 +3332,7 @@ Provide clear headings for:
         if is_plan_query and has_possessive and prob is not None:
             if prob < 40:
                 return _finish(
-                    f"🛡️ Clinical Precautions & Health Plan for Low-Risk Assessment ({prob}%)\n\n"
+                    f"Clinical Precautions & Health Plan for Low-Risk Assessment ({prob}%)\n\n"
                     f"1. No Invasive Chelation Required: Copper chelating medications (like D-Penicillamine or Trientine) are prescribed only for confirmed clinical diagnoses, NOT for low-risk individuals.\n\n"
                     f"2. Routine Health Vigilance: Maintain periodic general wellness and liver enzyme checks (ALT, AST), particularly if there is a family history of hepatic disease.\n\n"
                     f"3. When to Seek Medical Care: Promptly see a physician if you notice concerning red-flag symptoms: unexplained persistent fatigue, yellowing eyes or skin (jaundice), tremor, changes in speech, or abdominal swelling.\n\n"
@@ -3341,7 +3341,7 @@ Provide clear headings for:
                 )
             else:
                 return _finish(
-                    f"💊 Clinical Management & Treatment Plan (AASLD / EASL Guidelines)\n\n"
+                    f"Clinical Management & Treatment Plan (AASLD / EASL Guidelines)\n\n"
                     f"1. Prompt Specialist Consultation: Evaluation by a hepatologist or gastroenterologist for confirmatory Leipzig scoring (≥ 4 confirms diagnosis).\n\n"
                     f"2. First-Line Pharmacotherapy:\n"
                     f"   • D-Penicillamine: 750–1,500 mg daily in divided doses on an empty stomach. Must be co-prescribed with Pyridoxine (Vitamin B6, 25–50 mg/day) to prevent deficiency.\n"
@@ -3357,7 +3357,7 @@ Provide clear headings for:
         # =============================================================
         if any(term in clean_q for term in ["what is rag", "explain rag", "rag system", "how rag works", "rag"]):
             return _finish(
-                "🤖 What is RAG (Retrieval-Augmented Generation) in NeuroMed AI?\n\n"
+                "Clinical Decision Support: RAG Architecture in NeuroMed AI\n\n"
                 "RAG is an advanced AI architecture that grounds the chatbot's answers in verified clinical medical literature:\n\n"
                 "1. Medical Knowledge Base: Curated clinical practice guidelines from AASLD, EASL-ERN, NIH, and INASL.\n"
                 "2. Vector Retrieval: Extracts and indexes clinical guideline passages directly from approved PDFs.\n"
@@ -3367,7 +3367,7 @@ Provide clear headings for:
 
         if any(term in clean_q for term in ["predict", "prediction", "model", "neuromed", "shap", "stacking", "algorithm", "svm", "machine learning"]):
             return _finish(
-                "🔬 NeuroMed AI Multi-Model Stacking & SHAP Explainability\n\n"
+                "NeuroMed AI Multi-Model Stacking & SHAP Explainability\n\n"
                 "• Stacking Ensemble: Combines an SVM (Support Vector Machine) classifier and a regularized Logistic Regression model, fed into a calibrated Meta-Classifier for consensus probability scoring.\n"
                 "• 23 Clinical Markers: Evaluates copper biochemistry (Ceruloplasmin, 24h Urine Copper, Free Copper), liver enzymes (ALT, AST, Bilirubin, Albumin, ALP, GGT), ophthalmic signs (KF rings), and ATP7B genetics.\n"
                 "• SHAP (SHapley Additive exPlanations): Explains the prediction by measuring exactly which patient lab markers pushed the risk score higher or lower from baseline, visualizing individual Feature Attribution via interactive Force and Beeswarm plots.",

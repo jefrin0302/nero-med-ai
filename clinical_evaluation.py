@@ -86,13 +86,13 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 bmi_val = float(raw_val)
                 if bmi_val < 18.5:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Underweight (<18.5)"
+                    b_cls, b_txt = "eval-abnormal-low", "Underweight (<18.5)"
                 elif 18.5 <= bmi_val <= 24.9:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (18.5–24.9)"
+                    b_cls, b_txt = "eval-normal", "Normal (18.5–24.9)"
                 elif 25.0 <= bmi_val <= 29.9:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Overweight (25–29.9)"
+                    b_cls, b_txt = "eval-abnormal-low", "Overweight (25–29.9)"
                 else:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Obese (≥30)"
+                    b_cls, b_txt = "eval-abnormal-high", "Obese (≥30)"
                 table.append({
                     "label": "Body Mass Index (BMI)",
                     "raw_key": key,
@@ -112,13 +112,13 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 c_val = float(raw_val)
                 if c_val < 10.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Abnormally Low (<10 mg/dL)"
+                    b_cls, b_txt = "eval-abnormal-high", "Abnormally Low (<10 mg/dL)"
                 elif 10.0 <= c_val < 20.0:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Borderline Low (10–20 mg/dL)"
+                    b_cls, b_txt = "eval-abnormal-low", "Borderline Low (10–20 mg/dL)"
                 elif 20.0 <= c_val <= 40.0:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (20–40 mg/dL)"
+                    b_cls, b_txt = "eval-normal", "Normal (20–40 mg/dL)"
                 else:
-                    b_cls, b_txt = "eval-neutral", "ℹ️ Elevated (>40 mg/dL)"
+                    b_cls, b_txt = "eval-neutral", "Elevated (>40 mg/dL)"
                 table.append({
                     "label": "Serum Ceruloplasmin",
                     "raw_key": key,
@@ -136,11 +136,11 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 cu_b = float(raw_val)
                 if cu_b > 140.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated (>140 µg/dL)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated (>140 µg/dL)"
                 elif cu_b < 70.0:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Low (<70 µg/dL)"
+                    b_cls, b_txt = "eval-abnormal-low", "Low (<70 µg/dL)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (70–140 µg/dL)"
+                    b_cls, b_txt = "eval-normal", "Normal (70–140 µg/dL)"
                 table.append({
                     "label": "Total Serum Copper",
                     "raw_key": key,
@@ -158,9 +158,9 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 f_cu = float(raw_val)
                 if f_cu > 15.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated Free Copper (>15 µg/dL)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated Free Copper (>15 µg/dL)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Within Limit (<15 µg/dL)"
+                    b_cls, b_txt = "eval-normal", "Within Limit (<15 µg/dL)"
                 table.append({
                     "label": "Free (Non-Ceruloplasmin) Copper",
                     "raw_key": key,
@@ -178,11 +178,11 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 u_cu = float(raw_val)
                 if u_cu > 100.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Pathologically Elevated (>100 µg/24h)"
+                    b_cls, b_txt = "eval-abnormal-high", "Pathologically Elevated (>100 µg/24h)"
                 elif 40.0 <= u_cu <= 100.0:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Intermediate Elevation (40–100 µg/24h)"
+                    b_cls, b_txt = "eval-abnormal-low", "Intermediate Elevation (40–100 µg/24h)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (<40 µg/24h)"
+                    b_cls, b_txt = "eval-normal", "Normal (<40 µg/24h)"
                 table.append({
                     "label": "24h Urinary Copper Excretion",
                     "raw_key": key,
@@ -200,9 +200,9 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 alt = float(raw_val)
                 if alt > 40.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated Transaminase (>40 U/L)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated Transaminase (>40 U/L)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (≤40 U/L)"
+                    b_cls, b_txt = "eval-normal", "Normal (≤40 U/L)"
                 table.append({
                     "label": "Alanine Aminotransferase (ALT)",
                     "raw_key": key,
@@ -220,9 +220,9 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 ast = float(raw_val)
                 if ast > 40.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated Transaminase (>40 U/L)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated Transaminase (>40 U/L)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (≤40 U/L)"
+                    b_cls, b_txt = "eval-normal", "Normal (≤40 U/L)"
                 table.append({
                     "label": "Aspartate Aminotransferase (AST)",
                     "raw_key": key,
@@ -240,11 +240,11 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 bili = float(raw_val)
                 if bili > 1.2:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated Bilirubin (>1.2 mg/dL)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated Bilirubin (>1.2 mg/dL)"
                 elif bili < 0.2:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Low Bilirubin (<0.2 mg/dL)"
+                    b_cls, b_txt = "eval-abnormal-low", "Low Bilirubin (<0.2 mg/dL)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (0.2–1.2 mg/dL)"
+                    b_cls, b_txt = "eval-normal", "Normal (0.2–1.2 mg/dL)"
                 table.append({
                     "label": "Total Bilirubin",
                     "raw_key": key,
@@ -262,11 +262,11 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 alb = float(raw_val)
                 if alb < 3.5:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Low Albumin (<3.5 g/dL)"
+                    b_cls, b_txt = "eval-abnormal-low", "Low Albumin (<3.5 g/dL)"
                 elif alb > 5.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated Albumin (>5.0 g/dL)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated Albumin (>5.0 g/dL)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (3.5–5.0 g/dL)"
+                    b_cls, b_txt = "eval-normal", "Normal (3.5–5.0 g/dL)"
                 table.append({
                     "label": "Serum Albumin",
                     "raw_key": key,
@@ -284,11 +284,11 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 alp = float(raw_val)
                 if alp > 130.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated ALP (>130 U/L)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated ALP (>130 U/L)"
                 elif alp < 40.0:
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Low ALP (<40 U/L)"
+                    b_cls, b_txt = "eval-abnormal-low", "Low ALP (<40 U/L)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (40–130 U/L)"
+                    b_cls, b_txt = "eval-normal", "Normal (40–130 U/L)"
                 table.append({
                     "label": "Alkaline Phosphatase (ALP)",
                     "raw_key": key,
@@ -306,11 +306,11 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 inr = float(raw_val)
                 if inr > 1.2:
-                    b_cls, b_txt = "eval-abnormal-high", "⚠️ Prolonged Coagulation (>1.2)"
+                    b_cls, b_txt = "eval-abnormal-high", "Prolonged Coagulation (>1.2)"
                 elif inr < 0.8:
-                    b_cls, b_txt = "eval-neutral", "ℹ️ Shortened (<0.8)"
+                    b_cls, b_txt = "eval-neutral", "Shortened (<0.8)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (0.8–1.2)"
+                    b_cls, b_txt = "eval-normal", "Normal (0.8–1.2)"
                 table.append({
                     "label": "Prothrombin Time / INR",
                     "raw_key": key,
@@ -328,9 +328,9 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
             try:
                 ggt = float(raw_val)
                 if ggt > 50.0:
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Elevated GGT (>50 U/L)"
+                    b_cls, b_txt = "eval-abnormal-high", "Elevated GGT (>50 U/L)"
                 else:
-                    b_cls, b_txt = "eval-normal", "✅ Normal (≤50 U/L)"
+                    b_cls, b_txt = "eval-normal", "Normal (≤50 U/L)"
                 table.append({
                     "label": "Gamma-Glutamyl Transferase (GGT)",
                     "raw_key": key,
@@ -349,10 +349,10 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
                 k_val = int(float(raw_val))
                 if k_val == 1:
                     fmt_v = "Present (Observed)"
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 KF Rings Present"
+                    b_cls, b_txt = "eval-abnormal-high", "KF Rings Present"
                 else:
                     fmt_v = "Absent (Not Observed)"
-                    b_cls, b_txt = "eval-normal", "✅ Absent / Normal"
+                    b_cls, b_txt = "eval-normal", "Absent / Normal"
             except (ValueError, TypeError):
                 fmt_v = str(raw_val)
                 b_cls, b_txt = "eval-neutral", "Recorded"
@@ -388,10 +388,10 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
                 p_val = int(float(raw_val))
                 if p_val == 1:
                     fmt_v = "Present (Documented)"
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Symptoms Documented"
+                    b_cls, b_txt = "eval-abnormal-low", "Symptoms Documented"
                 else:
                     fmt_v = "Absent (None Documented)"
-                    b_cls, b_txt = "eval-normal", "✅ None Documented"
+                    b_cls, b_txt = "eval-normal", "None Documented"
             except (ValueError, TypeError):
                 fmt_v = str(raw_val)
                 b_cls, b_txt = "eval-neutral", "Recorded"
@@ -427,10 +427,10 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
                 f_val = int(float(raw_val))
                 if f_val == 1:
                     fmt_v = "Positive (Reported in Relative)"
-                    b_cls, b_txt = "eval-abnormal-low", "⚠️ Positive Family History"
+                    b_cls, b_txt = "eval-abnormal-low", "Positive Family History"
                 else:
                     fmt_v = "Negative (No Known History)"
-                    b_cls, b_txt = "eval-normal", "✅ No Family History Reported"
+                    b_cls, b_txt = "eval-normal", "No Family History Reported"
             except (ValueError, TypeError):
                 fmt_v = str(raw_val)
                 b_cls, b_txt = "eval-neutral", "Recorded"
@@ -450,10 +450,10 @@ def evaluate_clinical_parameters(patient_dict: Dict[str, Any]) -> List[Dict[str,
                 g_val = int(float(raw_val))
                 if g_val == 1:
                     fmt_v = "Mutation Present (Positive)"
-                    b_cls, b_txt = "eval-abnormal-high", "🚨 Pathogenic Mutation Present"
+                    b_cls, b_txt = "eval-abnormal-high", "Pathogenic Mutation Present"
                 else:
                     fmt_v = "Mutation Absent (Normal)"
-                    b_cls, b_txt = "eval-normal", "✅ Mutation Absent"
+                    b_cls, b_txt = "eval-normal", "Mutation Absent"
             except (ValueError, TypeError):
                 fmt_v = str(raw_val)
                 b_cls, b_txt = "eval-neutral", "Recorded"

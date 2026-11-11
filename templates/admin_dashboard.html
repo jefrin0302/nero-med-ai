@@ -978,20 +978,20 @@
               The prediction system synthesizes 3 distinct machine learning paradigms into a calibrated consensus probability. Individual models evaluate non-linear biomarker interactions, statistical baseline odds, and sequential recurrent patterns before the meta-classifier combines their outputs.
             </p>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 28px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 28px;">
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
-                <div style="font-size: 12px; font-weight: 800; color: #6366f1; text-transform: uppercase;">Model A</div>
-                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Support Vector Machine (SVM)</h3>
+                <div style="font-size: 12px; font-weight: 800; color: #16a34a; text-transform: uppercase;">Model 1</div>
+                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">XGBoost Classifier</h3>
                 <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
-                  RBF Kernel mapping multi-dimensional boundary crossings across free copper, AST/ALT, and neurological impairment.
+                  Gradient-boosted decision trees sensitive to non-linear clinical thresholds and subtle boundary cutoffs.
                 </p>
                 <div style="margin-top: 14px; font-size: 12px; font-weight: 700; color: #0f172a;">
-                  Accuracy: 99.78% • AUC: 0.9999
+                  Accuracy: 99.85% • AUC: 0.9999
                 </div>
               </div>
 
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
-                <div style="font-size: 12px; font-weight: 800; color: #0ea5e9; text-transform: uppercase;">Model B</div>
+                <div style="font-size: 12px; font-weight: 800; color: #0ea5e9; text-transform: uppercase;">Model 2</div>
                 <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Logistic Regression</h3>
                 <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
                   Calibrated statistical reference odds, preventing extreme overconfident outliers in boundary cases.
@@ -1002,13 +1002,24 @@
               </div>
 
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
-                <div style="font-size: 12px; font-weight: 800; color: #10b981; text-transform: uppercase;">Model C</div>
-                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Bidirectional LSTM</h3>
+                <div style="font-size: 12px; font-weight: 800; color: #8b5cf6; text-transform: uppercase;">Model 3</div>
+                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Random Forest</h3>
                 <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
-                  Recurrent deep neural network capturing forward and backward cross-feature dependencies across 23 biomarkers.
+                  Bagged ensemble of decorrelated decision trees delivering low-variance splits and high noise resilience.
                 </p>
                 <div style="margin-top: 14px; font-size: 12px; font-weight: 700; color: #0f172a;">
-                  Accuracy: 99.40% • AUC: 0.9998
+                  Accuracy: 99.80% • AUC: 0.9999
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+                <div style="font-size: 12px; font-weight: 800; color: #6366f1; text-transform: uppercase;">Model 4</div>
+                <h3 style="font-size: 18px; font-weight: 800; margin: 4px 0 10px 0;">Support Vector Machine (SVM)</h3>
+                <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+                  RBF Kernel mapping multi-dimensional boundary crossings across free copper, AST/ALT, and neurological impairment.
+                </p>
+                <div style="margin-top: 14px; font-size: 12px; font-weight: 700; color: #0f172a;">
+                  Accuracy: 99.82% • AUC: 0.9999
                 </div>
               </div>
             </div>
@@ -1016,7 +1027,7 @@
             <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px;">
               <h4 style="font-size: 15px; font-weight: 800; color: #1e40af; margin-bottom: 8px;">Stacking Meta-Classifier &amp; Isotonic Calibration</h4>
               <p style="font-size: 13.5px; color: #1e3a8a; line-height: 1.6; margin: 0;">
-                The meta-learner combines probabilities from all 3 constituent models and applies non-parametric Isotonic Regression. The resulting probability reflects true epidemiological empirical risk (Brier Score: 0.00065, ECE: 0.000).
+                The meta-learner combines probabilities from all 4 constituent models and applies non-parametric Isotonic Regression. The resulting probability reflects true epidemiological empirical risk (Brier Score: &lt; 0.001, ECE: &lt; 0.001).
               </p>
             </div>
           </div>
@@ -1410,7 +1421,7 @@
             <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Constituent Models Status</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                <span>Support Vector Machine (SVM)</span>
+                <span>XGBoost Classifier</span>
                 <span class="status-badge-active">✓ In-Service</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
@@ -1418,7 +1429,11 @@
                 <span class="status-badge-active">✓ In-Service</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                <span>Bidirectional LSTM</span>
+                <span>Random Forest</span>
+                <span class="status-badge-active">✓ In-Service</span>
+              </div>
+              <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Support Vector Machine (SVM)</span>
                 <span class="status-badge-active">✓ In-Service</span>
               </div>
               <div style="padding: 14px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">

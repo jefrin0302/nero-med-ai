@@ -206,11 +206,12 @@ rag_assistant = MedicalRAGSystem()
 ARTIFACT_DIR = "wilson_artifacts"
 
 preprocessor = None
-svm = None
-logreg = None
-meta = None
+xgb_model = None
+svm_model = None
+rf_model = None
+logreg_model = None
+meta_model = None
 calibrator = None
-bilstm = None
 shap_background = None
 ensemble_explainer = None
 
@@ -227,59 +228,39 @@ try:
     preprocessor = safe_load_artifact(os.path.join(ARTIFACT_DIR, "preprocessor.joblib"))
     if preprocessor is not None and not hasattr(preprocessor, '_name_to_fitted_passthrough'):
         preprocessor._name_to_fitted_passthrough = {}
-    svm = safe_load_artifact(os.path.join(ARTIFACT_DIR, "svm.joblib"))
-    rf = safe_load_artifact(os.path.join(ARTIFACT_DIR, "rf.joblib"))
-    logreg = safe_load_artifact(os.path.join(ARTIFACT_DIR, "logreg_base.joblib"))
-    meta = safe_load_artifact(os.path.join(ARTIFACT_DIR, "meta_model.joblib"))
+    xgb_model = safe_load_artifact(os.path.join(ARTIFACT_DIR, "xgb.joblib"))
+    svm_model = safe_load_artifact(os.path.join(ARTIFACT_DIR, "svm.joblib"))
+    rf_model = safe_load_artifact(os.path.join(ARTIFACT_DIR, "rf.joblib"))
+    logreg_model = safe_load_artifact(os.path.join(ARTIFACT_DIR, "logreg_base.joblib"))
+    meta_model = safe_load_artifact(os.path.join(ARTIFACT_DIR, "meta_model.joblib"))
     calibrator = safe_load_artifact(os.path.join(ARTIFACT_DIR, "calibrator.joblib"))
     shap_background = safe_load_artifact(os.path.join(ARTIFACT_DIR, "shap_background.joblib"))
 
-    # Load Bi-LSTM
-    keras_path = os.path.join(ARTIFACT_DIR, "bilstm_model.keras")
-    h5_path = os.path.join(ARTIFACT_DIR, "bilstm_model.h5")
-    bilstm_target = keras_path if os.path.exists(keras_path) else (h5_path if os.path.exists(h5_path) else None)
-    if bilstm_target:
-        try:
-            from tensorflow.keras.models import load_model
-            bilstm = load_model(bilstm_target)
-            logger.info("Bi-LSTM loaded successfully from %s", bilstm_target)
-        except Exception as e:
-            logger.warning("Bi-LSTM loading failed: %s", e)
-
-    logger.info("Artifacts loaded: preproc=%s svm=%s rf=%s logreg=%s meta=%s calibrator=%s bilstm=%s shap_bg=%s",
-                preprocessor is not None, svm is not None, rf is not None, logreg is not None, meta is not None, calibrator is not None, bilstm is not None, shap_background is not None)
+    logger.info("Artifacts loaded: preproc=%s xgb=%s svm=%s rf=%s logreg=%s meta=%s calibrator=%s shap_bg=%s",
+                preprocessor is not None, xgb_model is not None, svm_model is not None, rf_model is not None,
+                logreg_model is not None, meta_model is not None, calibrator is not None, shap_background is not None)
 except Exception as e:
     logger.exception("Artifact loading failed: %s", e)
 
 def models_ready():
-    return preprocessor is not None and svm is not None and logreg is not None and meta is not None
+    return all(m is not None for m in [preprocessor, xgb_model, logreg_model, rf_model, svm_model, meta_model])
 
 def full_ensemble_predict_proba(X_matrix):
     """
-    Evaluates the complete multi-model ensemble pipeline:
-    Bi-LSTM + SVM + Random Forest + Logistic Regression -> Stacking Meta-Classifier.
+    Evaluates the complete 4-model ensemble pipeline:
+    XGBoost + Logistic Regression + Random Forest + SVM -> Stacking Meta-Classifier -> Isotonic Calibration.
     Returns (N,) array of consensus Wilson Disease probabilities for input rows.
     """
-    svm_p = svm.predict_proba(X_matrix)[:, 1]
-    log_p = logreg.predict_proba(X_matrix)[:, 1]
-    rf_p = rf.predict_proba(X_matrix)[:, 1] if rf is not None else (svm_p + log_p) / 2.0
-    if bilstm is not None:
-        X_lstm = X_matrix.reshape((X_matrix.shape[0], X_matrix.shape[1], 1))
-        bilstm_p = bilstm.predict(X_lstm, verbose=0).ravel()
-    else:
-        bilstm_p = (svm_p + log_p) / 2.0
+    p_xgb = xgb_model.predict_proba(X_matrix)[:, 1] if xgb_model is not None else np.zeros(X_matrix.shape[0])
+    p_log = logreg_model.predict_proba(X_matrix)[:, 1] if logreg_model is not None else np.zeros(X_matrix.shape[0])
+    p_rf = rf_model.predict_proba(X_matrix)[:, 1] if rf_model is not None else np.zeros(X_matrix.shape[0])
+    p_svm = svm_model.predict_proba(X_matrix)[:, 1] if svm_model is not None else np.zeros(X_matrix.shape[0])
 
-    n_feat = getattr(meta, "n_features_in_", 2)
-    if n_feat == 4:
-        stacked = np.column_stack([bilstm_p, svm_p, rf_p, log_p])
-    elif n_feat == 3:
-        stacked = np.column_stack([bilstm_p, svm_p, log_p])
-    else:
-        stacked = np.column_stack([svm_p, log_p])
+    stacked = np.column_stack([p_xgb, p_log, p_rf, p_svm])
 
     if calibrator is not None:
         return calibrator.predict_proba(stacked)[:, 1]
-    return meta.predict_proba(stacked)[:, 1]
+    return meta_model.predict_proba(stacked)[:, 1]
 
 # Initialize Ensemble KernelExplainer at application startup
 if shap_background is not None and models_ready():
@@ -417,58 +398,22 @@ def create_shap_plots(explainer, shap_values, X, feature_names):
 # Safe SHAP + Prediction (Approach B: Full Ensemble KernelExplainer + Pure Patient Data)
 # ============================
 def safe_shap_and_predict(df_raw):
-    bilstm_prob = None
-    svm_prob = None
-    log_prob = None
-    final_prob = None
-
-    # 1. Transform raw patient data (pure patient values)
+    # 1. Transform raw patient data with Robust preprocessor (Median + RobustScaler + OneHotEncoder)
     X = preprocessor.transform(df_raw)
 
-    # 2. Existing multi-model ensemble prediction pipeline
-    svm_p = float(svm.predict_proba(X)[:, 1][0])
-    log_p = float(logreg.predict_proba(X)[:, 1][0])
-    svm_prob = svm_p
-    log_prob = log_p
+    # 2. 4-Model Ensemble Prediction Pipeline
+    xgb_p = float(xgb_model.predict_proba(X)[:, 1][0]) if xgb_model is not None else 0.5
+    log_p = float(logreg_model.predict_proba(X)[:, 1][0]) if logreg_model is not None else 0.5
+    rf_p = float(rf_model.predict_proba(X)[:, 1][0]) if rf_model is not None else 0.5
+    svm_p = float(svm_model.predict_proba(X)[:, 1][0]) if svm_model is not None else 0.5
 
-    # Compute Bi-LSTM prediction if model is available
-    if bilstm is not None:
-        try:
-            X_lstm = X.reshape((X.shape[0], X.shape[1], 1))
-            bilstm_p = float(bilstm.predict(X_lstm, verbose=0).ravel()[0])
-            bilstm_prob = bilstm_p
-        except Exception as e:
-            logger.warning("Bi-LSTM prediction failed: %s", e)
-            bilstm_p = (svm_p + log_p) / 2.0
-            bilstm_prob = None
-    else:
-        bilstm_p = (svm_p + log_p) / 2.0
-        bilstm_prob = None
-
-    # Compute Random Forest prediction if model is available
-    rf_prob = None
-    if rf is not None:
-        try:
-            rf_p = float(rf.predict_proba(X)[:, 1][0])
-            rf_prob = rf_p
-        except Exception as e:
-            logger.warning("Random Forest prediction failed: %s", e)
-            rf_p = (svm_p + log_p) / 2.0
-    else:
-        rf_p = (svm_p + log_p) / 2.0
-
-    n_feat = getattr(meta, "n_features_in_", 2)
-    if n_feat == 4:
-        stacked = np.column_stack([[bilstm_p], [svm_p], [rf_p], [log_p]])
-    elif n_feat == 3:
-        stacked = np.column_stack([[bilstm_p], [svm_p], [log_p]])
-    else:
-        stacked = np.column_stack([[svm_p], [log_p]])
+    # 4-model probability stack
+    stacked = np.column_stack([[xgb_p], [log_p], [rf_p], [svm_p]])
 
     if calibrator is not None:
         final_prob = float(calibrator.predict_proba(stacked)[0][1])
     else:
-        final_prob = float(meta.predict_proba(stacked)[0][1])
+        final_prob = float(meta_model.predict_proba(stacked)[0][1])
     final_pred = int(final_prob >= 0.5)
 
     def _pct(val):
@@ -483,10 +428,10 @@ def safe_shap_and_predict(df_raw):
             return None
 
     model_breakdown = {
-        "bilstm": _pct(bilstm_prob),
-        "svm": _pct(svm_prob),
-        "rf": _pct(rf_prob),
-        "logreg": _pct(log_prob)
+        "xgb": _pct(xgb_p),
+        "logreg": _pct(log_p),
+        "rf": _pct(rf_p),
+        "svm": _pct(svm_p)
     }
 
     # 3. Deterministic Full-Ensemble SHAP Explanation (Authentic patient data, zero noise)
@@ -1047,10 +992,11 @@ def admin_dashboard():
         patients=recent_patients,
         meta_info=meta_info,
         artifacts_status={
-            "svm": svm is not None,
-            "logreg": logreg is not None,
-            "bilstm": bilstm is not None,
-            "meta": meta is not None,
+            "xgb": xgb_model is not None,
+            "svm": svm_model is not None,
+            "rf": rf_model is not None,
+            "logreg": logreg_model is not None,
+            "meta": meta_model is not None,
             "calibrator": calibrator is not None,
             "preprocessor": preprocessor is not None,
             "shap_explainer": ensemble_explainer is not None,
@@ -1289,10 +1235,11 @@ def api_admin_model_governance():
 
     governance_data = {
         "models_status": {
-            "svm": svm is not None,
-            "logreg": logreg is not None,
-            "bilstm": bilstm is not None,
-            "meta_stacker": meta is not None,
+            "xgb": xgb_model is not None,
+            "svm": svm_model is not None,
+            "rf": rf_model is not None,
+            "logreg": logreg_model is not None,
+            "meta_stacker": meta_model is not None,
             "calibrator": calibrator is not None,
             "preprocessor": preprocessor is not None,
             "shap_explainer": ensemble_explainer is not None
@@ -1841,6 +1788,7 @@ def historical_assessment_report(assessment_id):
                 return None
 
         model_breakdown = {
+            "xgb": _parse_model_pct(assessment.get("xgb_prob")),
             "svm": _parse_model_pct(assessment.get("svm_prob")),
             "rf": _parse_model_pct(assessment.get("rf_prob")),
             "logreg": _parse_model_pct(assessment.get("logreg_prob")),

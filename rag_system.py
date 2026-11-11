@@ -946,13 +946,17 @@ def generate_patient_risk_explanation(prob, pred_text, p_data: dict, model_break
     # Model consensus breakdown
     mb_text = ""
     if model_breakdown and isinstance(model_breakdown, dict):
+        xgb_p = model_breakdown.get("xgb")
+        rf_p = model_breakdown.get("rf")
         svm_p = model_breakdown.get("svm")
-        lstm_p = model_breakdown.get("bilstm")
         log_p = model_breakdown.get("logreg")
+        lstm_p = model_breakdown.get("bilstm")
         parts = []
-        if lstm_p is not None: parts.append(f"Bi-LSTM: {lstm_p}%")
+        if xgb_p is not None: parts.append(f"XGBoost: {xgb_p}%")
+        if rf_p is not None: parts.append(f"Random Forest: {rf_p}%")
         if svm_p is not None: parts.append(f"SVM: {svm_p}%")
         if log_p is not None: parts.append(f"Logistic Regression: {log_p}%")
+        if lstm_p is not None: parts.append(f"Bi-LSTM: {lstm_p}%")
         if parts:
             mb_text = f"• Ensemble Model Consensus: Stacking Meta-Classifier synthesizes {', '.join(parts)} into a consensus probability of {prob}%.\n\n"
 

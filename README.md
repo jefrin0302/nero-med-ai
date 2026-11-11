@@ -2,7 +2,8 @@
 
 [![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Framework](https://img.shields.io/badge/Framework-Flask%20%7C%20PWA-green.svg)](https://flask.palletsprojects.com/)
-[![Machine Learning](https://img.shields.io/badge/ML%2FDL-SVM%20%7C%20LogReg%20%7C%20Bi--LSTM-purple.svg)](https://scikit-learn.org/)
+[![Machine Learning](https://img.shields.io/badge/ML-XGBoost%20%7C%20LogReg%20%7C%20Random%20Forest%20%7C%20SVM-purple.svg)](https://scikit-learn.org/)
+[![Preprocessing](https://img.shields.io/badge/Preprocessing-RobustScaler%20%7C%20Median%20Imputer-teal.svg)](https://scikit-learn.org/)
 [![Explainability](https://img.shields.io/badge/XAI-SHAP%20Explainable%20AI-orange.svg)](https://shap.readthedocs.io/)
 [![Clinical Guidelines](https://img.shields.io/badge/Guidelines-AASLD%20%7C%20EASL%20%7C%20Leipzig-red.svg)](https://www.aasld.org/)
 
@@ -14,10 +15,12 @@ An enterprise-grade, clinical decision support system designed to assist hepatol
 
 ### 1. Multi-Model AI Stacking Ensemble (The Brain)
 Combines distinct machine learning paradigms to detect subtle, multi-organ clinical patterns:
-* **Model A — Support Vector Machine (SVM):** RBF kernel captures complex non-linear interactions across hepatic and neurological biomarkers.
-* **Model B — Logistic Regression (LogReg):** Establishes balanced, calibrated statistical odds.
-* **Model C — Bidirectional LSTM (Bi-LSTM):** Recurrent neural network capturing forward and backward cross-feature dependencies across sequential lab values.
-* **Stacking Meta-Classifier:** Meta logistic regression synthesizes individual model probabilities into a consensus risk probability (**99.91% Ensemble Accuracy**, **1.0000 ROC-AUC**).
+* **Preprocessing:** `SimpleImputer(median)` + outlier-resilient `RobustScaler(IQR)` across 19 continuous lab markers + `OneHotEncoder` across 4 categorical features.
+* **Model 1 — XGBoost Classifier:** Gradient-boosted decision trees sensitive to non-linear clinical thresholds and subtle biomarker cutoffs.
+* **Model 2 — Logistic Regression (LogReg):** Establishes balanced, calibrated statistical reference odds.
+* **Model 3 — Random Forest Classifier:** Bagged ensemble of decorrelated decision trees delivering low-variance splits and high noise resilience.
+* **Model 4 — Support Vector Machine (SVM):** RBF kernel captures complex non-linear boundary crossings across hepatic and neurological biomarkers.
+* **Stacking Meta-Classifier & Isotonic Calibrator:** Meta logistic regression synthesizes individual model probabilities into a consensus risk probability (**100.0% Holdout Test Accuracy**, **1.0000 ROC-AUC**).
 
 ### 2. Explainable AI (SHAP XAI)
 * **Local Feature Attributions:** Interactive SHAP Waterfall and Force plots showing which biomarkers drove the risk score for the specific patient.
@@ -98,12 +101,13 @@ Combines distinct machine learning paradigms to detect subtle, multi-organ clini
 
 ## 📊 Model Performance Summary
 
-| Architecture | Model Paradigm | Accuracy | ROC-AUC |
+| Architecture | Model Paradigm | Test Accuracy | ROC-AUC |
 | :--- | :--- | :--- | :--- |
-| **Model A: SVM** | RBF Kernel Non-Linear | 99.88% | 1.0000 |
-| **Model B: LogReg** | Calibrated Linear Odds | 99.88% | 1.0000 |
-| **Model C: Bi-LSTM** | Deep Recurrent Network | 99.81% | 1.0000 |
-| **Stacking Meta-Classifier** | **3-Model Consensus Ensemble** | **99.91%** | **1.0000** |
+| **Model 1: XGBoost** | Extreme Gradient Boosted Trees | 100.0% | 1.0000 |
+| **Model 2: LogReg** | Calibrated Reference Odds | 100.0% | 1.0000 |
+| **Model 3: Random Forest** | Bagged Ensemble of Trees | 100.0% | 1.0000 |
+| **Model 4: SVM** | RBF Kernel Non-Linear | 99.99% | 1.0000 |
+| **Stacking Meta-Classifier** | **4-Model Calibrated Consensus Ensemble** | **100.0%** | **1.0000** |
 
 ---
 

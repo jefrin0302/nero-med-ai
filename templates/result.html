@@ -422,7 +422,7 @@
             Wilson's Disease Clinical AI Assessment
           </h1>
           <p style="color: #cbd5e1; font-size: 14px;">
-            Synthesized via Multi-Model ML Stacking Ensemble (SVM + LogReg + Bi-LSTM) & SHAP Explainable AI.
+            Synthesized via 4-Model Stacking Ensemble (XGBoost + LogReg + Random Forest + SVM) &amp; SHAP Explainable AI.
           </p>
         </div>
 
@@ -528,30 +528,30 @@
                 🧬 Constituent Model Voting Consensus:
               </span>
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+                {% if model_breakdown.xgb is not none %}
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
+                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL 1 — XGBOOST</div>
+                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ [(model_breakdown.xgb or 0), 100.0]|min }}%</div>
+                  <div style="font-size: 10px; color: #16a34a;">Gradient Boosted Trees</div>
+                </div>
+                {% endif %}
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL A — SVM</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.svm or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #64748b;">RBF Kernel Non-Linear</div>
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL 2 — LOGREG</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.logreg or 0), 100.0]|min }}%</div>
+                  <div style="font-size: 10px; color: #64748b;">Linear Reference Odds</div>
                 </div>
                 {% if model_breakdown.rf is not none %}
                 <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL B — RANDOM FOREST</div>
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL 3 — RANDOM FOREST</div>
                   <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.rf or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #64748b;">Tree-Based Ensemble</div>
+                  <div style="font-size: 10px; color: #64748b;">Bagged Decision Trees</div>
                 </div>
                 {% endif %}
                 <div style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL C — LOGREG</div>
-                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.logreg or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #64748b;">Linear Statistical Odds</div>
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">MODEL 4 — SVM</div>
+                  <div style="font-size: 17px; font-weight: 800; color: var(--dark); margin: 2px 0;">{{ [(model_breakdown.svm or 0), 100.0]|min }}%</div>
+                  <div style="font-size: 10px; color: #64748b;">RBF Kernel Non-Linear</div>
                 </div>
-                {% if model_breakdown.bilstm is not none %}
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                  <div style="font-size: 10px; color: #166534; font-weight: 700;">MODEL D — BI-LSTM</div>
-                  <div style="font-size: 17px; font-weight: 800; color: #15803d; margin: 2px 0;">{{ [(model_breakdown.bilstm or 0), 100.0]|min }}%</div>
-                  <div style="font-size: 10px; color: #16a34a;">Deep Recurrent Net</div>
-                </div>
-                {% endif %}
               </div>
             </div>
             {% endif %}

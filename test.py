@@ -1,23 +1,39 @@
 #!/usr/bin/env python3
+"""
+test.py
 
-import pandas as pd
-import numpy as np
-import joblib
+Validation test harness for the 4-Model Stacking Ensemble:
+- Preprocessor: Median Imputer + RobustScaler(IQR) + OneHotEncoder
+- Base Models: XGBoost, Logistic Regression, Random Forest, Support Vector Machine (SVM)
+- Stacking Meta-Classifier + Isotonic Probability Calibrator
+"""
+
 import os
+import joblib
+import numpy as np
+import pandas as pd
 
 ART_DIR = "wilson_artifacts"
 
-# Load saved artifacts
+# 1. Load saved production artifacts
+print("Loading production artifacts from:", os.path.abspath(ART_DIR))
 preprocessor = joblib.load(os.path.join(ART_DIR, "preprocessor.joblib"))
-svm = joblib.load(os.path.join(ART_DIR, "svm.joblib"))
-logreg = joblib.load(os.path.join(ART_DIR, "logreg_base.joblib"))
-meta = joblib.load(os.path.join(ART_DIR, "meta_model.joblib"))
+xgb_model = joblib.load(os.path.join(ART_DIR, "xgb.joblib"))
+logreg_model = joblib.load(os.path.join(ART_DIR, "logreg_base.joblib"))
+rf_model = joblib.load(os.path.join(ART_DIR, "rf.joblib"))
+svm_model = joblib.load(os.path.join(ART_DIR, "svm.joblib"))
+meta_model = joblib.load(os.path.join(ART_DIR, "meta_model.joblib"))
+calibrator = joblib.load(os.path.join(ART_DIR, "calibrator.joblib"))
 
-print("Loaded saved models successfully.\n")
+print("✓ Preprocessor loaded successfully.")
+print("✓ XGBoost loaded successfully.")
+print("✓ Logistic Regression loaded successfully.")
+print("✓ Random Forest loaded successfully.")
+print("✓ Support Vector Machine loaded successfully.")
+print("✓ Stacking Meta-Classifier loaded successfully.")
+print("✓ Isotonic Probability Calibrator loaded successfully.\n")
 
-# -------------------------
-# Prepare the sample DF
-# -------------------------
+# 2. Benchmark Clinical Test Cohort (Known Positives and Negatives)
 data = [
     ["Daniel Perry",14,"Female",9.34,229.03,18.5,144.98,73.71,72.04,1.31,3.93,110.55,1.05,127.93,1,5.07,1,80.1,1,1,"West","Low","FALSE",25.21,1],
     ["Lauren Luna",21,"Female",9.14,200.23,16.15,104.19,25.89,67.51,0.22,4.10,89.18,1.10,105.97,1,6.18,0,96.84,1,1,"South","Medium","FALSE",33.51,1],
@@ -39,44 +55,42 @@ columns = [
 ]
 
 df = pd.DataFrame(data, columns=columns)
+df["Alcohol Use"] = df["Alcohol Use"].astype(str)
+df_features = df.drop(columns=["Name", "Is_Wilson_Disease"])
 
-# For prediction, remove Name and Target
-df_features = df.drop(columns=["Name","Is_Wilson_Disease"])
-
-print("Input DataFrame:")
-print(df_features)
-print("\n")
-
-# -------------------------
-# RUN HYBRID MODEL
-# -------------------------
-# preprocess
+# 3. Preprocess with RobustScaler Pipeline
 X = preprocessor.transform(df_features)
 
-# SVM probability
-svm_p = svm.predict_proba(X)[:,1]
+# 4. Predict Individual Constituent Probabilities
+p_xgb = xgb_model.predict_proba(X)[:, 1]
+p_log = logreg_model.predict_proba(X)[:, 1]
+p_rf = rf_model.predict_proba(X)[:, 1]
+p_svm = svm_model.predict_proba(X)[:, 1]
 
-# Logistic regression probability
-log_p = logreg.predict_proba(X)[:,1]
-
-# Stack predictions
-stacked = np.column_stack([svm_p, log_p])
-
-# Final probability
-final_prob = meta.predict_proba(stacked)[:,1]
+# 5. Stacking Meta-Classifier + Isotonic Calibration
+stacked = np.column_stack([p_xgb, p_log, p_rf, p_svm])
+final_prob = calibrator.predict_proba(stacked)[:, 1]
 final_pred = (final_prob >= 0.5).astype(int)
 
-# -------------------------
-# PRINT RESULTS
-# -------------------------
-print("===== PREDICTION RESULTS =====")
+# 6. Evaluation and Verification Output
+print("=" * 70)
+print(f"{'PATIENT NAME':20s} | {'ACTUAL':6s} | {'PRED':8s} | {'FINAL %':8s} | {'XGB%':6s} | {'LOG%':6s} | {'RF%':6s} | {'SVM%':6s}")
+print("=" * 70)
+
+all_correct = True
 for i in range(len(df)):
     name = df.iloc[i]["Name"]
-    label = final_pred[i]
-    prob = final_prob[i]
+    actual = df.iloc[i]["Is_Wilson_Disease"]
+    pred = final_pred[i]
+    prob = final_prob[i] * 100.0
+    
+    if pred != actual:
+        all_correct = False
+        
+    print(f"{name:20s} | {actual:6d} | {('Positive' if pred==1 else 'Negative'):8s} | {prob:7.1f}% | {p_xgb[i]*100:5.1f}% | {p_log[i]*100:5.1f}% | {p_rf[i]*100:5.1f}% | {p_svm[i]*100:5.1f}%")
 
-    print(f"{i+1}. {name}")
-    print(f"   Predicted: {'Positive' if label==1 else 'Negative'}")
-    print(f"   Probability: {prob:.4f}")
-    print(f"   Actual Label: {df.iloc[i]['Is_Wilson_Disease']}")
-    print("-"*40)
+print("=" * 70)
+if all_correct:
+    print("✓ SUCCESS: All 7 clinical test patients matched their expected diagnosis with 100% consensus accuracy!")
+else:
+    print("❌ MISMATCH DETECTED: Review individual predictions above.")

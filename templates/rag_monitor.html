@@ -716,12 +716,19 @@
 
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
-        {% if current_user.is_authenticated and current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
+        {% if current_user.is_authenticated and current_user.role == 'technician' %}
+        <li><a class="nav-link-item active" href="javascript:void(0)" onclick="switchTab('overview')"><i data-lucide="bar-chart-3"></i> Telemetry</a></li>
+        <li><a class="nav-link-item" href="javascript:void(0)" onclick="switchTab('audit')"><i data-lucide="clipboard-list"></i> Query Audit</a></li>
+        <li><a class="nav-link-item" href="javascript:void(0)" onclick="switchTab('chunks')"><i data-lucide="layers"></i> Chunks Explorer</a></li>
+        <li><a class="nav-link-item" href="javascript:void(0)" onclick="switchTab('pipeline')"><i data-lucide="git-branch"></i> Architecture</a></li>
+        {% else %}
+          {% if current_user.is_authenticated and current_user.role == 'admin' %}
+          <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
+          {% endif %}
+          <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+          <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+          <li><a class="nav-link-item active" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
         {% endif %}
-        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
-        <li><a class="nav-link-item active" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
       </ul>
 
       <div class="nav-right-actions">
@@ -732,10 +739,10 @@
 
         {% if current_user.is_authenticated %}
         <span class="nav-user-pill">
-          <i data-lucide="user-check"></i>
-          <span>Dr. {{ current_user.username }}</span>
+          <i data-lucide="{{ 'cpu' if current_user.role == 'technician' else 'user-check' }}"></i>
+          <span>{{ current_user.full_name or ('Dr. ' + current_user.username) }}</span>
           <span style="opacity: 0.4;">|</span>
-          <span class="role-text">{{ 'Dept. Head' if current_user.role == 'admin' else ('Lab Spec.' if current_user.role == 'lab_staff' else 'Clinician') }}</span>
+          <span class="role-text">{{ 'Dept. Head' if current_user.role == 'admin' else ('Lab Spec.' if current_user.role == 'lab_staff' else ('RAG Systems Tech' if current_user.role == 'technician' else 'Clinician')) }}</span>
         </span>
         <form method="POST" action="{{ url_for('logout') }}" style="display: inline; margin: 0; padding: 0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -769,58 +776,83 @@
     <div class="hero-banner">
       <div>
         <div class="hero-title">
-          <span><i data-lucide="stethoscope" style="width:24px;height:24px;vertical-align:middle;margin-right:8px;"></i> Clinical Knowledge Observability &amp; Governance</span>
+          {% if current_user.role == 'technician' %}
+          <span><i data-lucide="terminal" style="width:24px;height:24px;vertical-align:middle;margin-right:8px;color:#22d3ee;"></i> RAG Technical Console &amp; Observability</span>
+          {% else %}
+          <span><i data-lucide="book-open" style="width:24px;height:24px;vertical-align:middle;margin-right:8px;color:#38bdf8;"></i> Clinical Knowledge Base &amp; Guidelines Governance</span>
+          {% endif %}
         </div>
         <div class="hero-subtitle">
-          Real-time telemetry, zero-hallucination citation validation, dynamic clinical guideline ingestion, 
-          and Clinical Governance authorization portal for NeuroMed AI.
+          {% if current_user.role == 'technician' %}
+          Vector passage geometry, latency telemetry, query audit logs, chunking simulation sandbox, and end-to-end architecture console.
+          {% else %}
+          Official evidence-based clinical consensus guidelines (AASLD, EASL), quarantined guideline ingestion, and Clinical Governance authorization portal.
+          {% endif %}
         </div>
       </div>
       <div class="telemetry-badges">
-        {% if rag_status.langsmith_active %}
-        <span class="badge-pill active">
-          <span class="pulse-dot"></span>
-          LangSmith: Active ({{ rag_status.langsmith_project }})
-        </span>
+        {% if current_user.role == 'technician' %}
+          {% if rag_status.langsmith_active %}
+          <span class="badge-pill active">
+            <span class="pulse-dot"></span>
+            LangSmith: Active ({{ rag_status.langsmith_project }})
+          </span>
+          {% else %}
+          <span class="badge-pill active" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3);">
+            LangSmith: Standby Mode
+          </span>
+          {% endif %}
+          <span class="badge-pill model">
+            Model: {{ rag_status.gemini_model }}
+          </span>
+          <span class="badge-pill guard">
+            [OPERATIONAL] Zero-Hallucination Guard: Active
+          </span>
         {% else %}
-        <span class="badge-pill active" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3);">
-          LangSmith: Standby Mode
-        </span>
+          <span class="badge-pill active" style="background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">
+            <i data-lucide="book-check" style="width:13px;height:13px;margin-right:4px;vertical-align:middle;"></i> Active Guidelines: {{ approved_docs|length }} Approved
+          </span>
+          {% if pending_docs|length > 0 %}
+          <span class="badge-pill" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">
+            <i data-lucide="clock" style="width:13px;height:13px;margin-right:4px;vertical-align:middle;"></i> {{ pending_docs|length }} Pending Review
+          </span>
+          {% endif %}
+          <span class="badge-pill guard" style="background: rgba(6, 182, 212, 0.18); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.35);">
+            <i data-lucide="shield-check" style="width:13px;height:13px;margin-right:4px;vertical-align:middle;"></i> {{ 'Chief Doctor Authority' if current_user.role == 'admin' else 'Clinician Access' }}
+          </span>
         {% endif %}
-        <span class="badge-pill model">
-          Model: {{ rag_status.gemini_model }}
-        </span>
-        <span class="badge-pill guard">
-          [OPERATIONAL] Zero-Hallucination Guard: Active
-        </span>
       </div>
     </div>
 
     <!-- TAB NAVIGATION BAR -->
     <div class="tab-bar">
+      {% if current_user.role == 'technician' %}
       <button class="tab-btn active" onclick="switchTab('overview')">
         <i data-lucide="bar-chart-3" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Overview &amp; Telemetry
-      </button>
-      <button class="tab-btn" onclick="switchTab('governance')">
-        <i data-lucide="shield-check" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Document Governance
-        {% if pending_docs|length > 0 %}
-        <span style="background: #f59e0b; color: white; border-radius: 9999px; padding: 2px 7px; font-size: 11px;">{{ pending_docs|length }}</span>
-        {% endif %}
       </button>
       <button class="tab-btn" onclick="switchTab('audit')">
         <i data-lucide="clipboard-list" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Live Query Audit Trail
       </button>
       <button class="tab-btn" onclick="switchTab('chunks')">
-        <i data-lucide="layers" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Chunks Explorer
+        <i data-lucide="layers" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Chunks Explorer &amp; Sandbox
       </button>
       <button class="tab-btn" onclick="switchTab('pipeline')">
         <i data-lucide="git-branch" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> How It Works &amp; Architecture
       </button>
+      {% else %}
+      <button class="tab-btn active" onclick="switchTab('governance')">
+        <i data-lucide="shield-check" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Document Governance &amp; Guidelines
+        {% if pending_docs|length > 0 %}
+        <span style="background: #f59e0b; color: white; border-radius: 9999px; padding: 2px 7px; font-size: 11px;">{{ pending_docs|length }}</span>
+        {% endif %}
+      </button>
+      {% endif %}
     </div>
 
     <!-- ========================================================================= -->
-    <!-- TAB 1: OVERVIEW & TELEMETRY                                               -->
+    <!-- TAB 1: OVERVIEW & TELEMETRY (TECHNICIAN ONLY)                             -->
     <!-- ========================================================================= -->
+    {% if current_user.role == 'technician' %}
     <div id="tab-overview" class="tab-content active">
 
       <!-- KPI METRICS CARDS -->
@@ -945,11 +977,13 @@
       </div>
 
     </div>
+    {% endif %}
 
     <!-- ========================================================================= -->
-    <!-- TAB 2: DOCUMENT GOVERNANCE (CHIEF DOCTOR PORTAL)                          -->
+    <!-- TAB 2: DOCUMENT GOVERNANCE (CHIEF DOCTOR & CLINICIAN PORTAL)              -->
     <!-- ========================================================================= -->
-    <div id="tab-governance" class="tab-content">
+    {% if current_user.role != 'technician' %}
+    <div id="tab-governance" class="tab-content active">
 
       <!-- CLINICIAN DOCUMENT UPLOAD FORM -->
       <div class="content-card">
@@ -1234,10 +1268,12 @@
       </div>
 
     </div>
+    {% endif %}
 
     <!-- ========================================================================= -->
-    <!-- TAB 3: LIVE QUERY AUDIT TRAIL                                             -->
+    <!-- TAB 3: LIVE QUERY AUDIT TRAIL (TECHNICIAN ONLY)                           -->
     <!-- ========================================================================= -->
+    {% if current_user.role == 'technician' %}
     <div id="tab-audit" class="tab-content">
       <div class="content-card">
         <div class="card-header-styled">
@@ -1296,11 +1332,12 @@
         </div>
       </div>
     </div>
-
+    {% endif %}
 
     <!-- ========================================================================= -->
-    <!-- TAB 5: CHUNKS EXPLORER                                                    -->
+    <!-- TAB 4: CHUNKS EXPLORER & SANDBOX (TECHNICIAN ONLY)                        -->
     <!-- ========================================================================= -->
+    {% if current_user.role == 'technician' %}
     <div id="tab-chunks" class="tab-content">
       
       <!-- CORPUS KPI METRICS -->
@@ -1448,10 +1485,12 @@
       </div>
 
     </div>
+    {% endif %}
 
     <!-- ========================================================================= -->
-    <!-- TAB 6: HOW IT WORKS & DIVIDES                                             -->
+    <!-- TAB 5: HOW IT WORKS & ARCHITECTURE (TECHNICIAN ONLY)                      -->
     <!-- ========================================================================= -->
+    {% if current_user.role == 'technician' %}
     <div id="tab-pipeline" class="tab-content">
       
       <!-- SECTION A: ACTUAL RAG ARCHITECTURE -->
@@ -1704,6 +1743,7 @@
       </div>
 
     </div>
+    {% endif %}
 
   </div>
 
@@ -2604,13 +2644,23 @@ Sunflower cataracts may also be observed due to copper deposition in the anterio
 
     // Initialize Default States on DOM Load
     document.addEventListener('DOMContentLoaded', () => {
-      selectPipelineStage(1);
+      if (document.getElementById('stage-detail-card')) {
+        selectPipelineStage(1);
+      }
       // Pre-load simulator Preset 1 into textarea
-      if (SIM_PRESETS[1]) {
+      if (typeof SIM_PRESETS !== 'undefined' && SIM_PRESETS[1]) {
         const p = SIM_PRESETS[1];
         const txtArea = document.getElementById('sim-input-text');
         if (txtArea && !txtArea.value) {
           txtArea.value = p.text;
+        }
+      }
+      // Handle URL hash navigation if present
+      if (window.location.hash) {
+        const hashTab = window.location.hash.replace('#tab-', '').replace('#', '');
+        const targetTab = document.getElementById('tab-' + hashTab);
+        if (targetTab) {
+          switchTab(hashTab);
         }
       }
       if (window.lucide) {

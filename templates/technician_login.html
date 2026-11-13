@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Systems Technician Console Sign In — NeuroMed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_theme.css') }}?v=3.5" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/theme-nav.js') }}" defer></script>
+  <style>
+    .tech-login-body {
+      background: #090d16;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .tech-login-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      position: relative;
+    }
+
+    .tech-login-card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      border-radius: 16px;
+      padding: 38px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(6, 182, 212, 0.15);
+      backdrop-filter: blur(12px);
+    }
+
+    .portal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(6, 182, 212, 0.15);
+      color: #22d3ee;
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .portal-toggle {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: rgba(2, 6, 23, 0.8);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 4px;
+    }
+
+    .portal-toggle-btn {
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .portal-toggle-btn.active {
+      background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
+    }
+
+    .portal-toggle-btn:hover:not(.active) {
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(2, 6, 23, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #ffffff;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #06b6d4;
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+    }
+
+    .alert-box {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .alert-info {
+      background: rgba(6, 182, 212, 0.15);
+      color: #a5f3fc;
+      border: 1px solid rgba(34, 211, 238, 0.35);
+    }
+
+    .btn-tech-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0891b2 0%, #0369a1 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(6, 182, 212, 0.35);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-tech-submit:hover {
+      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+      box-shadow: 0 10px 28px rgba(6, 182, 212, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .quick-fill-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 9px 12px;
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px dashed rgba(6, 182, 212, 0.4);
+      color: #22d3ee;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .quick-fill-btn:hover {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: #06b6d4;
+    }
+
+    .security-notice {
+      background: rgba(2, 6, 23, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 24px;
+      line-height: 1.6;
+    }
+
+    .specs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .spec-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+      font-family: monospace;
+    }
+  </style>
+</head>
+
+<body class="tech-login-body">
+
+  <!-- NAVBAR -->
+  <header class="navbar-custom" style="background: rgba(9, 13, 22, 0.95);">
+    <div class="nav-container">
+      <div class="nav-brand-group">
+        <a class="brand-logo" href="{{ url_for('home') }}">
+          <i data-lucide="dna" class="brand-icon"></i>
+          <span>NeuroMed AI</span>
+          <span class="brand-badge" style="background: linear-gradient(135deg, #0891b2, #0284c7);">TECH</span>
+        </a>
+      </div>
+
+      <ul class="nav-links">
+        <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+      </ul>
+
+      <div class="nav-right-actions">
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          <i data-lucide="moon" id="themeIcon"></i>
+        </button>
+        <a class="nav-link-item" href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 700;">
+          <i data-lucide="lock"></i>
+          <span>Staff Portal</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN LOGIN WORKSPACE -->
+  <div class="tech-login-wrapper">
+    <div class="tech-login-card">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div class="portal-badge">
+          <i data-lucide="terminal" style="width: 14px; height: 14px;"></i>
+          RAG Infrastructure &amp; MLOps
+        </div>
+        <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0 0 6px 0;">
+          Technician Console
+        </h1>
+        <p style="color: #94a3b8; font-size: 13.5px; margin: 0;">
+          Vector telemetry, live query audits, chunk sandbox &amp; architecture
+        </p>
+      </div>
+
+      <!-- 4-WAY PORTAL TOGGLE SWITCH -->
+      <div class="portal-toggle">
+        <a href="{{ url_for('login') }}" class="portal-toggle-btn" title="Clinician Staff Portal">Clinician</a>
+        <a href="{{ url_for('admin_login') }}" class="portal-toggle-btn" title="Chief Doctor Admin Portal">Chief Dr.</a>
+        <a href="{{ url_for('lab_login') }}" class="portal-toggle-btn" title="Laboratory Staff Portal">Lab Staff</a>
+        <a href="{{ url_for('technician_login') }}" class="portal-toggle-btn active" title="RAG Systems Technician">Technician</a>
+      </div>
+
+      {% if error %}
+      <div class="alert-box alert-error">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+          <span>{{ error }}</span>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if message %}
+      <div class="alert-box alert-info">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+          <span>{{ message }}</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('technician_login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next_url or '' }}">
+
+        <div class="form-group">
+          <label class="form-label" for="username">Technician Account Handle</label>
+          <input type="text" id="username" name="username" class="form-input" placeholder="e.g. technician" required autocomplete="username" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Console Access Key / Password</label>
+          <input type="password" id="password" name="password" class="form-input" placeholder="Enter security passphrase" required autocomplete="current-password" />
+        </div>
+
+        <button type="submit" class="btn-tech-submit">
+          <i data-lucide="cpu" style="width: 16px; height: 16px;"></i>
+          <span>Authorize Technician Console</span>
+        </button>
+
+        <button type="button" class="quick-fill-btn" onclick="fillTechnicianDemo()">
+          <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
+          <span>Quick Fill Demo Credentials (technician)</span>
+        </button>
+      </form>
+
+      <div class="security-notice">
+        <div style="font-weight: 700; color: #cbd5e1; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="shield-alert" style="width: 13px; height: 13px; color: #06b6d4;"></i>
+          Technical Access Scope &amp; Boundaries
+        </div>
+        Authorized strictly for MLOps engineers and RAG system administrators. Grants direct telemetry access to:
+        <div class="specs-grid">
+          <div class="spec-item">• Overview &amp; Telemetry</div>
+          <div class="spec-item">• Live Query Audit Trail</div>
+          <div class="spec-item">• Chunks Explorer</div>
+          <div class="spec-item">• System Architecture</div>
+        </div>
+        <div style="margin-top: 8px; font-size: 10px; color: #64748b;">
+          Clinical records and guideline certification remain locked exclusively to certified medical personnel.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function fillTechnicianDemo() {
+      document.getElementById('username').value = 'technician';
+      document.getElementById('password').value = 'Technician123!';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+
+</html>
+

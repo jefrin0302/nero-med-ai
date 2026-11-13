@@ -140,18 +140,22 @@
           NeuroMed AI Clinical Decision Support
         </p>
         <div
-          style="display: flex; background: var(--table-stripe); border-radius: 10px; padding: 4px; border: 1px solid var(--border); gap: 4px;">
+          style="display: flex; background: var(--table-stripe); border-radius: 10px; padding: 4px; border: 1px solid var(--border); gap: 4px; overflow-x: auto;">
           <a href="{{ url_for('login') }}"
-            style="flex: 1; text-align: center; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--text-bright); background: var(--card-bg); box-shadow: var(--shadow-sm); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-            <i data-lucide="stethoscope" style="width: 14px; height: 14px;"></i> Clinician
+            style="flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text-bright); background: var(--card-bg); box-shadow: var(--shadow-sm); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;">
+            <i data-lucide="stethoscope" style="width: 13px; height: 13px;"></i> Clinician
           </a>
           <a href="{{ url_for('lab_login') }}"
-            style="flex: 1; text-align: center; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-            <i data-lucide="flask-conical" style="width: 14px; height: 14px;"></i> Lab Staff
+            style="flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;">
+            <i data-lucide="flask-conical" style="width: 13px; height: 13px;"></i> Lab Staff
           </a>
           <a href="{{ url_for('admin_login') }}"
-            style="flex: 1; text-align: center; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-            <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> Governance
+            style="flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;">
+            <i data-lucide="shield-check" style="width: 13px; height: 13px;"></i> Chief Dr.
+          </a>
+          <a href="{{ url_for('technician_login') }}"
+            style="flex: 1; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 700; color: #0891b2; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;">
+            <i data-lucide="terminal" style="width: 13px; height: 13px;"></i> Technician
           </a>
         </div>
       </div>

@@ -954,6 +954,137 @@ def lab_login():
     return redirect(url_for("home"))
 
 
+@app.route("/technician/login", methods=["GET", "POST"])
+def technician_login():
+    """
+    Dedicated RAG Systems Technician & MLOps login portal.
+    Restricted strictly to users with role == 'technician'.
+    Includes rate-limiting, CSRF protection, and audit logging.
+    """
+    if request.method == "GET":
+        if "user_id" in session:
+            role = session.get("role")
+            if role == "technician":
+                return redirect(url_for("rag_monitor"))
+            elif role == "admin":
+                return redirect(url_for("admin_dashboard"))
+            elif role in ("clinician", "lab_staff"):
+                return redirect(url_for("about"))
+            return redirect(url_for("login"))
+        next_url = request.args.get("next") or ""
+        msg = request.args.get("message")
+        return render_template("technician_login.html", next_url=next_url, message=msg)
+
+    # POST - Technician Authentication
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        next_url = data.get("next") or ""
+    else:
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        next_url = (request.form.get("next") or request.args.get("next") or "").strip()
+
+    client_ip = get_client_ip()
+    db_path = get_active_db_path()
+
+    # Rate limiting
+    allowed, remaining_sec = check_login_rate_limit(client_ip, username)
+    if not allowed:
+        log_audit_event(
+            action="TECHNICIAN_LOGIN_RATE_LIMITED",
+            status="DENIED",
+            username=username,
+            ip_address=client_ip,
+            details=f"Technician rate limit exceeded: locked for {remaining_sec} seconds",
+            db_path=db_path
+        )
+        msg = f"Too many failed technician login attempts. Temporarily locked for {remaining_sec} seconds."
+        if request.is_json:
+            return jsonify({"success": False, "error": msg, "locked": True, "remaining_seconds": remaining_sec}), 429
+        return render_template("technician_login.html", error=msg, next_url=next_url), 429
+
+    # CSRF validation
+    if not request.is_json and app.config.get("WTF_CSRF_ENABLED", True) and not app.config.get("TESTING", False):
+        token = request.form.get("csrf_token")
+        if not validate_csrf_token(token):
+            log_audit_event(
+                action="TECHNICIAN_CSRF_VALIDATION_FAILED",
+                status="DENIED",
+                username=username,
+                ip_address=client_ip,
+                details="Invalid or missing CSRF token on /technician/login",
+                db_path=db_path
+            )
+            return render_template("technician_login.html", error="Invalid security token. Please refresh and try again.", next_url=next_url), 400
+
+    # Credential verification
+    user = verify_user_credentials(username, password, db_path=db_path)
+    if not user:
+        record_failed_login(client_ip, username)
+        log_audit_event(
+            action="TECHNICIAN_LOGIN_FAILED",
+            status="DENIED",
+            username=username,
+            ip_address=client_ip,
+            details="Invalid Technician username or password",
+            db_path=db_path
+        )
+        err_msg = "Invalid Technician console username or password."
+        if request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 401
+        return render_template("technician_login.html", error=err_msg, next_url=next_url), 401
+
+    # Verify role == 'technician'
+    if user["role"] != "technician":
+        record_failed_login(client_ip, username)
+        log_audit_event(
+            action="TECHNICIAN_PORTAL_NON_TECH_ATTEMPT",
+            status="DENIED",
+            username=username,
+            user_id=user["user_id"],
+            ip_address=client_ip,
+            details=f"User with role '{user['role']}' attempted to access Technician console",
+            db_path=db_path
+        )
+        err_msg = "Access restricted: This console is strictly for RAG systems technicians and MLOps engineers."
+        if request.is_json:
+            return jsonify({"success": False, "error": err_msg}), 403
+        return render_template("technician_login.html", error=err_msg, next_url=next_url), 403
+
+    # Authentication successful
+    clear_failed_logins(client_ip, username)
+    session.clear()
+    session["user_id"] = user["user_id"]
+    session["username"] = user["username"]
+    session["role"] = user["role"]
+    session["full_name"] = user["full_name"]
+    session["last_active"] = time.time()
+    generate_csrf_token()
+
+    log_audit_event(
+        action="TECHNICIAN_LOGIN_SUCCESS",
+        status="SUCCESS",
+        username=user["username"],
+        user_id=user["user_id"],
+        ip_address=client_ip,
+        details="RAG Systems Technician authenticated successfully",
+        db_path=db_path
+    )
+
+    if request.is_json:
+        return jsonify({"success": True, "user": user, "message": "Technician authenticated successfully"}), 200
+
+    if user.get("must_change_password") == 1:
+        return redirect(url_for("change_password"))
+
+    if next_url and is_safe_redirect_url(next_url):
+        return redirect(next_url)
+
+    return redirect(url_for("rag_monitor"))
+
+
 @app.route("/admin/dashboard", methods=["GET"])
 @roles_required("admin")
 def admin_dashboard():
@@ -2064,7 +2195,7 @@ def submit():
 # ==============================================================================
 
 @app.route("/rag/monitor", methods=["GET"])
-@roles_required("admin", "clinician")
+@roles_required("admin", "clinician", "technician")
 def rag_monitor():
     """Renders the real-time Clinical RAG Observability & Document Governance Dashboard."""
     db_path = app.config.get("DB_PATH")
@@ -2106,7 +2237,7 @@ def rag_monitor():
 
 
 @app.route("/api/rag/chunks", methods=["GET"])
-@roles_required("admin", "clinician")
+@roles_required("technician")
 def api_rag_chunks():
     """
     Read-only inspection endpoint for the active in-memory corpus passages.
@@ -2155,7 +2286,7 @@ def api_rag_chunks():
 
 
 @app.route("/api/rag/chunk_stats", methods=["GET"])
-@roles_required("admin", "clinician")
+@roles_required("technician")
 def api_rag_chunk_stats():
     """Lightweight endpoint returning global corpus metrics for initial card hydration."""
     corpus_data = rag_assistant.get_chunk_corpus(offset=0, limit=1)
@@ -2167,7 +2298,7 @@ def api_rag_chunk_stats():
 
 
 @app.route("/api/rag/simulate_chunking", methods=["POST"])
-@roles_required("admin", "clinician")
+@roles_required("technician")
 def api_rag_simulate_chunking():
     """
     Interactive simulation sandbox for testing document chunking division,
@@ -2241,7 +2372,7 @@ def api_rag_simulate_chunking():
 
 
 @app.route("/api/rag/test_retrieval", methods=["POST"])
-@roles_required("admin", "clinician")
+@roles_required("technician")
 def api_test_retrieval():
     """Diagnostic endpoint to inspect live retrieval scoring and diversification."""
     req_data = request.get_json(silent=True) or {}
@@ -2461,7 +2592,7 @@ def api_rag_reject_document(doc_id):
 
 
 @app.route("/api/rag/document/<int:doc_id>/preview", methods=["GET"])
-@roles_required("admin", "clinician")
+@roles_required("admin", "clinician", "technician")
 def api_rag_document_preview(doc_id):
     """
     Returns structured page text, word counts, and metadata for document pre-approval inspection.
@@ -2534,7 +2665,7 @@ def api_rag_document_preview(doc_id):
 
 
 @app.route("/api/rag/document/<int:doc_id>/file", methods=["GET"])
-@roles_required("admin", "clinician")
+@roles_required("admin", "clinician", "technician")
 def api_rag_document_file(doc_id):
     """Serves the raw PDF/DOCX file inline for browser preview."""
     db_path = app.config.get("DB_PATH")

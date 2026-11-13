@@ -180,7 +180,7 @@ def init_db(db_path: Optional[str] = None) -> None:
                 username TEXT UNIQUE NOT NULL COLLATE NOCASE,
                 password_hash TEXT NOT NULL,
                 full_name TEXT NOT NULL,
-                role TEXT NOT NULL CHECK(role IN ('admin', 'clinician', 'lab_staff')),
+                role TEXT NOT NULL CHECK(role IN ('admin', 'clinician', 'lab_staff', 'technician')),
                 is_active INTEGER NOT NULL DEFAULT 1,
                 must_change_password INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -188,6 +188,28 @@ def init_db(db_path: Optional[str] = None) -> None:
             );
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);")
+
+        # Schema migration check: ensure users table supports 'technician' role
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='users';")
+        user_sql_row = cursor.fetchone()
+        if user_sql_row and user_sql_row[0] and "'technician'" not in user_sql_row[0]:
+            cursor.execute("""
+                CREATE TABLE users_migrated (
+                    user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                    password_hash TEXT NOT NULL,
+                    full_name TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK(role IN ('admin', 'clinician', 'lab_staff', 'technician')),
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    must_change_password INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            cursor.execute("INSERT INTO users_migrated SELECT * FROM users;")
+            cursor.execute("DROP TABLE users;")
+            cursor.execute("ALTER TABLE users_migrated RENAME TO users;")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);")
 
         # 4. Security Audit Log Table
         cursor.execute("""
@@ -827,8 +849,8 @@ def create_user(
     if not clean_name:
         raise ValueError("Full Name is required.")
     clean_role = (role or "").strip().lower()
-    if clean_role not in ('admin', 'clinician', 'lab_staff'):
-        raise ValueError("Role must be 'admin', 'clinician', or 'lab_staff'.")
+    if clean_role not in ('admin', 'clinician', 'lab_staff', 'technician'):
+        raise ValueError("Role must be 'admin', 'clinician', 'lab_staff', or 'technician'.")
 
     pw_hash = generate_password_hash(password, method="scrypt")
     target_path = db_path or DEFAULT_DB_PATH
@@ -1004,11 +1026,13 @@ def ensure_default_accounts(db_path: Optional[str] = None) -> None:
     - clinician: Clinician123! (role: clinician)
     - admin: ChiefDoctor123! (role: admin)
     - lab_staff: Labstaff123! (role: lab_staff)
+    - technician: Technician123! (role: technician)
     """
     defaults = [
         ("clinician", "Clinician123!", "Dr. Clinician", "clinician"),
         ("admin", "ChiefDoctor123!", "Chief Doctor Admin", "admin"),
         ("lab_staff", "Labstaff123!", "Laboratory Staff", "lab_staff"),
+        ("technician", "Technician123!", "Alex Rivera (RAG Systems Technician)", "technician"),
     ]
     target_path = db_path or DEFAULT_DB_PATH
     for uname, pwd, name, role in defaults:

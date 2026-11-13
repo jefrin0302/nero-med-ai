@@ -205,15 +205,11 @@
       <ul class="nav-links" id="main-nav-links">
         <li><a class="nav-link-item" href="{{ url_for('home') }}"><i data-lucide="home"></i> Home</a></li>
         {% if current_user.is_authenticated and current_user.role == 'admin' %}
-        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical
-            Governance</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('admin_dashboard') }}"><i data-lucide="sliders"></i> Clinical Governance</a></li>
         {% endif %}
-        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic
-            Intake</a></li>
-        <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i>
-            Patient Registry</a></li>
-        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base
-            &amp; Guidelines</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('about') }}"><i data-lucide="clipboard-plus"></i> Diagnostic Intake</a></li>
+        <li><a class="nav-link-item active" href="{{ url_for('patient_dashboard') }}"><i data-lucide="users"></i> Patient Registry</a></li>
+        <li><a class="nav-link-item" href="{{ url_for('rag_monitor') }}"><i data-lucide="book-open"></i> Knowledge Base &amp; Guidelines</a></li>
       </ul>
 
       <div class="nav-right-actions">

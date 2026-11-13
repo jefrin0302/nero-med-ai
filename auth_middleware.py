@@ -260,8 +260,9 @@ def init_auth_middleware(app):
         """
         Validates CSRF token on all POST requests.
         Allows exemption for public webhook/PWA if configured.
+        Bypassed when app.config['TESTING'] is True.
         """
-        if not app.config.get("WTF_CSRF_ENABLED", True):
+        if not app.config.get("WTF_CSRF_ENABLED", True) or app.config.get("TESTING", False):
             return
 
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):

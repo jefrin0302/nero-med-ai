@@ -200,15 +200,18 @@
       </div>
 
       <!-- PORTAL SWITCHER -->
-      <div class="portal-toggle">
-        <a href="{{ url_for('login') }}" class="portal-toggle-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-          <i data-lucide="stethoscope" style="width: 14px; height: 14px;"></i> Clinician
+      <div class="portal-toggle" style="display: grid; grid-template-columns: repeat(4, 1fr);">
+        <a href="{{ url_for('login') }}" class="portal-toggle-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 11.5px;">
+          <i data-lucide="stethoscope" style="width: 13px; height: 13px;"></i> Clinician
         </a>
-        <a href="{{ url_for('lab_login') }}" class="portal-toggle-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-          <i data-lucide="flask-conical" style="width: 14px; height: 14px;"></i> Lab Staff
+        <a href="{{ url_for('lab_login') }}" class="portal-toggle-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 11.5px;">
+          <i data-lucide="flask-conical" style="width: 13px; height: 13px;"></i> Lab Staff
         </a>
-        <a href="{{ url_for('admin_login') }}" class="portal-toggle-btn active" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-          <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> Governance
+        <a href="{{ url_for('admin_login') }}" class="portal-toggle-btn active" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 11.5px;">
+          <i data-lucide="shield-check" style="width: 13px; height: 13px;"></i> Chief Dr.
+        </a>
+        <a href="{{ url_for('technician_login') }}" class="portal-toggle-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 11.5px; color: #22d3ee;">
+          <i data-lucide="terminal" style="width: 13px; height: 13px;"></i> Technician
         </a>
       </div>
 
